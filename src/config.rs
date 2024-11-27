@@ -15,7 +15,7 @@ impl HFConfig {
 
     pub fn get_voices_url(&self) -> String {
         format!(
-            "{}/blob/{}{}",
+            "{}/resolve/{}{}",
             self.base_url, self.version, self.voices_json
         )
     }

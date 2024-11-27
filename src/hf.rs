@@ -12,7 +12,7 @@ impl HuggingFace {
         }
     }
 
-    fn get_avaliable_voices(&self) {
+    pub fn get_avaliable_voices(&self) {
         let voices_url = self.config.get_voices_url();
 
         match Downloader::download_file(voices_url) {
