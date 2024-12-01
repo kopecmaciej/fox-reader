@@ -1,4 +1,4 @@
-use gtk::glib::{self, clone};
+use gtk::glib::{self, closure_local};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Button, Label, ListBox, ListBoxRow};
 
@@ -51,15 +51,21 @@ impl UI {
                 .build();
 
             let download_button = Button::with_label("Download");
-            download_button.connect_clicked(clone!(@weak row => move |_| {
-                // Handle download button click
-                println!("Downloading voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
+            download_button.connect_clicked(closure_local!(move |_| {
+                if let Some(box_child) = row.child().and_then(|w| w.downcast::<gtk::Box>().ok()) {
+                    if let Some(label) = box_child.first_child().and_then(|w| w.downcast::<Label>().ok()) {
+                        println!("Downloading voice: {}", label.text());
+                    }
+                }
             }));
 
             let remove_button = Button::with_label("Remove");
-            remove_button.connect_clicked(clone!(@weak row => move |_| {
-                // Handle remove button click
-                println!("Removing voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
+            remove_button.connect_clicked(closure_local!(move |_| {
+                if let Some(box_child) = row.child().and_then(|w| w.downcast::<gtk::Box>().ok()) {
+                    if let Some(label) = box_child.first_child().and_then(|w| w.downcast::<Label>().ok()) {
+                        println!("Removing voice: {}", label.text());
+                    }
+                }
             }));
 
             let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
