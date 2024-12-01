@@ -1,9 +1,9 @@
-use gtk::glib::{self, clone};
+use gtk::glib;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Button, Label, ListBox, ListBoxRow};
-use std::error::Error;
 
 use crate::hf::HuggingFace;
+use std::error::Error;
 
 const APP_ID: &str = "piper-reader";
 
@@ -51,15 +51,15 @@ impl UI {
                 .build();
 
             let download_button = Button::with_label("Download");
-            let voice_name = voice.name.clone();
-            download_button.connect_clicked(clone!(@strong voice_name => move |_| {
-                println!("Downloading voice: {}", voice_name);
+            download_button.connect_clicked(clone!(@weak row => move |_| {
+                // Handle download button click
+                println!("Downloading voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
             }));
 
             let remove_button = Button::with_label("Remove");
-            let voice_name = voice.name.clone();
-            remove_button.connect_clicked(clone!(@strong voice_name => move |_| {
-                println!("Removing voice: {}", voice_name);
+            remove_button.connect_clicked(clone!(@weak row => move |_| {
+                // Handle remove button click
+                println!("Removing voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
             }));
 
             let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
@@ -75,10 +75,10 @@ impl UI {
     }
 
     pub fn run(&self) -> glib::ExitCode {
-        self.app.connect_activate(clone!(@strong self.app as app => move |_| {
-            let ui = UI { app };
+        self.app.connect_activate(|app| {
+            let ui = UI { app: app.clone() };
             ui.build_ui();
-        }));
+        });
 
         self.app.run()
     }
