@@ -1,6 +1,6 @@
 use gtk::glib;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Label, ListBox};
+use gtk::{Application, ApplicationWindow, Button, Label, ListBox, ListBoxRow};
 
 use crate::hf::HuggingFace;
 use std::error::Error;
@@ -40,6 +40,8 @@ impl UI {
         let voices = hf.parse_avaliable_voices()?;
 
         for voice in voices {
+            let row = ListBoxRow::new();
+
             let label = Label::builder()
                 .label(voice.name)
                 .margin_top(6)
@@ -48,7 +50,25 @@ impl UI {
                 .margin_end(12)
                 .build();
 
-            list_box.append(&label);
+            let download_button = Button::with_label("Download");
+            download_button.connect_clicked(clone!(@weak row => move |_| {
+                // Handle download button click
+                println!("Downloading voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
+            }));
+
+            let remove_button = Button::with_label("Remove");
+            remove_button.connect_clicked(clone!(@weak row => move |_| {
+                // Handle remove button click
+                println!("Removing voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
+            }));
+
+            let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+            hbox.append(&label);
+            hbox.append(&download_button);
+            hbox.append(&remove_button);
+
+            row.set_child(Some(&hbox));
+            list_box.append(&row);
         }
 
         Ok(())
