@@ -1,4 +1,4 @@
-use gtk::glib;
+use gtk::glib::{self, clone};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Button, Label, ListBox, ListBoxRow};
 
