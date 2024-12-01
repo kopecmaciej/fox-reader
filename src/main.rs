@@ -6,5 +6,8 @@ mod hf;
 
 fn main() {
     let hf = HuggingFace::new();
-    hf.get_avaliable_voices();
+    match hf.parse_avaliable_voices() {
+        Ok(_) => println!("It's ok"),
+        Err(e) => panic!("{e}"),
+    }
 }

@@ -13,7 +13,8 @@ impl Downloader {
         Ok(response)
     }
 
-    pub fn save_file(save_path: String, mut res: Response) -> Result<(), String> {
+    pub fn save_file(save_path: &str, mut res: Response) -> Result<(), String> {
+        println!("{save_path}");
         let mut file = match File::create(save_path) {
             Ok(file) => file,
             Err(e) => return Err(format!("Failed to create file: {}", e)),

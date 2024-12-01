@@ -19,4 +19,8 @@ impl HFConfig {
             self.base_url, self.version, self.voices_json
         )
     }
+
+    pub fn get_voice_url(&self, path: &String) -> String {
+        format!("{}/resolve/main/{}", self.base_url, path)
+    }
 }
