@@ -40,4 +40,12 @@ impl UI {
         // Present window
         window.present();
     }
+
+    pub fn run(&self) -> glib::ExitCode {
+        self.app.connect_activate(move |_| {
+            self.build_ui();
+        });
+
+        self.app.run()
+    }
 }
