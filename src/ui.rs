@@ -1,8 +1,6 @@
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Button, Label, ListBox, ListBoxRow};
-
-use crate::hf::HuggingFace;
 use std::error::Error;
 
 const APP_ID: &str = "piper-reader";
@@ -51,13 +49,13 @@ impl UI {
                 .build();
 
             let download_button = Button::with_label("Download");
-            download_button.connect_clicked(clone!(@weak row => move |_| {
+            download_button.connect_clicked(glib::clone!(@weak row => move |_| {
                 // Handle download button click
                 println!("Downloading voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
             }));
 
             let remove_button = Button::with_label("Remove");
-            remove_button.connect_clicked(clone!(@weak row => move |_| {
+            remove_button.connect_clicked(glib::clone!(@weak row => move |_| {
                 // Handle remove button click
                 println!("Removing voice: {}", row.get_child().unwrap().downcast::<Label>().unwrap().get_text().unwrap());
             }));
