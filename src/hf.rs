@@ -15,7 +15,7 @@ struct File {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Voices {
+pub struct Voice {
     key: String,
     name: String,
     quality: String,
@@ -37,29 +37,11 @@ impl HuggingFace {
         Ok(voices_file.text()?)
     }
 
-    pub fn parse_avaliable_voices(&self) -> Result<Value, Box<dyn Error>> {
+    pub fn parse_avaliable_voices(&self) -> Result<Vec<Voice>, Box<dyn Error>> {
         let raw_json = self.get_avaliable_voices()?;
-        let json_data: Value = serde_json::from_str(&raw_json)?;
-        let flatten_json: HashMap<String, Voices> = serde_json::from_value(json_data.clone())?;
-
-        for voices in flatten_json.values() {
-            for (f, _) in voices.files.iter() {
-                let voice_url = self.config.get_voice_url(f);
-                println!("{}", voice_url);
-
-                let file_name = std::path::Path::new(&f)
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .ok_or_else(|| format!("Invalid file name: {}", f))?;
-
-                if let Err(e) = Downloader::download_file(voice_url.clone())
-                    .and_then(|res| Downloader::save_file(&file_name, res))
-                {
-                    return Err(format!("Failed to download  to file: {}", e).into());
-                }
-            }
-        }
-
-        Ok(json_data)
+        let value_data: Value = serde_json::from_str(&raw_json)?;
+        let voice_map: HashMap<String, Voice> = serde_json::from_value(value_data.clone())?;
+        let voices: Vec<Voice> = voice_map.into_iter().map(|(_, v)| v).collect();
+        Ok(voices)
     }
 }

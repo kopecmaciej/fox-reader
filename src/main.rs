@@ -20,7 +20,9 @@ fn main() -> glib::ExitCode {
     let app = Application::builder().application_id(APP_ID).build();
     let ui = UI::new();
 
-    app.connect_activate(ui.build_ui());
+    app.connect_activate(|app| {
+        ui.build_ui(app);
+    });
 
     app.run()
 }
