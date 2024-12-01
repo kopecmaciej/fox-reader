@@ -1,8 +1,8 @@
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::{
-    Application, ApplicationWindow, Box as GtkBox, Button, Label, ListBox,
-    Orientation, SelectionMode,
+    Application, ApplicationWindow, Box as GtkBox, Button, Label, ListBox, Orientation,
+    SelectionMode,
 };
 
 use crate::hf::{HuggingFace, Voice};
@@ -21,57 +21,51 @@ impl UI {
         }
     }
 
-    pub fn run(&self) -> glib::ExitCode {
-        self.app.connect_activate(glib::clone!(@weak self.app as app => move |_| {
-            let window = self.build_window(&app);
+    pub fn run(self) -> glib::ExitCode {
+        let app_weak = self.app.downgrade();
+        self.app.connect_activate(move |_| {
+            let app = app_weak.upgrade().expect("Application not found");
+            let window = ApplicationWindow::builder()
+                .application(&app)
+                .title("Piper Reader")
+                .default_width(600)
+                .default_height(400)
+                .build();
+
+            let list_box = ListBox::builder()
+                .selection_mode(SelectionMode::None)
+                .margin_top(12)
+                .margin_bottom(12)
+                .margin_start(12)
+                .margin_end(12)
+                .build();
+
+            if let Err(e) = UI::populate_voices(&list_box) {
+                eprintln!("Error populating voices: {}", e);
+                UI::show_error_in_list(&list_box, &e.to_string());
+            }
+
+            window.set_child(Some(&list_box));
             window.present();
-        }));
+        });
 
         self.app.run()
     }
 
-    fn build_window(&self, app: &Application) -> ApplicationWindow {
-        // Create main window
-        let window = ApplicationWindow::builder()
-            .application(app)
-            .title("Piper Reader")
-            .default_width(600)
-            .default_height(400)
-            .build();
-
-        // Create and configure list box
-        let list_box = ListBox::builder()
-            .selection_mode(SelectionMode::None)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
-            .build();
-
-        // Populate voices
-        if let Err(e) = self.populate_voices(&list_box) {
-            eprintln!("Error populating voices: {}", e);
-            self.show_error_in_list(&list_box, &e.to_string());
-        }
-
-        window.set_child(Some(&list_box));
-        window
-    }
-
-    fn populate_voices(&self, list_box: &ListBox) -> Result<(), Box<dyn Error>> {
+    fn populate_voices(list_box: &ListBox) -> Result<(), Box<dyn Error>> {
         let hf = HuggingFace::new();
         let voices = hf.parse_avaliable_voices()?;
 
         for voice in voices {
-            self.add_voice_row(list_box, voice);
+            UI::add_voice_row(list_box, voice);
         }
 
         Ok(())
     }
 
-    fn add_voice_row(&self, list_box: &ListBox, voice: Voice) {
+    fn add_voice_row(list_box: &ListBox, voice: Voice) {
         let voice_name = voice.name.clone();
-        
+
         // Create row container
         let row_box = GtkBox::builder()
             .orientation(Orientation::Horizontal)
@@ -92,22 +86,24 @@ impl UI {
 
         // Add download button
         let download_button = Button::with_label("Download");
-        download_button.connect_clicked(glib::clone!(@strong voice_name => move |_| {
-            println!("Downloading voice: {}", voice_name);
-        }));
+        let voice_name_download = voice_name.clone();
+        download_button.connect_clicked(move |_| {
+            println!("Downloading voice: {}", voice_name_download);
+        });
         row_box.append(&download_button);
 
         // Add remove button
         let remove_button = Button::with_label("Remove");
-        remove_button.connect_clicked(glib::clone!(@strong voice_name => move |_| {
-            println!("Removing voice: {}", voice_name);
-        }));
+        let voice_name_remove = voice_name.clone();
+        remove_button.connect_clicked(move |_| {
+            println!("Removing voice: {}", voice_name_remove);
+        });
         row_box.append(&remove_button);
 
         list_box.append(&row_box);
     }
 
-    fn show_error_in_list(&self, list_box: &ListBox, error_msg: &str) {
+    fn show_error_in_list(list_box: &ListBox, error_msg: &str) {
         let error_box = GtkBox::builder()
             .orientation(Orientation::Horizontal)
             .spacing(12)

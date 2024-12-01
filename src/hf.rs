@@ -17,7 +17,7 @@ struct File {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Voice {
     key: String,
-    name: String,
+    pub name: String,
     quality: String,
     files: HashMap<String, File>,
 }
