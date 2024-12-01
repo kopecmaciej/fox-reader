@@ -16,7 +16,6 @@ impl UI {
     }
 
     pub fn build_ui(&self) {
-        // Create a button with label and margins
         let button = Button::builder()
             .label("Press me!")
             .margin_top(12)
@@ -25,26 +24,23 @@ impl UI {
             .margin_end(12)
             .build();
 
-        // Connect to "clicked" signal of `button`
         button.connect_clicked(|button| {
-            // Set the label to "Hello World!" after the button has been clicked on
             button.set_label("Hello World!");
         });
 
-        // Create a window
         let window = ApplicationWindow::builder()
             .application(&self.app)
             .title("My GTK App")
             .child(&button)
             .build();
 
-        // Present window
         window.present();
     }
 
     pub fn run(&self) -> glib::ExitCode {
-        self.app.connect_activate(move |_| {
-            self.build_ui();
+        self.app.connect_activate(|app| {
+            let ui = UI { app: app.clone() };
+            ui.build_ui();
         });
 
         self.app.run()

@@ -1,6 +1,6 @@
 use crate::hf::HuggingFace;
 use crate::ui::UI;
-use gtk::prelude::*;
+use gtk::glib;
 
 mod config;
 mod downloader;
