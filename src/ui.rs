@@ -1,7 +1,9 @@
 use gtk::glib;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Button, ListBox, Label};
-use std::collections::HashMap;
+use gtk::{Application, ApplicationWindow, Label, ListBox};
+
+use crate::hf::HuggingFace;
+use std::error::Error;
 
 const APP_ID: &str = "piper-reader";
 
@@ -17,31 +19,16 @@ impl UI {
     }
 
     pub fn build_ui(&self) {
-        let button = Button::builder()
-            .label("Press me!")
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
-            .build();
-
-        button.connect_clicked(|button| {
-            button.set_label("Hello World!");
-        });
-
         let list_box = ListBox::new();
         list_box.set_selection_mode(gtk::SelectionMode::None);
 
-        button.connect_clicked(move |_| {
-            if let Err(e) = self.fetch_and_display_voices(&list_box) {
-                eprintln!("Error fetching and displaying voices: {}", e);
-            }
-        });
+        if let Err(e) = self.fetch_and_display_voices(&list_box) {
+            eprintln!("Error fetching and displaying voices: {}", e);
+        }
 
         let window = ApplicationWindow::builder()
             .application(&self.app)
-            .title("My GTK App")
-            .child(&button)
+            .title("Piper Reader")
             .child(&list_box)
             .build();
 
@@ -54,7 +41,7 @@ impl UI {
 
         for voice in voices {
             let label = Label::builder()
-                .label(&voice.name)
+                .label(voice.name)
                 .margin_top(6)
                 .margin_bottom(6)
                 .margin_start(12)
