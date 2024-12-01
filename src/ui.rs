@@ -1,11 +1,14 @@
-use gtk::glib::{self, closure_local};
+use gtk::glib;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Button, Label, ListBox, ListBoxRow};
+use gtk::{
+    Application, ApplicationWindow, Box as GtkBox, Button, Label, ListBox,
+    Orientation, SelectionMode,
+};
 
-use crate::hf::HuggingFace;
+use crate::hf::{HuggingFace, Voice};
 use std::error::Error;
 
-const APP_ID: &str = "piper-reader";
+const APP_ID: &str = "org.piper.reader";
 
 pub struct UI {
     app: Application,
@@ -18,74 +21,109 @@ impl UI {
         }
     }
 
-    pub fn build_ui(&self) {
-        let list_box = ListBox::new();
-        list_box.set_selection_mode(gtk::SelectionMode::None);
+    pub fn run(&self) -> glib::ExitCode {
+        self.app.connect_activate(glib::clone!(@weak self.app as app => move |_| {
+            let window = self.build_window(&app);
+            window.present();
+        }));
 
-        if let Err(e) = self.fetch_and_display_voices(&list_box) {
-            eprintln!("Error fetching and displaying voices: {}", e);
-        }
-
-        let window = ApplicationWindow::builder()
-            .application(&self.app)
-            .title("Piper Reader")
-            .child(&list_box)
-            .build();
-
-        window.present();
+        self.app.run()
     }
 
-    fn fetch_and_display_voices(&self, list_box: &ListBox) -> Result<(), Box<dyn Error>> {
+    fn build_window(&self, app: &Application) -> ApplicationWindow {
+        // Create main window
+        let window = ApplicationWindow::builder()
+            .application(app)
+            .title("Piper Reader")
+            .default_width(600)
+            .default_height(400)
+            .build();
+
+        // Create and configure list box
+        let list_box = ListBox::builder()
+            .selection_mode(SelectionMode::None)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
+
+        // Populate voices
+        if let Err(e) = self.populate_voices(&list_box) {
+            eprintln!("Error populating voices: {}", e);
+            self.show_error_in_list(&list_box, &e.to_string());
+        }
+
+        window.set_child(Some(&list_box));
+        window
+    }
+
+    fn populate_voices(&self, list_box: &ListBox) -> Result<(), Box<dyn Error>> {
         let hf = HuggingFace::new();
         let voices = hf.parse_avaliable_voices()?;
 
         for voice in voices {
-            let row = ListBoxRow::new();
-
-            let label = Label::builder()
-                .label(voice.name)
-                .margin_top(6)
-                .margin_bottom(6)
-                .margin_start(12)
-                .margin_end(12)
-                .build();
-
-            let download_button = Button::with_label("Download");
-            download_button.connect_clicked(closure_local!(move |_| {
-                if let Some(box_child) = row.child().and_then(|w| w.downcast::<gtk::Box>().ok()) {
-                    if let Some(label) = box_child.first_child().and_then(|w| w.downcast::<Label>().ok()) {
-                        println!("Downloading voice: {}", label.text());
-                    }
-                }
-            }));
-
-            let remove_button = Button::with_label("Remove");
-            remove_button.connect_clicked(closure_local!(move |_| {
-                if let Some(box_child) = row.child().and_then(|w| w.downcast::<gtk::Box>().ok()) {
-                    if let Some(label) = box_child.first_child().and_then(|w| w.downcast::<Label>().ok()) {
-                        println!("Removing voice: {}", label.text());
-                    }
-                }
-            }));
-
-            let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-            hbox.append(&label);
-            hbox.append(&download_button);
-            hbox.append(&remove_button);
-
-            row.set_child(Some(&hbox));
-            list_box.append(&row);
+            self.add_voice_row(list_box, voice);
         }
 
         Ok(())
     }
 
-    pub fn run(&self) -> glib::ExitCode {
-        self.app.connect_activate(|app| {
-            let ui = UI { app: app.clone() };
-            ui.build_ui();
-        });
+    fn add_voice_row(&self, list_box: &ListBox, voice: Voice) {
+        let voice_name = voice.name.clone();
+        
+        // Create row container
+        let row_box = GtkBox::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(12)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .build();
 
-        self.app.run()
+        // Add voice name label
+        let label = Label::builder()
+            .label(&voice_name)
+            .halign(gtk::Align::Start)
+            .hexpand(true)
+            .build();
+        row_box.append(&label);
+
+        // Add download button
+        let download_button = Button::with_label("Download");
+        download_button.connect_clicked(glib::clone!(@strong voice_name => move |_| {
+            println!("Downloading voice: {}", voice_name);
+        }));
+        row_box.append(&download_button);
+
+        // Add remove button
+        let remove_button = Button::with_label("Remove");
+        remove_button.connect_clicked(glib::clone!(@strong voice_name => move |_| {
+            println!("Removing voice: {}", voice_name);
+        }));
+        row_box.append(&remove_button);
+
+        list_box.append(&row_box);
+    }
+
+    fn show_error_in_list(&self, list_box: &ListBox, error_msg: &str) {
+        let error_box = GtkBox::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(12)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .build();
+
+        let error_label = Label::builder()
+            .label(&format!("Error: {}", error_msg))
+            .halign(gtk::Align::Start)
+            .hexpand(true)
+            .build();
+
+        error_box.append(&error_label);
+        list_box.append(&error_box);
     }
 }
