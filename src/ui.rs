@@ -1,6 +1,7 @@
 use gtk::glib;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Button};
+use gtk::{Application, ApplicationWindow, Button, ListBox, Label};
+use std::collections::HashMap;
 
 const APP_ID: &str = "piper-reader";
 
@@ -28,13 +29,42 @@ impl UI {
             button.set_label("Hello World!");
         });
 
+        let list_box = ListBox::new();
+        list_box.set_selection_mode(gtk::SelectionMode::None);
+
+        button.connect_clicked(move |_| {
+            if let Err(e) = self.fetch_and_display_voices(&list_box) {
+                eprintln!("Error fetching and displaying voices: {}", e);
+            }
+        });
+
         let window = ApplicationWindow::builder()
             .application(&self.app)
             .title("My GTK App")
             .child(&button)
+            .child(&list_box)
             .build();
 
         window.present();
+    }
+
+    fn fetch_and_display_voices(&self, list_box: &ListBox) -> Result<(), Box<dyn Error>> {
+        let hf = HuggingFace::new();
+        let voices = hf.parse_avaliable_voices()?;
+
+        for voice in voices {
+            let label = Label::builder()
+                .label(&voice.name)
+                .margin_top(6)
+                .margin_bottom(6)
+                .margin_start(12)
+                .margin_end(12)
+                .build();
+
+            list_box.append(&label);
+        }
+
+        Ok(())
     }
 
     pub fn run(&self) -> glib::ExitCode {
