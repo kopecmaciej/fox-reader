@@ -1,13 +1,26 @@
-use hf::HuggingFace;
+use crate::hf::HuggingFace;
+use crate::ui::UI;
+use gtk::prelude::*;
+use gtk::{glib, Application};
 
 mod config;
 mod downloader;
 mod hf;
+mod ui;
 
-fn main() {
+const APP_ID: &str = "piper-reader";
+
+fn main() -> glib::ExitCode {
     let hf = HuggingFace::new();
     match hf.parse_avaliable_voices() {
-        Ok(_) => println!("It's ok"),
+        Ok(v) => println!("{:?}", v),
         Err(e) => panic!("{e}"),
     }
+
+    let app = Application::builder().application_id(APP_ID).build();
+    let ui = UI::new();
+
+    app.connect_activate(ui.build_ui());
+
+    app.run()
 }
