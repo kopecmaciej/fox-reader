@@ -66,7 +66,6 @@ impl UI {
     fn add_voice_row(list_box: &ListBox, voice: Voice) {
         let voice_name = voice.name.clone();
 
-        // Create row container
         let row_box = GtkBox::builder()
             .orientation(Orientation::Horizontal)
             .spacing(12)
@@ -76,7 +75,6 @@ impl UI {
             .margin_end(6)
             .build();
 
-        // Add voice name label
         let label = Label::builder()
             .label(&voice_name)
             .halign(gtk::Align::Start)
@@ -84,7 +82,6 @@ impl UI {
             .build();
         row_box.append(&label);
 
-        // Add download button
         let download_button = Button::with_label("Download");
         let voice_name_download = voice_name.clone();
         download_button.connect_clicked(move |_| {
@@ -92,7 +89,6 @@ impl UI {
         });
         row_box.append(&download_button);
 
-        // Add remove button
         let remove_button = Button::with_label("Remove");
         let voice_name_remove = voice_name.clone();
         remove_button.connect_clicked(move |_| {
