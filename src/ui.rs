@@ -2,7 +2,7 @@ use gtk::glib;
 use gtk::prelude::*;
 use gtk::{
     Application, ApplicationWindow, Box as GtkBox, Button, Label, ListBox, Orientation,
-    SelectionMode,
+    ScrolledWindow, SelectionMode,
 };
 
 use crate::hf::{HuggingFace, Voice};
@@ -40,12 +40,18 @@ impl UI {
                 .margin_end(12)
                 .build();
 
+            let scrolled_window = ScrolledWindow::builder()
+                .hscrollbar_policy(gtk::PolicyType::Never)
+                .vscrollbar_policy(gtk::PolicyType::Automatic)
+                .child(&list_box)
+                .build();
+
             if let Err(e) = UI::populate_voices(&list_box) {
                 eprintln!("Error populating voices: {}", e);
                 UI::show_error_in_list(&list_box, &e.to_string());
             }
 
-            window.set_child(Some(&list_box));
+            window.set_child(Some(&scrolled_window));
             window.present();
         });
 
