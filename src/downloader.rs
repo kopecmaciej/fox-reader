@@ -20,9 +20,10 @@ impl Downloader {
             Err(e) => return Err(format!("Failed to create file: {}", e)),
         };
 
-        match copy(&mut res, &mut file) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to copy data to file: {}", e)),
+        if let Err(e) = copy(&mut res, &mut file) {
+            return Err(format!("Failed to copy data to file: {}", e));
         }
+
+        Ok(())
     }
 }

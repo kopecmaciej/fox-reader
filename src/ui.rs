@@ -5,6 +5,7 @@ use gtk::{
     ScrolledWindow, SelectionMode,
 };
 
+use crate::downloader::Downloader; // Add this line
 use crate::hf::{HuggingFace, Voice};
 use std::error::Error;
 
@@ -91,7 +92,34 @@ impl UI {
         let download_button = Button::with_label("Download");
         let voice_name_download = voice_name.clone();
         download_button.connect_clicked(move |_| {
-            println!("Downloading voice: {}", voice_name_download);
+            let hf = HuggingFace::new();
+            match hf.get_avaliable_voices() {
+                Ok(raw_json) => {
+                    let value_data: serde_json::Value = serde_json::from_str(&raw_json).unwrap();
+                    if let Some(voice_url) = value_data[&voice_name_download].as_str() {
+                        let save_path = format!("./downloads/{}.wav", voice_name_download);
+                        match Downloader::download_file(voice_url.to_string()) {
+                            Ok(response) => {
+                                if let Err(e) = Downloader::save_file(&save_path, response) {
+                                    eprintln!("Failed to save file: {}", e);
+                                    UI::show_error_in_list(&list_box, &e.to_string());
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to download file: {}", e);
+                                UI::show_error_in_list(&list_box, &e.to_string());
+                            }
+                        }
+                    } else {
+                        eprintln!("Voice URL not found for: {}", voice_name_download);
+                        UI::show_error_in_list(&list_box, &format!("Voice URL not found for: {}", voice_name_download));
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error getting available voices: {}", e);
+                    UI::show_error_in_list(&list_box, &e.to_string());
+                }
+            }
         });
         row_box.append(&download_button);
 

@@ -7,7 +7,6 @@ mod hf;
 mod ui;
 
 fn main() -> glib::ExitCode {
-    let ui = UI::new();
-    ui.run()
+    UI::new().run()
 }
 
