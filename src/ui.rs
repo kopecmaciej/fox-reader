@@ -8,6 +8,7 @@ use gtk::{
 use crate::downloader::Downloader; // Add this line
 use crate::hf::{HuggingFace, Voice};
 use std::error::Error;
+use std::sync::{Arc, Mutex}; // Add these lines
 
 const APP_ID: &str = "org.piper.reader";
 
@@ -63,14 +64,15 @@ impl UI {
         let hf = HuggingFace::new();
         let voices = hf.parse_avaliable_voices()?;
 
+        let list_box_arc = Arc::new(Mutex::new(list_box.clone())); // Wrap ListBox in Arc<Mutex>
         for voice in voices {
-            UI::add_voice_row(list_box, voice);
+            UI::add_voice_row(Arc::clone(&list_box_arc), voice); // Clone the Arc
         }
 
         Ok(())
     }
 
-    fn add_voice_row(list_box: &ListBox, voice: Voice) {
+    fn add_voice_row(list_box: Arc<Mutex<ListBox>>, voice: Voice) {
         let voice_name = voice.name.clone();
 
         let row_box = GtkBox::builder()
@@ -91,6 +93,7 @@ impl UI {
 
         let download_button = Button::with_label("Download");
         let voice_name_download = voice_name.clone();
+        let list_box_clone = Arc::clone(&list_box); // Clone the Arc
         download_button.connect_clicked(move |_| {
             let hf = HuggingFace::new();
             match hf.get_avaliable_voices() {
@@ -102,22 +105,22 @@ impl UI {
                             Ok(response) => {
                                 if let Err(e) = Downloader::save_file(&save_path, response) {
                                     eprintln!("Failed to save file: {}", e);
-                                    UI::show_error_in_list(&list_box, &e.to_string());
+                                    UI::show_error_in_list(&list_box_clone.lock().unwrap(), &e.to_string());
                                 }
                             }
                             Err(e) => {
                                 eprintln!("Failed to download file: {}", e);
-                                UI::show_error_in_list(&list_box, &e.to_string());
+                                UI::show_error_in_list(&list_box_clone.lock().unwrap(), &e.to_string());
                             }
                         }
                     } else {
                         eprintln!("Voice URL not found for: {}", voice_name_download);
-                        UI::show_error_in_list(&list_box, &format!("Voice URL not found for: {}", voice_name_download));
+                        UI::show_error_in_list(&list_box_clone.lock().unwrap(), &format!("Voice URL not found for: {}", voice_name_download));
                     }
                 }
                 Err(e) => {
                     eprintln!("Error getting available voices: {}", e);
-                    UI::show_error_in_list(&list_box, &e.to_string());
+                    UI::show_error_in_list(&list_box_clone.lock().unwrap(), &e.to_string());
                 }
             }
         });
@@ -130,7 +133,7 @@ impl UI {
         });
         row_box.append(&remove_button);
 
-        list_box.append(&row_box);
+        list_box.lock().unwrap().append(&row_box); // Use lock to access the ListBox
     }
 
     fn show_error_in_list(list_box: &ListBox, error_msg: &str) {
