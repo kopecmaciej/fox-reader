@@ -10,6 +10,15 @@ pub struct HuggingFace {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct Language {
+    code: String,
+    region: String,
+    name_native: String,
+    name_english: String,
+    country_english: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct File {
     size_bytes: u64,
 }
@@ -18,6 +27,7 @@ struct File {
 pub struct Voice {
     key: String,
     pub name: String,
+    language: Language,
     quality: String,
     files: HashMap<String, File>,
 }
