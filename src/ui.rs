@@ -1,8 +1,10 @@
-use gtk::{prelude::*, Button, Orientation};
-use gtk::{Application, ApplicationWindow, Box as GtkBox, ListBox, ScrolledWindow};
+use gtk::{
+    prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, ListBox,
+    Orientation, ScrolledWindow,
+};
 use std::error::Error;
 
-use crate::hf::HuggingFace;
+use crate::hf::{HuggingFace, Voice};
 
 pub struct UI {
     window: ApplicationWindow,
@@ -49,26 +51,45 @@ impl UI {
         let list_box = ListBox::builder().build();
 
         for voice in voices {
-            let row_box = GtkBox::builder()
-                .orientation(Orientation::Horizontal)
-                .spacing(12)
-                .margin_top(6)
-                .margin_bottom(6)
-                .margin_start(6)
-                .margin_end(6)
-                .build();
-
-            let download_button = Button::with_label("Download");
-            let remove_button = Button::with_label("Remove");
-            let row = gtk::Label::new(Some(&voice.name));
-
-            row_box.append(&row);
-            row_box.append(&download_button);
-            row_box.append(&remove_button);
-
+            let row_box = self.add_voice_row(voice);
             list_box.append(&row_box);
         }
 
         Ok(list_box)
+    }
+
+    fn add_voice_row(&self, voice: Voice) -> GtkBox {
+        let row_box = GtkBox::builder()
+            .orientation(Orientation::Horizontal)
+            .spacing(12)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .halign(gtk::Align::Center)
+            .valign(gtk::Align::Center)
+            .build();
+
+        let download_button = self.add_download_button();
+        let remove_button = Button::with_label("Remove");
+        let row = gtk::Label::new(Some(&voice.key));
+
+        row_box.append(&row);
+        row_box.append(&download_button);
+        row_box.append(&remove_button);
+
+        row_box
+    }
+
+    fn add_download_button(&self) -> Button {
+        let download_button = Button::with_label("Download");
+        let window = self.window.clone();
+        download_button.connect_clicked(move |_| {});
+        download_button
+    }
+
+    fn _show_download_alert(window: &ApplicationWindow, dialog: &str) {
+        let alert_dialog = AlertDialog::builder().modal(true).detail(dialog).build();
+        alert_dialog.show(Some(window));
     }
 }

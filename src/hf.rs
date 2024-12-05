@@ -2,7 +2,7 @@ use crate::config::HFConfig;
 use crate::downloader::Downloader;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 
 pub struct HuggingFace {
@@ -25,7 +25,7 @@ struct File {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Voice {
-    key: String,
+    pub key: String,
     pub name: String,
     language: Language,
     quality: String,
@@ -50,7 +50,7 @@ impl HuggingFace {
     pub fn parse_avaliable_voices(&self) -> Result<Vec<Voice>, Box<dyn Error>> {
         let raw_json = self.get_avaliable_voices()?;
         let value_data: Value = serde_json::from_str(&raw_json)?;
-        let voice_map: HashMap<String, Voice> = serde_json::from_value(value_data.clone())?;
+        let voice_map: BTreeMap<String, Voice> = serde_json::from_value(value_data.clone())?;
         let voices: Vec<Voice> = voice_map.into_iter().map(|(_, v)| v).collect();
         Ok(voices)
     }
