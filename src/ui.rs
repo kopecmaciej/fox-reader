@@ -2,25 +2,25 @@ use gtk::{
     prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, ListBox,
     Orientation, ScrolledWindow,
 };
-use std::error::Error;
+use std::{error::Error, rc::Rc};
 
 use crate::hf::{HuggingFace, Voice};
 
 pub struct UI {
     window: ApplicationWindow,
-    hf: HuggingFace,
+    hf: Rc<HuggingFace>,
 }
 
 impl UI {
     pub fn new(app: &Application) -> Self {
-        let hf = HuggingFace::new();
-
         let window = ApplicationWindow::builder()
             .application(app)
             .title("Piper Reader")
             .build();
 
         window.present();
+
+        let hf = Rc::new(HuggingFace::new());
 
         Self { hf, window }
     }
@@ -50,7 +50,7 @@ impl UI {
 
         let list_box = ListBox::builder().build();
 
-        for voice in voices {
+        for (_, voice) in voices {
             let row_box = self.add_voice_row(voice);
             list_box.append(&row_box);
         }
@@ -59,6 +59,7 @@ impl UI {
     }
 
     fn add_voice_row(&self, voice: Voice) -> GtkBox {
+        let voice_rc = Rc::new(voice);
         let row_box = GtkBox::builder()
             .orientation(Orientation::Horizontal)
             .spacing(12)
@@ -70,9 +71,9 @@ impl UI {
             .valign(gtk::Align::Center)
             .build();
 
-        let download_button = self.add_download_button();
-        let remove_button = Button::with_label("Remove");
-        let row = gtk::Label::new(Some(&voice.key));
+        let row = gtk::Label::new(Some(&voice_rc.key));
+        let download_button = self.add_download_button(Rc::clone(&voice_rc));
+        let remove_button = self.add_remove_button(Rc::clone(&voice_rc));
 
         row_box.append(&row);
         row_box.append(&download_button);
@@ -81,14 +82,39 @@ impl UI {
         row_box
     }
 
-    fn add_download_button(&self) -> Button {
+    fn add_download_button(&self, voice: Rc<Voice>) -> Button {
         let download_button = Button::with_label("Download");
         let window = self.window.clone();
-        download_button.connect_clicked(move |_| {});
+        let hf = self.hf.clone();
+
+        download_button.connect_clicked(move |button| {
+            button.set_sensitive(false);
+            if let Err(e) = hf.download_voice(&voice.files) {
+                let err_msh = format!("Failed to download voice: {}", e);
+                Self::show_download_alert(&window, &err_msh);
+            }
+        });
+
         download_button
     }
 
-    fn _show_download_alert(window: &ApplicationWindow, dialog: &str) {
+    fn add_remove_button(&self, voice: Rc<Voice>) -> Button {
+        let remove_button = Button::with_label("Remove");
+        let window = self.window.clone();
+        let hf = self.hf.clone();
+
+        remove_button.connect_clicked(move |button| {
+            button.set_sensitive(false);
+            if let Err(e) = hf.remove_voice(&voice.files) {
+                let err_msg = format!("Failed to remove voice: {}", e);
+                Self::show_download_alert(&window, &err_msg);
+            }
+        });
+
+        remove_button
+    }
+
+    fn show_download_alert(window: &ApplicationWindow, dialog: &str) {
         let alert_dialog = AlertDialog::builder().modal(true).detail(dialog).build();
         alert_dialog.show(Some(window));
     }

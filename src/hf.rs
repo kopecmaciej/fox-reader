@@ -1,9 +1,10 @@
 use crate::config::HFConfig;
-use crate::downloader::Downloader;
+use crate::downloader::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
+use std::path::Path;
 
 pub struct HuggingFace {
     config: HFConfig,
@@ -19,7 +20,7 @@ struct Language {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct File {
+pub struct File {
     size_bytes: u64,
 }
 
@@ -27,9 +28,9 @@ struct File {
 pub struct Voice {
     pub key: String,
     pub name: String,
-    language: Language,
-    quality: String,
-    files: HashMap<String, File>,
+    pub language: Language,
+    pub quality: String,
+    pub files: HashMap<String, File>,
 }
 
 impl HuggingFace {
@@ -39,19 +40,51 @@ impl HuggingFace {
         }
     }
 
+    pub fn parse_avaliable_voices(&self) -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
+        let raw_json = self.get_avaliable_voices()?;
+        let value_data: Value = serde_json::from_str(&raw_json)?;
+        let voices: BTreeMap<String, Voice> = serde_json::from_value(value_data.clone())?;
+        Ok(voices)
+    }
+
     pub fn get_avaliable_voices(&self) -> Result<String, Box<dyn Error>> {
         let voices_url = self.config.get_voices_url();
 
-        let voices_file = Downloader::download_file(voices_url)?;
+        let voices_file = FileHandler::download_file(voices_url)?;
 
         Ok(voices_file.text()?)
     }
 
-    pub fn parse_avaliable_voices(&self) -> Result<Vec<Voice>, Box<dyn Error>> {
-        let raw_json = self.get_avaliable_voices()?;
-        let value_data: Value = serde_json::from_str(&raw_json)?;
-        let voice_map: BTreeMap<String, Voice> = serde_json::from_value(value_data.clone())?;
-        let voices: Vec<Voice> = voice_map.into_iter().map(|(_, v)| v).collect();
-        Ok(voices)
+    pub fn download_voice(
+        &self,
+        voice_files: &HashMap<String, File>,
+    ) -> Result<(), Box<dyn Error>> {
+        for (file_path, _) in voice_files {
+            if file_path.ends_with(".onnx") {
+                let voice_url = self.config.get_voice_url(&file_path);
+                let res = FileHandler::download_file(voice_url)?;
+                if let Some(file_name) = Path::new(file_path).file_name().and_then(|f| f.to_str()) {
+                    FileHandler::save_file(&self.config.get_save_path(file_name), res)?
+                } else {
+                    return Err(format!("Failed to properly extract file name from path").into());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_voice(&self, voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
+        for (file_path, _) in voice_files {
+            if file_path.ends_with(".onnx") {
+                if let Some(file_name) = Path::new(file_path).file_name().and_then(|f| f.to_str()) {
+                    FileHandler::remove_file(&self.config.get_save_path(file_name))?
+                } else {
+                    return Err(format!("Failed to properly delete file from path").into());
+                }
+            }
+        }
+
+        Ok(())
     }
 }
