@@ -4,11 +4,11 @@ use gtk::{
 };
 use std::{error::Error, rc::Rc};
 
-use crate::hf::{HuggingFace, Voice};
+use crate::hf::{Voice, VoiceManager};
 
 pub struct UI {
     window: ApplicationWindow,
-    hf: Rc<HuggingFace>,
+    hf: Rc<VoiceManager>,
 }
 
 impl UI {
@@ -20,7 +20,7 @@ impl UI {
 
         window.present();
 
-        let hf = Rc::new(HuggingFace::new());
+        let hf = Rc::new(VoiceManager::new());
 
         Self { hf, window }
     }
@@ -105,7 +105,7 @@ impl UI {
 
         remove_button.connect_clicked(move |button| {
             button.set_sensitive(false);
-            if let Err(e) = hf.remove_voice(&voice.files) {
+            if let Err(e) = hf.delete_voice(&voice.files) {
                 let err_msg = format!("Failed to remove voice: {}", e);
                 Self::show_download_alert(&window, &err_msg);
             }

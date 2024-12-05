@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 
-pub struct HuggingFace {
+pub struct VoiceManager {
     config: HFConfig,
 }
 
@@ -33,7 +33,7 @@ pub struct Voice {
     pub files: HashMap<String, File>,
 }
 
-impl HuggingFace {
+impl VoiceManager {
     pub fn new() -> Self {
         Self {
             config: HFConfig::new(),
@@ -41,13 +41,13 @@ impl HuggingFace {
     }
 
     pub fn parse_avaliable_voices(&self) -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
-        let raw_json = self.get_avaliable_voices()?;
+        let raw_json = self.fetch_avaliable_voices()?;
         let value_data: Value = serde_json::from_str(&raw_json)?;
         let voices: BTreeMap<String, Voice> = serde_json::from_value(value_data.clone())?;
         Ok(voices)
     }
 
-    pub fn get_avaliable_voices(&self) -> Result<String, Box<dyn Error>> {
+    pub fn fetch_avaliable_voices(&self) -> Result<String, Box<dyn Error>> {
         let voices_url = self.config.get_voices_url();
 
         let voices_file = FileHandler::download_file(voices_url)?;
@@ -74,7 +74,7 @@ impl HuggingFace {
         Ok(())
     }
 
-    pub fn remove_voice(&self, voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
+    pub fn delete_voice(&self, voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
         for (file_path, _) in voice_files {
             if file_path.ends_with(".onnx") {
                 if let Some(file_name) = Path::new(file_path).file_name().and_then(|f| f.to_str()) {

@@ -1,6 +1,6 @@
 use reqwest::blocking::{get, Response};
 use std::error::Error;
-use std::fs::{remove_file, File};
+use std::fs::{self, remove_file, File};
 use std::io::copy;
 
 pub struct FileHandler {}
@@ -20,5 +20,15 @@ impl FileHandler {
     pub fn remove_file(path: &str) -> Result<(), Box<dyn Error>> {
         remove_file(path)?;
         Ok(())
+    }
+
+    pub fn get_all_files(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
+        let files = fs::read_dir(path)?;
+
+        let file_names: Vec<String> = files
+            .filter_map(|file| file.ok().and_then(|f| f.file_name().into_string().ok()))
+            .collect();
+
+        Ok(file_names)
     }
 }
