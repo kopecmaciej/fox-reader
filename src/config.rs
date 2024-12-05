@@ -2,7 +2,7 @@ pub struct HFConfig {
     base_url: &'static str,
     version: &'static str,
     voices_json: &'static str,
-    download_path: &'static str,
+    pub download_path: &'static str,
 }
 
 impl HFConfig {
@@ -26,7 +26,7 @@ impl HFConfig {
         format!("{}/resolve/main/{}", self.base_url, path)
     }
 
-    pub fn get_save_path(&self, voice_file: &str) -> String {
+    pub fn get_voice_file_path(&self, voice_file: &str) -> String {
         format!("{}/{}", self.download_path, voice_file)
     }
 }

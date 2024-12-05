@@ -46,7 +46,7 @@ impl UI {
     }
 
     fn list_avaliable_voices(&self) -> Result<ListBox, Box<dyn Error>> {
-        let voices = self.hf.parse_avaliable_voices()?;
+        let voices = self.hf.list_all_avaliable_voices()?;
 
         let list_box = ListBox::builder().build();
 
@@ -87,6 +87,10 @@ impl UI {
         let window = self.window.clone();
         let hf = self.hf.clone();
 
+        if voice.downloaded {
+            download_button.set_sensitive(false);
+        }
+
         download_button.connect_clicked(move |button| {
             button.set_sensitive(false);
             if let Err(e) = hf.download_voice(&voice.files) {
@@ -100,8 +104,13 @@ impl UI {
 
     fn add_remove_button(&self, voice: Rc<Voice>) -> Button {
         let remove_button = Button::with_label("Remove");
+        remove_button.set_sensitive(false);
         let window = self.window.clone();
         let hf = self.hf.clone();
+
+        if voice.downloaded {
+            remove_button.set_sensitive(true);
+        }
 
         remove_button.connect_clicked(move |button| {
             button.set_sensitive(false);
