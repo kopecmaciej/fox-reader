@@ -28,7 +28,11 @@ impl UI {
         let hf = Rc::new(VoiceManager::new());
         let dispatcher = SpeechDispatcher::new();
 
-        Self { hf, window, dispatcher }
+        Self {
+            hf,
+            window,
+            dispatcher,
+        }
     }
 
     pub fn setup_ui(&self) {
@@ -42,7 +46,9 @@ impl UI {
         let box_container = GtkBox::builder().halign(gtk::Align::Center).build();
         scrolled_window.set_child(Some(&box_container));
 
-        self.dispatcher.initialize_config().expect("Failed initializing config");
+        self.dispatcher
+            .initialize_config()
+            .expect("Failed initializing config");
 
         match self.list_avaliable_voices() {
             Ok(list_box) => {
@@ -78,6 +84,16 @@ impl UI {
         label.set_halign(gtk::Align::Start);
         let download_button = self.add_download_button(Rc::clone(&voice_rc));
         let remove_button = self.add_remove_button(Rc::clone(&voice_rc));
+
+        download_button
+            .bind_property("sensitive", &remove_button, "sensitive")
+            .invert_boolean()
+            .build();
+
+        remove_button
+            .bind_property("sensitive", &download_button, "sensitive")
+            .invert_boolean()
+            .build();
 
         grid.attach(&label, 0, index, 1, 1);
         grid.attach(&download_button, 1, index, 1, 1);
