@@ -57,7 +57,7 @@ impl Config {
     pub fn get_module_config_path(&self) -> String {
         format!(
             "{}/{}",
-            self.dispatcher.config_path, self.dispatcher.config_file
+            self.dispatcher.config_path, self.dispatcher.module_file
         )
     }
 }

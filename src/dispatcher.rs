@@ -19,12 +19,14 @@ impl SpeechDispatcher {
 
         FileHandler::save_file(
             &self.config.get_config_file_path(),
-            &mut config_template().as_bytes(),
+            &mut config_template().trim().as_bytes(),
         )?;
 
         FileHandler::save_file(
             &self.config.get_module_config_path(),
-            &mut module_template("piper-tts", "downloads/de_DE-karlsson-low.onnx").as_bytes(),
+            &mut module_template("piper-tts", "downloads/de_DE-karlsson-low.onnx")
+                .trim()
+                .as_bytes(),
         )?;
 
         Ok(())
@@ -61,9 +63,7 @@ AddModule "piper-reader" "sd_generic" "piper-reader.conf"
 
 DefaultLanguage "en-GB"
 DefaultVoiceType  "male1"
-DefaultModule "piper-reader"
-
-    "#
+DefaultModule "piper-reader" "#
     )
 }
 
