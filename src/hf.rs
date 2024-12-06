@@ -60,7 +60,7 @@ impl VoiceManager {
     }
 
     pub fn list_downloaded_voices(&self) -> Result<Vec<String>, Box<dyn Error>> {
-        let downloaded_voices = FileHandler::get_all_files(self.config.hf.download_path)?;
+        let downloaded_voices = FileHandler::get_all_file_names(self.config.hf.download_path)?;
         let downloaded_voices: Vec<String> = downloaded_voices
             .iter()
             .map(|f| f.split(".").next().unwrap_or(f).to_string())
@@ -76,13 +76,13 @@ impl VoiceManager {
         for (file_path, _) in voice_files {
             if file_path.ends_with(".onnx") {
                 let voice_url = self.config.get_voice_url(&file_path);
-                let res = FileHandler::download_file(voice_url)?;
+                let mut res = FileHandler::download_file(voice_url)?;
                 let file_name = Path::new(file_path)
                     .file_name()
                     .and_then(|f| f.to_str())
                     .ok_or("Failed to properly extract file name from path")?;
 
-                FileHandler::save_file(&self.config.get_voice_file_path(file_name), res)?
+                FileHandler::save_file(&self.config.get_voice_file_path(file_name), &mut res)?
             }
         }
 

@@ -1,7 +1,7 @@
 use reqwest::blocking::{get, Response};
 use std::error::Error;
 use std::fs::{self, remove_file, File};
-use std::io::copy;
+use std::io::{copy, Read};
 
 pub struct FileHandler {}
 
@@ -11,9 +11,12 @@ impl FileHandler {
         Ok(response)
     }
 
-    pub fn save_file(path: &str, mut res: Response) -> Result<(), Box<dyn Error>> {
+    pub fn save_file<R>(path: &str, data: &mut R) -> Result<(), Box<dyn Error>>
+    where
+        R: Read,
+    {
         let mut file = File::create(path)?;
-        copy(&mut res, &mut file)?;
+        copy(data, &mut file)?;
         Ok(())
     }
 
@@ -22,7 +25,7 @@ impl FileHandler {
         Ok(())
     }
 
-    pub fn get_all_files(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    pub fn get_all_file_names(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
         let files = fs::read_dir(path)?;
 
         let file_names: Vec<String> = files

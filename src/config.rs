@@ -4,7 +4,9 @@ pub struct Config {
 }
 
 pub struct Dispatcher {
-    config_path: &'static str,
+    pub config_path: &'static str,
+    pub config_file: &'static str,
+    pub module_file: &'static str,
 }
 
 pub struct HuggingFace {
@@ -23,7 +25,9 @@ impl Config {
             download_path: "downloads",
         };
         let dispatcher = Dispatcher {
-            config_path: "$HOME/.config/speech-dispatcher/"
+            config_path: "/home/cieju/.config/speech-dispatcher",
+            config_file: "speechd.conf",
+            module_file: "modules/piper-reader.conf",
         };
         Self { hf, dispatcher }
     }
@@ -43,7 +47,17 @@ impl Config {
         format!("{}/{}", self.hf.download_path, voice_file)
     }
 
-    pub fn get_config_path(&self) -> String {
-        format!("{}", self.dispatcher.config_path)
+    pub fn get_config_file_path(&self) -> String {
+        format!(
+            "{}/{}",
+            self.dispatcher.config_path, self.dispatcher.config_file
+        )
+    }
+
+    pub fn get_module_config_path(&self) -> String {
+        format!(
+            "{}/{}",
+            self.dispatcher.config_path, self.dispatcher.config_file
+        )
     }
 }

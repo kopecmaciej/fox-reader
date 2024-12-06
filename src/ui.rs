@@ -5,11 +5,13 @@ use gtk::{
 use std::cell::RefCell;
 use std::{error::Error, rc::Rc};
 
+use crate::dispatcher::SpeechDispatcher;
 use crate::hf::{Voice, VoiceManager};
 
 pub struct UI {
     window: ApplicationWindow,
     hf: Rc<VoiceManager>,
+    dispatcher: SpeechDispatcher,
 }
 
 impl UI {
@@ -24,8 +26,9 @@ impl UI {
         window.present();
 
         let hf = Rc::new(VoiceManager::new());
+        let dispatcher = SpeechDispatcher::new();
 
-        Self { hf, window }
+        Self { hf, window, dispatcher }
     }
 
     pub fn setup_ui(&self) {
@@ -38,6 +41,8 @@ impl UI {
 
         let box_container = GtkBox::builder().halign(gtk::Align::Center).build();
         scrolled_window.set_child(Some(&box_container));
+
+        self.dispatcher.initialize_config().expect("Failed initializing config");
 
         match self.list_avaliable_voices() {
             Ok(list_box) => {
