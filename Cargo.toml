@@ -2,6 +2,7 @@
 name = "piper-reader"
 version = "0.1.0"
 edition = "2021"
+authors = ["maciejkopec92@gmail.com"]
 
 [dependencies]
 gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }

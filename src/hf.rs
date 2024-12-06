@@ -1,4 +1,4 @@
-use crate::config::HFConfig;
+use crate::config::Config;
 use crate::downloader::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -7,7 +7,7 @@ use std::error::Error;
 use std::path::Path;
 
 pub struct VoiceManager {
-    config: HFConfig,
+    config: Config,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub struct Voice {
 impl VoiceManager {
     pub fn new() -> Self {
         Self {
-            config: HFConfig::new(),
+            config: Config::new(),
         }
     }
 
@@ -60,7 +60,7 @@ impl VoiceManager {
     }
 
     pub fn list_downloaded_voices(&self) -> Result<Vec<String>, Box<dyn Error>> {
-        let downloaded_voices = FileHandler::get_all_files(self.config.download_path)?;
+        let downloaded_voices = FileHandler::get_all_files(self.config.hf.download_path)?;
         let downloaded_voices: Vec<String> = downloaded_voices
             .iter()
             .map(|f| f.split(".").next().unwrap_or(f).to_string())

@@ -1,6 +1,6 @@
 use gtk::{
     prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, Grid, Label,
-    Orientation, ScrolledWindow,
+    ScrolledWindow,
 };
 use std::cell::RefCell;
 use std::{error::Error, rc::Rc};

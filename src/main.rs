@@ -8,6 +8,7 @@ mod config;
 mod downloader;
 mod hf;
 mod ui;
+mod dispatcher;
 
 const APP_ID: &str = "org.piper-reader";
 
