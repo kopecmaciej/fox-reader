@@ -1,6 +1,6 @@
 use gtk::{
-    prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, Grid, Label,
-    ScrolledWindow,
+    prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, Grid,
+    HeaderBar, Label, ScrolledWindow,
 };
 use std::cell::RefCell;
 use std::{error::Error, rc::Rc};
@@ -21,6 +21,7 @@ impl UI {
             .title("Piper Reader")
             .default_width(600)
             .default_height(800)
+            .titlebar(&Self::add_header_bar())
             .build();
 
         window.present();
@@ -56,6 +57,13 @@ impl UI {
             }
             Err(e) => eprintln!("Failed to list available voices: {}", e),
         }
+    }
+
+    fn add_header_bar() -> HeaderBar {
+        HeaderBar::builder()
+            .title_widget(&Label::new(Some("Piper reader")))
+            .show_title_buttons(true)
+            .build()
     }
 
     fn list_avaliable_voices(&self) -> Result<Grid, Box<dyn Error>> {
