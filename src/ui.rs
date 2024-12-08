@@ -1,8 +1,6 @@
 use gtk::{
-    prelude::*,
-    Builder,
-    AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, Grid,
-    HeaderBar, Label, ScrolledWindow, SearchEntry,
+    prelude::*, AlertDialog, Application, ApplicationWindow, Builder, Button, Grid, Label,
+    SearchEntry,
 };
 use std::cell::RefCell;
 use std::{error::Error, rc::Rc};
@@ -22,10 +20,12 @@ impl UI {
     pub fn new(app: &Application) -> Self {
         let builder = Builder::from_resource("/org/piper-reader/app_window.ui");
 
-        let window: ApplicationWindow = builder.object("window").expect("Couldn't get window");
+        let window: ApplicationWindow = builder.object("window").expect("Failed to load window");
         window.set_application(Some(app));
 
-        let search_entry: SearchEntry = builder.object("search_entry").expect("Couldn't get search entry");
+        let search_entry: SearchEntry = builder
+            .object("search_entry")
+            .expect("Failed to load search entry");
 
         let hf = Rc::new(VoiceManager::new());
         let dispatcher = SpeechDispatcher::new();
@@ -35,7 +35,7 @@ impl UI {
             hf,
             dispatcher,
             search_entry,
-            builder, // Add this line
+            builder,
         }
     }
 
@@ -48,7 +48,10 @@ impl UI {
 
         match self.list_avaliable_voices() {
             Ok(grid) => {
-                let scrolled_window: gtk::ScrolledWindow = self.builder.object("scrolled_window").expect("Couldn't get scrolled window");
+                let scrolled_window: gtk::ScrolledWindow = self
+                    .builder
+                    .object("scrolled_window")
+                    .expect("Failed to load scrolled window");
                 scrolled_window.set_child(Some(&grid));
             }
             Err(e) => eprintln!("Failed to list available voices: {}", e),
@@ -58,14 +61,10 @@ impl UI {
     fn list_avaliable_voices(&self) -> Result<Grid, Box<dyn Error>> {
         let voices = self.hf.list_all_avaliable_voices()?;
 
-        let grid = Grid::builder()
-            .row_spacing(24)
-            .column_spacing(24)
-            .margin_start(12)
-            .margin_end(12)
-            .margin_top(12)
-            .margin_bottom(12)
-            .build();
+        let grid: gtk::Grid = self
+            .builder
+            .object("voices_grid")
+            .expect("Failed to load voices grid");
 
         for (i, (_, voice)) in voices.into_iter().enumerate() {
             self.add_voice_row(voice, &grid, i as i32);

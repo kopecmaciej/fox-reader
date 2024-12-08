@@ -13,8 +13,7 @@ mod ui;
 const APP_ID: &str = "org.piper-reader";
 
 fn main() -> glib::ExitCode {
-    gio::resources_register_include!("compiled.gresource")
-        .expect("Failed to register resources.");
+    gio::resources_register_include!("compiled.gresource").expect("Failed to register resources.");
 
     let app = Application::builder().application_id(APP_ID).build();
 
