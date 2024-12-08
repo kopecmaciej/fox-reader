@@ -2,5 +2,6 @@
 <gresources>
   <gresource prefix="/org/piper-reader">
     <file compressed="true" preprocess="xml-stripblanks">app_window.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">voices_box.ui</file>
   </gresource>
 </gresources>

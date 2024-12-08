@@ -13,17 +13,19 @@ pub struct UI {
     hf: Rc<VoiceManager>,
     dispatcher: SpeechDispatcher,
     search_entry: SearchEntry,
-    builder: Builder,
+    app_window: Builder,
+    voices_box: Builder,
 }
 
 impl UI {
     pub fn new(app: &Application) -> Self {
-        let builder = Builder::from_resource("/org/piper-reader/app_window.ui");
+        let app_window = Builder::from_resource("/org/piper-reader/app_window.ui");
+        let voices_box = Builder::from_resource("/org/piper-reader/voices_box.ui");
 
-        let window: ApplicationWindow = builder.object("window").expect("Failed to load window");
+        let window: ApplicationWindow = app_window.object("window").expect("Failed to load window");
         window.set_application(Some(app));
 
-        let search_entry: SearchEntry = builder
+        let search_entry: SearchEntry = voices_box
             .object("search_entry")
             .expect("Failed to load search entry");
 
@@ -35,7 +37,8 @@ impl UI {
             hf,
             dispatcher,
             search_entry,
-            builder,
+            app_window,
+            voices_box,
         }
     }
 
@@ -47,22 +50,29 @@ impl UI {
             .expect("Failed initializing config");
 
         match self.list_avaliable_voices() {
-            Ok(grid) => {
+            Ok(()) => {
                 let scrolled_window: gtk::ScrolledWindow = self
-                    .builder
+                    .app_window
                     .object("scrolled_window")
                     .expect("Failed to load scrolled window");
-                scrolled_window.set_child(Some(&grid));
+
+                // Use the correct widget from the builder
+                let voices_box_widget: gtk::Box = self
+                    .voices_box
+                    .object("box_container")
+                    .expect("Failed to load voices box");
+
+                scrolled_window.set_child(Some(&voices_box_widget));
             }
             Err(e) => eprintln!("Failed to list available voices: {}", e),
         }
     }
 
-    fn list_avaliable_voices(&self) -> Result<Grid, Box<dyn Error>> {
+    fn list_avaliable_voices(&self) -> Result<(), Box<dyn Error>> {
         let voices = self.hf.list_all_avaliable_voices()?;
 
         let grid: gtk::Grid = self
-            .builder
+            .voices_box
             .object("voices_grid")
             .expect("Failed to load voices grid");
 
@@ -70,7 +80,7 @@ impl UI {
             self.add_voice_row(voice, &grid, i as i32);
         }
 
-        Ok(grid)
+        Ok(())
     }
 
     fn add_voice_row(&self, voice: Voice, grid: &Grid, index: i32) {
