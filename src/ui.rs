@@ -1,6 +1,6 @@
 use gtk::{
     prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, Grid,
-    HeaderBar, Label, ScrolledWindow,
+    HeaderBar, Label, ScrolledWindow, SearchEntry,
 };
 use std::cell::RefCell;
 use std::{error::Error, rc::Rc};
@@ -12,6 +12,7 @@ pub struct UI {
     window: ApplicationWindow,
     hf: Rc<VoiceManager>,
     dispatcher: SpeechDispatcher,
+    search_entry: SearchEntry,
 }
 
 impl UI {
@@ -28,11 +29,19 @@ impl UI {
 
         let hf = Rc::new(VoiceManager::new());
         let dispatcher = SpeechDispatcher::new();
+        let search_entry = SearchEntry::builder()
+            .placeholder_text("Search...")
+            .margin_start(12)
+            .margin_end(12)
+            .margin_top(12)
+            .margin_bottom(12)
+            .build();
 
         Self {
             hf,
             window,
             dispatcher,
+            search_entry,
         }
     }
 
@@ -44,8 +53,14 @@ impl UI {
 
         self.window.set_child(Some(&scrolled_window));
 
-        let box_container = GtkBox::builder().halign(gtk::Align::Center).build();
+        let box_container = GtkBox::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .halign(gtk::Align::Center)
+            .build();
+
         scrolled_window.set_child(Some(&box_container));
+
+        box_container.append(&self.search_entry);
 
         self.dispatcher
             .initialize_config()
