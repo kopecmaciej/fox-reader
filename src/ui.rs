@@ -12,7 +12,6 @@ pub struct UI {
     window: ApplicationWindow,
     hf: Rc<VoiceManager>,
     dispatcher: SpeechDispatcher,
-    search_entry: SearchEntry,
     app_window: Builder,
     voices_box: Builder,
 }
@@ -25,10 +24,6 @@ impl UI {
         let window: ApplicationWindow = app_window.object("window").expect("Failed to load window");
         window.set_application(Some(app));
 
-        let search_entry: SearchEntry = voices_box
-            .object("search_entry")
-            .expect("Failed to load search entry");
-
         let hf = Rc::new(VoiceManager::new());
         let dispatcher = SpeechDispatcher::new();
 
@@ -36,7 +31,6 @@ impl UI {
             window,
             hf,
             dispatcher,
-            search_entry,
             app_window,
             voices_box,
         }
@@ -56,7 +50,6 @@ impl UI {
                     .object("scrolled_window")
                     .expect("Failed to load scrolled window");
 
-                // Use the correct widget from the builder
                 let voices_box_widget: gtk::Box = self
                     .voices_box
                     .object("box_container")
@@ -76,9 +69,20 @@ impl UI {
             .object("voices_grid")
             .expect("Failed to load voices grid");
 
+        let search_entry: SearchEntry = self.voices_box
+            .object("search_entry")
+            .expect("Failed to load search entry");
+
+
         for (i, (_, voice)) in voices.into_iter().enumerate() {
             self.add_voice_row(voice, &grid, i as i32);
         }
+
+        search_entry.connect_search_changed(move |search| {
+            let input = search.text();
+            println!("{input}")
+
+        });
 
         Ok(())
     }
