@@ -1,18 +1,20 @@
 use crate::ui::UI;
-use gtk::glib;
+use gtk::{gio, glib};
 
 use gtk::prelude::*;
 use gtk::Application;
 
 mod config;
+mod dispatcher;
 mod downloader;
 mod hf;
 mod ui;
-mod dispatcher;
 
 const APP_ID: &str = "org.piper-reader";
 
 fn main() -> glib::ExitCode {
+    gio::resources_register_include!("compiled.gresource").expect("Failed to register resources.");
+
     let app = Application::builder().application_id(APP_ID).build();
 
     app.connect_activate(build_ui);

@@ -1,6 +1,6 @@
 use gtk::{
-    prelude::*, AlertDialog, Application, ApplicationWindow, Box as GtkBox, Button, Grid,
-    HeaderBar, Label, ScrolledWindow, SearchEntry,
+    prelude::*, AlertDialog, Application, ApplicationWindow, Builder, Button, Grid, Label,
+    SearchEntry,
 };
 use std::cell::RefCell;
 use std::{error::Error, rc::Rc};
@@ -13,85 +13,58 @@ pub struct UI {
     hf: Rc<VoiceManager>,
     dispatcher: SpeechDispatcher,
     search_entry: SearchEntry,
+    builder: Builder,
 }
 
 impl UI {
     pub fn new(app: &Application) -> Self {
-        let window = ApplicationWindow::builder()
-            .application(app)
-            .title("Piper Reader")
-            .default_width(600)
-            .default_height(800)
-            .titlebar(&Self::add_header_bar())
-            .build();
+        let builder = Builder::from_resource("/org/piper-reader/app_window.ui");
 
-        window.present();
+        let window: ApplicationWindow = builder.object("window").expect("Failed to load window");
+        window.set_application(Some(app));
+
+        let search_entry: SearchEntry = builder
+            .object("search_entry")
+            .expect("Failed to load search entry");
 
         let hf = Rc::new(VoiceManager::new());
         let dispatcher = SpeechDispatcher::new();
-        let search_entry = SearchEntry::builder()
-            .placeholder_text("Search...")
-            .margin_start(12)
-            .margin_end(12)
-            .margin_top(12)
-            .margin_bottom(12)
-            .build();
 
         Self {
-            hf,
             window,
+            hf,
             dispatcher,
             search_entry,
+            builder,
         }
     }
 
     pub fn setup_ui(&self) {
-        let scrolled_window = ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .vscrollbar_policy(gtk::PolicyType::Automatic)
-            .build();
-
-        self.window.set_child(Some(&scrolled_window));
-
-        let box_container = GtkBox::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .halign(gtk::Align::Center)
-            .build();
-
-        scrolled_window.set_child(Some(&box_container));
-
-        box_container.append(&self.search_entry);
+        self.window.present();
 
         self.dispatcher
             .initialize_config()
             .expect("Failed initializing config");
 
         match self.list_avaliable_voices() {
-            Ok(list_box) => {
-                box_container.append(&list_box);
+            Ok(grid) => {
+                let scrolled_window: gtk::ScrolledWindow = self
+                    .builder
+                    .object("scrolled_window")
+                    .expect("Failed to load scrolled window");
+                scrolled_window.set_child(Some(&grid));
             }
             Err(e) => eprintln!("Failed to list available voices: {}", e),
         }
     }
 
-    fn add_header_bar() -> HeaderBar {
-        HeaderBar::builder()
-            .title_widget(&Label::new(Some("Piper reader")))
-            .show_title_buttons(true)
-            .build()
-    }
-
     fn list_avaliable_voices(&self) -> Result<Grid, Box<dyn Error>> {
         let voices = self.hf.list_all_avaliable_voices()?;
 
-        let grid = Grid::builder()
-            .row_spacing(24)
-            .column_spacing(24)
-            .margin_start(12)
-            .margin_end(12)
-            .margin_top(12)
-            .margin_bottom(12)
-            .build();
+        let grid: gtk::Grid = self
+            .builder
+            .object("voices_grid")
+            .expect("Failed to load voices grid");
 
         for (i, (_, voice)) in voices.into_iter().enumerate() {
             self.add_voice_row(voice, &grid, i as i32);
