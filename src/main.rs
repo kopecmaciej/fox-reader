@@ -6,7 +6,7 @@ use ui::window::UI;
 
 mod config;
 mod dispatcher;
-mod downloader;
+mod file_handler;
 mod hf;
 mod ui;
 

@@ -2,6 +2,7 @@ use reqwest::blocking::{get, Response};
 use std::error::Error;
 use std::fs::{self, remove_file, File};
 use std::io::{copy, Read};
+use std::io::prelude::*;
 
 pub struct FileHandler {}
 
@@ -33,5 +34,18 @@ impl FileHandler {
             .collect();
 
         Ok(file_names)
+    }
+
+    pub fn append_to_file(path: &str, data: &[u8]) -> Result<(), Box<dyn Error>> {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(path)?;
+
+        if let Err(e) = file.write_all(data) {
+            return Err(e.into());
+        }
+        Ok(())
     }
 }

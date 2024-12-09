@@ -1,11 +1,14 @@
 use std::error::Error;
 use std::fs;
 
-use crate::{config::dispatcher_config, downloader::FileHandler};
+use crate::{config::dispatcher_config, file_handler::FileHandler};
 
 pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
+    pub fn set_default_voice(default_voice: &str) -> Result<(), Box<dyn Error>> {
+        Self::update_module_config(&set_default_voice_template(default_voice))
+    }
     pub fn initialize_config() -> Result<(), Box<dyn Error>> {
         Self::create_config_dir()?;
 
@@ -33,6 +36,38 @@ impl SpeechDispatcher {
             Ok(())
         }
     }
+
+    fn update_module_config(config_line: &str) -> Result<(), Box<dyn Error>> {
+        let module_config_path = dispatcher_config::get_module_config_path();
+        let mut file_content = String::new();
+
+        if fs::metadata(&module_config_path).is_ok() {
+            file_content = fs::read_to_string(&module_config_path)?;
+        }
+
+        if !file_content.contains(config_line) {
+            FileHandler::append_to_file(&module_config_path, &mut config_line.trim().as_bytes())?;
+        } else {
+            let lines: Vec<&str> = file_content.lines().collect();
+            let updated_lines: Vec<String> = lines
+                .iter()
+                .map(|&line| {
+                    if line.starts_with("DefaultVoiceType") {
+                        config_line.trim().to_string()
+                    } else {
+                        line.to_string()
+                    }
+                })
+                .collect();
+
+            FileHandler::save_file(
+                &module_config_path,
+                &mut updated_lines.join("\n").as_bytes(),
+            )?;
+        }
+
+        Ok(())
+    }
 }
 
 fn config_template() -> String {
@@ -54,7 +89,7 @@ SymbolsPreprocFile "orca-chars.dic"
 AddModule "piper-reader" "sd_generic" "piper-reader.conf"
 
 DefaultLanguage "en-GB"
-DefaultVoiceType  "male1"
+DefaultVoiceType  ""
 DefaultModule "piper-reader" "#
     )
 }
@@ -64,8 +99,23 @@ fn module_template(piper_path: &str, module_path: &str) -> String {
         r#"
 GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | \"{}\" -q -m \"{}\" -s 21 -f - | mpv --volume=100 --no-terminal --keep-open=no -"
 
-AddVoice "en-GB" "male1" "en_GB-northern_english_male-medium"
     "#,
         piper_path, module_path
+    )
+}
+
+fn add_voice(language: &str, voice_name: &str, voice_id: &str) -> String {
+    format!(
+        r#" AddVoice "{}" "{}" "{}"
+"#,
+        language, voice_name, voice_id
+    )
+}
+
+fn set_default_voice_template(voice: &str) -> String {
+    format!(
+        r#" DefaultVoiceType "{}"
+"#,
+        voice
     )
 }

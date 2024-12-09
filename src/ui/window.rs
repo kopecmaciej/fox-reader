@@ -3,7 +3,7 @@ use gtk::{
     prelude::*,
     Application, ApplicationWindow, Builder, Grid, Label, SearchEntry,
 };
-use std::{borrow::Borrow, cell::RefCell, collections::BTreeMap};
+use std::{cell::RefCell, collections::BTreeMap};
 use std::{error::Error, rc::Rc};
 
 use crate::{
