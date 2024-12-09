@@ -91,7 +91,6 @@ impl UI {
             self.window,
             move |search| {
                 let input = search.text().to_lowercase();
-                println!("{}", input);
                 clear_grid(&grid);
                 for (i, (_, voice)) in voices.iter().enumerate() {
                     if input.is_empty() || voice.key.to_lowercase().contains(&input) {

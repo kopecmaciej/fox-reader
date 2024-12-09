@@ -9,18 +9,22 @@ use std::rc::Rc;
 use crate::hf::{Voice, VoiceManager};
 
 pub fn download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) -> Button {
-    let download_button = Button::with_label("Download");
+    let download_button = Button::new();
 
     if voice.borrow().downloaded {
-        download_button.set_sensitive(false);
+        download_button.set_label("Set as default");
+    } else {
+        download_button.set_label("Download");
     }
 
     download_button.connect_clicked(clone!(
         #[weak]
         window,
-        move |button| {
-            button.set_sensitive(false);
+        move |_| {
             let mut mut_voice = voice.borrow_mut();
+            if mut_voice.downloaded == true {
+                return;
+            }
             if let Err(e) = VoiceManager::download_voice(&mut_voice.files) {
                 let err_msh = format!("Failed to download voice: {}", e);
                 show_download_alert(&window, &err_msh);
