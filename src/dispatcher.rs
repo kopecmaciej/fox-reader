@@ -1,29 +1,21 @@
 use std::error::Error;
 use std::fs;
 
-use crate::{config::Config, downloader::FileHandler};
+use crate::{config::DispatcherConfig, downloader::FileHandler};
 
-pub struct SpeechDispatcher {
-    config: Config,
-}
+pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
-    pub fn new() -> Self {
-        Self {
-            config: Config::new(),
-        }
-    }
-
-    pub fn initialize_config(&self) -> Result<(), Box<dyn Error>> {
-        self.create_config_dir()?;
+    pub fn initialize_config() -> Result<(), Box<dyn Error>> {
+        Self::create_config_dir()?;
 
         FileHandler::save_file(
-            &self.config.get_config_file_path(),
+            &DispatcherConfig::get_config_file_path(),
             &mut config_template().trim().as_bytes(),
         )?;
 
         FileHandler::save_file(
-            &self.config.get_module_config_path(),
+            &DispatcherConfig::get_module_config_path(),
             &mut module_template("piper-tts", "downloads/de_DE-karlsson-low.onnx")
                 .trim()
                 .as_bytes(),
@@ -32,8 +24,8 @@ impl SpeechDispatcher {
         Ok(())
     }
 
-    fn create_config_dir(&self) -> Result<(), std::io::Error> {
-        let path = self.config.dispatcher.config_file;
+    fn create_config_dir() -> Result<(), std::io::Error> {
+        let path = &DispatcherConfig::get_dispatcher_config_path();
         let exist = fs::metadata(&path).is_ok();
         if !exist {
             fs::create_dir(path)
