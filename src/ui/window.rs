@@ -1,7 +1,7 @@
 use gtk::{
     glib::{self, clone},
     prelude::*,
-    AlertDialog, Application, ApplicationWindow, Builder, Button, Grid, Label, SearchEntry,
+    Application, ApplicationWindow, Builder, Grid, Label, SearchEntry,
 };
 use std::{cell::RefCell, collections::BTreeMap};
 use std::{error::Error, rc::Rc};
@@ -10,6 +10,8 @@ use crate::{
     dispatcher::SpeechDispatcher,
     hf::{Voice, VoiceManager},
 };
+
+use super::widgets::{download_button, remove_button};
 
 pub struct UI {
     window: ApplicationWindow,
@@ -109,8 +111,8 @@ impl UI {
     ) {
         let label = Label::new(Some(&voice_rc.borrow().key));
         label.set_halign(gtk::Align::Start);
-        let download_button = Self::add_download_button(window, Rc::clone(&voice_rc));
-        let remove_button = Self::add_remove_button(window, Rc::clone(&voice_rc));
+        let download_button = download_button(window, Rc::clone(&voice_rc));
+        let remove_button = remove_button(window, Rc::clone(&voice_rc));
 
         download_button
             .bind_property("sensitive", &remove_button, "sensitive")
@@ -125,60 +127,6 @@ impl UI {
         grid.attach(&label, 0, index, 1, 1);
         grid.attach(&download_button, 1, index, 1, 1);
         grid.attach(&remove_button, 2, index, 1, 1);
-    }
-
-    fn add_download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) -> Button {
-        let download_button = Button::with_label("Download");
-
-        if voice.borrow().downloaded {
-            download_button.set_sensitive(false);
-        }
-
-        download_button.connect_clicked(clone!(
-            #[weak]
-            window,
-            move |button| {
-                button.set_sensitive(false);
-                let mut mut_voice = voice.borrow_mut();
-                if let Err(e) = VoiceManager::download_voice(&mut_voice.files) {
-                    let err_msh = format!("Failed to download voice: {}", e);
-                    Self::show_download_alert(&window, &err_msh);
-                    mut_voice.downloaded = true;
-                }
-            }
-        ));
-
-        download_button
-    }
-
-    fn add_remove_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) -> Button {
-        let remove_button = Button::with_label("Remove");
-        remove_button.set_sensitive(false);
-
-        if voice.borrow().downloaded {
-            remove_button.set_sensitive(true);
-        }
-
-        remove_button.connect_clicked(clone!(
-            #[weak]
-            window,
-            move |button| {
-                button.set_sensitive(false);
-                let mut mut_voice = voice.borrow_mut();
-                if let Err(e) = VoiceManager::delete_voice(&mut_voice.files) {
-                    let err_msg = format!("Failed to remove voice: {}", e);
-                    Self::show_download_alert(&window, &err_msg);
-                    mut_voice.downloaded = true;
-                }
-            }
-        ));
-
-        remove_button
-    }
-
-    fn show_download_alert(window: &ApplicationWindow, dialog: &str) {
-        let alert_dialog = AlertDialog::builder().modal(true).detail(dialog).build();
-        alert_dialog.show(Some(window));
     }
 }
 

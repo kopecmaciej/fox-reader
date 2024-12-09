@@ -1,4 +1,4 @@
-use crate::config::HuggingFaceConfig;
+use crate::config::huggingface_config;
 use crate::downloader::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -34,7 +34,7 @@ pub struct Voice {
 
 impl VoiceManager {
     pub fn list_all_avaliable_voices() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
-        let voices_url = HuggingFaceConfig::get_voices_url();
+        let voices_url = huggingface_config::get_voices_url();
         let voices_file = FileHandler::download_file(voices_url)?;
         let raw_json = voices_file.text()?;
 
@@ -53,7 +53,7 @@ impl VoiceManager {
 
     pub fn list_downloaded_voices() -> Result<Vec<String>, Box<dyn Error>> {
         let downloaded_voices =
-            FileHandler::get_all_file_names(&HuggingFaceConfig::get_download_path())?;
+            FileHandler::get_all_file_names(&huggingface_config::get_download_path())?;
         let downloaded_voices: Vec<String> = downloaded_voices
             .iter()
             .map(|f| f.split(".").next().unwrap_or(f).to_string())
@@ -65,7 +65,7 @@ impl VoiceManager {
     pub fn download_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
         for (file_path, _) in voice_files {
             if file_path.ends_with(".onnx") {
-                let voice_url = HuggingFaceConfig::get_voice_url(&file_path);
+                let voice_url = huggingface_config::get_voice_url(&file_path);
                 let mut res = FileHandler::download_file(voice_url)?;
                 let file_name = Path::new(file_path)
                     .file_name()
@@ -73,7 +73,7 @@ impl VoiceManager {
                     .ok_or("Failed to properly extract file name from path")?;
 
                 FileHandler::save_file(
-                    &HuggingFaceConfig::get_voice_file_path(file_name),
+                    &huggingface_config::get_voice_file_path(file_name),
                     &mut res,
                 )?
             }
@@ -90,7 +90,7 @@ impl VoiceManager {
                     .and_then(|f| f.to_str())
                     .ok_or("Failed to properly extract file name from path")?;
 
-                FileHandler::remove_file(&HuggingFaceConfig::get_voice_file_path(file_name))?
+                FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?
             }
         }
 

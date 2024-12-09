@@ -1,8 +1,8 @@
-use crate::ui::UI;
 use gtk::{gio, glib};
 
 use gtk::prelude::*;
 use gtk::Application;
+use ui::window::UI;
 
 mod config;
 mod dispatcher;

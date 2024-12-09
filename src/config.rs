@@ -7,9 +7,9 @@ const DISPATCHER_CONFIG_PATH: &str = "/home/cieju/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/piper-reader.conf";
 
-pub struct HuggingFaceConfig {}
+pub mod huggingface_config {
+    use super::*;
 
-impl HuggingFaceConfig {
     pub fn get_voices_url() -> String {
         format!("{}/resolve/{}{}", HF_BASE_URL, HF_VERSION, HF_VOICES_JSON)
     }
@@ -27,9 +27,9 @@ impl HuggingFaceConfig {
     }
 }
 
-pub struct DispatcherConfig {}
+pub mod dispatcher_config {
+    use super::*;
 
-impl DispatcherConfig {
     pub fn get_config_file_path() -> String {
         format!("{}/{}", DISPATCHER_CONFIG_PATH, DISPATCHER_CONFIG_FILE)
     }
