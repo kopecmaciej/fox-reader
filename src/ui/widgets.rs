@@ -8,22 +8,28 @@ use std::rc::Rc;
 
 use crate::hf::{Voice, VoiceManager};
 
+pub const SAVE_VOICE_ICON: &str = "document-save";
+pub const SET_VOICE_DEFAULT_ICON: &str = "starred";
+pub const REMOVE_VOICE_ICON: &str = "user-trash";
+
 pub fn download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) -> Button {
-    let download_button = Button::new();
+    let download_button = Button::builder().icon_name("document-save").build();
 
     if voice.borrow().downloaded {
-        download_button.set_label("Set as default");
+        download_button.set_icon_name(SET_VOICE_DEFAULT_ICON);
     } else {
-        download_button.set_label("Download");
+        download_button.set_icon_name(SAVE_VOICE_ICON);
     }
 
     download_button.connect_clicked(clone!(
         #[weak]
         window,
-        move |_| {
+        move |button| {
             let mut mut_voice = voice.borrow_mut();
-            if mut_voice.downloaded == true {
-                return;
+            if mut_voice.downloaded {
+                button.set_icon_name(SET_VOICE_DEFAULT_ICON);
+            } else {
+                button.set_icon_name(SAVE_VOICE_ICON);
             }
             if let Err(e) = VoiceManager::download_voice(&mut_voice.files) {
                 let err_msh = format!("Failed to download voice: {}", e);
@@ -37,7 +43,7 @@ pub fn download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) ->
 }
 
 pub fn remove_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) -> Button {
-    let remove_button = Button::with_label("Remove");
+    let remove_button = Button::builder().icon_name(REMOVE_VOICE_ICON).build();
     remove_button.set_sensitive(false);
 
     if voice.borrow().downloaded {

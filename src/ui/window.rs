@@ -3,7 +3,7 @@ use gtk::{
     prelude::*,
     Application, ApplicationWindow, Builder, Grid, Label, SearchEntry,
 };
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{borrow::Borrow, cell::RefCell, collections::BTreeMap};
 use std::{error::Error, rc::Rc};
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
     hf::{Voice, VoiceManager},
 };
 
-use super::widgets::{download_button, remove_button};
+use super::widgets::{download_button, remove_button, SAVE_VOICE_ICON, SET_VOICE_DEFAULT_ICON};
 
 pub struct UI {
     window: ApplicationWindow,
@@ -108,19 +108,30 @@ impl UI {
         grid: &Grid,
         index: i32,
     ) {
-        let label = Label::new(Some(&voice_rc.borrow().key));
+        let label = Label::new(Some(&voice_rc.borrow_mut().key));
         label.set_halign(gtk::Align::Start);
         let download_button = download_button(window, Rc::clone(&voice_rc));
         let remove_button = remove_button(window, Rc::clone(&voice_rc));
 
         download_button
-            .bind_property("sensitive", &remove_button, "sensitive")
-            .invert_boolean()
+            .bind_property("icon-name", &remove_button, "sensitive")
+            .transform_to(|_, icon: String| {
+                Some(if icon == SAVE_VOICE_ICON { false } else { true })
+            })
             .build();
 
         remove_button
-            .bind_property("sensitive", &download_button, "sensitive")
-            .invert_boolean()
+            .bind_property("sensitive", &download_button, "icon-name")
+            .transform_to(|_, sensitive: bool| {
+                Some(
+                    if sensitive {
+                        SET_VOICE_DEFAULT_ICON
+                    } else {
+                        SAVE_VOICE_ICON
+                    }
+                    .to_string(),
+                )
+            })
             .build();
 
         grid.attach(&label, 0, index, 1, 1);
