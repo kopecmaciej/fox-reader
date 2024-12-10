@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["maciejkopec92@gmail.com"]
 
 [dependencies]
+dirs = "5.0.1"
 gio = "0.20.6"
 gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }
 reqwest = { version = "0.12.9", features = ["blocking"] }

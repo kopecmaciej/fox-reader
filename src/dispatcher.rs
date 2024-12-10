@@ -1,7 +1,9 @@
 use std::error::Error;
-use std::fs;
 
-use crate::{config::dispatcher_config, file_handler::FileHandler};
+use crate::{
+    config::{dispatcher_config, huggingface_config},
+    file_handler::FileHandler,
+};
 
 pub struct SpeechDispatcher {}
 
@@ -15,7 +17,8 @@ impl SpeechDispatcher {
     }
 
     pub fn initialize_config() -> Result<(), Box<dyn Error>> {
-        Self::create_config_dir()?;
+        let path = &dispatcher_config::get_dispatcher_config_path();
+        FileHandler::ensure_path_exists(path)?;
 
         FileHandler::save_file(
             &dispatcher_config::get_config_file_path(),
@@ -30,7 +33,6 @@ impl SpeechDispatcher {
         voice_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         let new_voice = add_voice_template(language, voice_name, voice_id);
-        println!("{}", new_voice);
 
         FileHandler::append_to_file(
             &dispatcher_config::get_module_config_path(),
@@ -54,18 +56,10 @@ impl SpeechDispatcher {
     fn initialize_module_config() -> Result<(), Box<dyn Error>> {
         FileHandler::save_file(
             &dispatcher_config::get_module_config_path(),
-            &mut module_template("piper-tts", "downloads").trim().as_bytes(),
+            &mut module_template("piper-tts", &huggingface_config::get_download_path())
+                .trim()
+                .as_bytes(),
         )
-    }
-
-    fn create_config_dir() -> Result<(), std::io::Error> {
-        let path = &dispatcher_config::get_dispatcher_config_path();
-        let exist = fs::metadata(&path).is_ok();
-        if !exist {
-            fs::create_dir(path)
-        } else {
-            Ok(())
-        }
     }
 }
 

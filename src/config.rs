@@ -1,11 +1,22 @@
+use dirs::home_dir;
+
 const HF_BASE_URL: &str = "https://huggingface.co/rhasspy/piper-voices";
 const HF_VERSION: &str = "v1.0.0/";
 const HF_VOICES_JSON: &str = "voices.json";
-const HF_DOWNLOAD_PATH: &str = "downloads";
+const HF_DOWNLOAD_PATH: &str = "$HOME/.local/share/piper-reader/voices";
 
-const DISPATCHER_CONFIG_PATH: &str = "/home/cieju/.config/speech-dispatcher";
+const DISPATCHER_CONFIG_PATH: &str = "$HOME/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/piper-reader.conf";
+
+fn resolve_home(path: &str) -> String {
+    let home = home_dir().expect("Failed to get home directory");
+    path.replace("$HOME", &home.to_string_lossy())
+}
+
+fn build_path(base_path: &str, relative_path: &str) -> String {
+    resolve_home(base_path).to_string() + "/" + relative_path
+}
 
 pub mod huggingface_config {
     use super::*;
@@ -19,11 +30,11 @@ pub mod huggingface_config {
     }
 
     pub fn get_voice_file_path(voice_file: &str) -> String {
-        format!("{}/{}", HF_DOWNLOAD_PATH, voice_file)
+        build_path(HF_DOWNLOAD_PATH, voice_file)
     }
 
     pub fn get_download_path() -> String {
-        HF_DOWNLOAD_PATH.to_string()
+        resolve_home(HF_DOWNLOAD_PATH)
     }
 }
 
@@ -31,14 +42,14 @@ pub mod dispatcher_config {
     use super::*;
 
     pub fn get_config_file_path() -> String {
-        format!("{}/{}", DISPATCHER_CONFIG_PATH, DISPATCHER_CONFIG_FILE)
+        build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_CONFIG_FILE)
     }
 
     pub fn get_module_config_path() -> String {
-        format!("{}/{}", DISPATCHER_CONFIG_PATH, DISPATCHER_MODULE_FILE)
+        build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_MODULE_FILE)
     }
 
     pub fn get_dispatcher_config_path() -> String {
-        DISPATCHER_CONFIG_PATH.to_string()
+        resolve_home(DISPATCHER_CONFIG_PATH)
     }
 }

@@ -3,10 +3,31 @@ use std::error::Error;
 use std::fs::{self, remove_file, File};
 use std::io::prelude::*;
 use std::io::{copy, Read};
+use std::path::Path;
 
 pub struct FileHandler {}
 
 impl FileHandler {
+    pub fn ensure_path_exists(path: &str) -> Result<(), std::io::Error> {
+        let path = Path::new(path);
+
+        if path.exists() {
+            return Ok(());
+        }
+
+        let dir_path = if path.is_file() || path.extension().is_some() {
+            path.parent().unwrap_or(path)
+        } else {
+            path
+        };
+
+        if !dir_path.exists() {
+            fs::create_dir_all(dir_path)?;
+        }
+
+        Ok(())
+    }
+
     pub fn download_file(link: String) -> Result<Response, Box<dyn Error>> {
         let response = get(link)?;
         Ok(response)
@@ -16,6 +37,7 @@ impl FileHandler {
     where
         R: Read,
     {
+        Self::ensure_path_exists(path)?;
         let mut file = File::create(path)?;
         copy(data, &mut file)?;
         Ok(())
@@ -27,6 +49,7 @@ impl FileHandler {
     }
 
     pub fn get_all_file_names(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
+        Self::ensure_path_exists(path)?;
         let files = fs::read_dir(path)?;
 
         let file_names: Vec<String> = files
