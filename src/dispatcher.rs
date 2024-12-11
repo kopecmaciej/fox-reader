@@ -100,8 +100,8 @@ GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g
 fn add_voice_template(language: &str, voice_name: &str, voice_relative_path: &str) -> String {
     format!(
         r#" 
-AddVoice "{}" "{}" "{}"
+AddVoice "{}" "male1" "{}"
 "#,
-        language, voice_name, voice_relative_path
+        language, voice_relative_path
     )
 }
