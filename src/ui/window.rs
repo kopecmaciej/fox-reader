@@ -8,7 +8,7 @@ use std::{error::Error, rc::Rc};
 
 use crate::{
     dispatcher::SpeechDispatcher,
-    hf::{Voice, VoiceManager},
+    voice_manager::{Voice, VoiceManager},
 };
 
 use super::widgets::{download_button, remove_button, SAVE_VOICE_ICON, SET_VOICE_DEFAULT_ICON};

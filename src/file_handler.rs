@@ -8,21 +8,14 @@ use std::path::Path;
 pub struct FileHandler {}
 
 impl FileHandler {
-    pub fn ensure_path_exists(path: &str) -> Result<(), std::io::Error> {
+    pub fn does_file_exist(file_path: &str) -> bool {
+        Path::new(file_path).exists()
+    }
+
+    pub fn create_all_dirs(path: &str) -> Result<(), std::io::Error> {
         let path = Path::new(path);
-
-        if path.exists() {
-            return Ok(());
-        }
-
-        let dir_path = if path.is_file() || path.extension().is_some() {
-            path.parent().unwrap_or(path)
-        } else {
-            path
-        };
-
-        if !dir_path.exists() {
-            fs::create_dir_all(dir_path)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
         }
 
         Ok(())
@@ -37,7 +30,7 @@ impl FileHandler {
     where
         R: Read,
     {
-        Self::ensure_path_exists(path)?;
+        Self::create_all_dirs(path)?;
         let mut file = File::create(path)?;
         copy(data, &mut file)?;
         Ok(())
@@ -49,7 +42,6 @@ impl FileHandler {
     }
 
     pub fn get_all_file_names(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
-        Self::ensure_path_exists(path)?;
         let files = fs::read_dir(path)?;
 
         let file_names: Vec<String> = files
@@ -94,15 +86,12 @@ impl FileHandler {
         key: &str,
         new_value: &str,
     ) -> Result<(), Box<dyn Error>> {
-        if fs::metadata(path).is_ok() {
-            return Err(format!("File {} does not exist", path).into());
-        }
         let content = fs::read_to_string(path)?;
         if !content.contains(key) {
             let updated_line = format!("{} {}", key, new_value);
-            Self::append_to_file(path, updated_line.as_bytes())?;
+            Self::append_to_file(path, updated_line.as_bytes())
         } else {
-            content
+            let content = content
                 .lines()
                 .map(|line| {
                     if line.starts_with(key) {
@@ -115,8 +104,7 @@ impl FileHandler {
                 })
                 .collect::<Vec<String>>()
                 .join("\n");
-        };
-
-        Ok(())
+            fs::write(path, content).map_err(|e| e.into())
+        }
     }
 }

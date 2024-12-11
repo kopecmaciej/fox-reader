@@ -13,7 +13,7 @@ pub struct Language {
     pub code: String,
     region: String,
     name_native: String,
-    name_english: String,
+    pub name_english: String,
     country_english: String,
 }
 
@@ -40,7 +40,14 @@ impl VoiceManager {
         let raw_json = voices_file.text()?;
 
         let value_data: Value = serde_json::from_str(&raw_json)?;
-        let mut voices: BTreeMap<String, Voice> = serde_json::from_value(value_data.clone())?;
+        let mut voices: BTreeMap<String, Voice> = serde_json::from_value(value_data)?;
+
+        voices.iter_mut().for_each(|(_, voice)| {
+            // we want language in format of en-GB not en_GB
+            voice.language.code = voice.language.code.replace("_", "-");
+            // we want key to be as voice.onnx for dispatcher config
+            voice.key = format!("{}.onnx", voice.key);
+        });
 
         let downloaded_voices = Self::list_downloaded_voices()?;
         downloaded_voices.iter().for_each(|f| {
@@ -65,10 +72,10 @@ impl VoiceManager {
 
     pub fn download_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
         for (file_path, _) in voice_files {
-            if file_path.ends_with(".onnx") {
-                // voice file
-                let voice_url = huggingface_config::get_voice_url(&file_path);
-                let mut voice_res = FileHandler::download_file(voice_url)?;
+            if file_path.ends_with(".json") {
+                // Download the voice json config
+                let voice_config_url = huggingface_config::get_voice_url(&file_path);
+                let mut res = FileHandler::download_file(voice_config_url)?;
                 let file_name = Path::new(file_path)
                     .file_name()
                     .and_then(|f| f.to_str())
@@ -76,13 +83,13 @@ impl VoiceManager {
 
                 FileHandler::save_file(
                     &huggingface_config::get_voice_file_path(file_name),
-                    &mut voice_res,
+                    &mut res,
                 )?;
-
-                // voice json config
-                let mut voice_config_url = huggingface_config::get_voice_url(&file_path);
-                voice_config_url.push_str(".json");
-                let mut config_res = FileHandler::download_file(voice_config_url)?;
+            }
+            if file_path.ends_with(".onnx") {
+                // Download the voice file
+                let voice_url = huggingface_config::get_voice_url(&file_path);
+                let mut res = FileHandler::download_file(voice_url)?;
                 let file_name = Path::new(file_path)
                     .file_name()
                     .and_then(|f| f.to_str())
@@ -90,7 +97,7 @@ impl VoiceManager {
 
                 FileHandler::save_file(
                     &huggingface_config::get_voice_file_path(file_name),
-                    &mut config_res,
+                    &mut res,
                 )?;
             }
         }
@@ -106,7 +113,14 @@ impl VoiceManager {
                     .and_then(|f| f.to_str())
                     .ok_or("Failed to properly extract file name from path")?;
 
-                FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?
+                // Remove the voice file
+                FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
+
+                // Remove the voice json config
+                let config_file_name = format!("{}.json", file_name);
+                FileHandler::remove_file(&huggingface_config::get_voice_file_path(
+                    &config_file_name,
+                ))?;
             }
         }
 

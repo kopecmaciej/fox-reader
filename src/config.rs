@@ -48,8 +48,4 @@ pub mod dispatcher_config {
     pub fn get_module_config_path() -> String {
         build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_MODULE_FILE)
     }
-
-    pub fn get_dispatcher_config_path() -> String {
-        resolve_home(DISPATCHER_CONFIG_PATH)
-    }
 }

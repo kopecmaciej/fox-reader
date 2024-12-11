@@ -8,34 +8,33 @@ use crate::{
 pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
-    pub fn set_default_voice(default_voice: &str) -> Result<(), Box<dyn Error>> {
-        FileHandler::upsert_value_in_config(
-            &dispatcher_config::get_module_config_path(),
-            "DefaultVoice",
-            default_voice,
-        )
-    }
-
     pub fn initialize_config() -> Result<(), Box<dyn Error>> {
-        let path = &dispatcher_config::get_dispatcher_config_path();
-        FileHandler::ensure_path_exists(path)?;
+        let config_file = &dispatcher_config::get_config_file_path();
+        // TODO: Check if speechd.conf is default or already adjusted
+        if !FileHandler::does_file_exist(config_file) {
+            FileHandler::create_all_dirs(config_file)?;
+            FileHandler::save_file(config_file, &mut config_template("en-GB").trim().as_bytes())?;
+        }
 
-        FileHandler::save_file(
-            &dispatcher_config::get_config_file_path(),
-            &mut config_template("en-GB").trim().as_bytes(),
-        )?;
-        Self::initialize_module_config()
+        let module_path = &dispatcher_config::get_module_config_path();
+        if !FileHandler::does_file_exist(module_path) {
+            FileHandler::save_file(
+                module_path,
+                &mut module_template("piper-tts", &huggingface_config::get_download_path())
+                    .trim()
+                    .as_bytes(),
+            )?;
+        }
+        Ok(())
     }
 
+    // AddVoice "language" "symbolicname" "name"
     pub fn add_new_voice(
         language: &str,
-        voice_name: &str,
+        symbolic_name: &str,
         voice_key: &str,
     ) -> Result<(), Box<dyn Error>> {
-        // speechd want's language in format of en-GB not en_GB
-        let language = language.replace("_", "-");
-        let voice_file = format!("{}.onnx", voice_key);
-        let new_voice = add_voice_template(&language, voice_name, &voice_file);
+        let new_voice = add_voice_template(language, symbolic_name, voice_key);
 
         FileHandler::append_to_file(
             &dispatcher_config::get_module_config_path(),
@@ -56,12 +55,11 @@ impl SpeechDispatcher {
         )
     }
 
-    fn initialize_module_config() -> Result<(), Box<dyn Error>> {
-        FileHandler::save_file(
+    pub fn set_default_voice(default_voice: &str) -> Result<(), Box<dyn Error>> {
+        FileHandler::upsert_value_in_config(
             &dispatcher_config::get_module_config_path(),
-            &mut module_template("piper-tts", &huggingface_config::get_download_path())
-                .trim()
-                .as_bytes(),
+            "DefaultVoice",
+            default_voice,
         )
     }
 }
@@ -69,10 +67,9 @@ impl SpeechDispatcher {
 fn config_template(default_lang: &str) -> String {
     format!(
         r#"
-#
-# Piper Reader Speech Dispatcher Configuration
+# Piper Reader 
+# Speech Dispatcher Configuration
 # Please do not modify this file as it can cause issues with application
-#
 
 # Symbol preprocessing files
 SymbolsPreproc "char"
@@ -94,7 +91,7 @@ DefaultModule "piper-reader" "#,
 fn module_template(piper_path: &str, voices_path: &str) -> String {
     format!(
         r#"
-GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -"
+GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}/\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -"
     "#,
         piper_path, voices_path
     )

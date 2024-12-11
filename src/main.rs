@@ -7,8 +7,8 @@ use ui::window::UI;
 mod config;
 mod dispatcher;
 mod file_handler;
-mod hf;
 mod ui;
+mod voice_manager;
 
 const APP_ID: &str = "org.piper-reader";
 
