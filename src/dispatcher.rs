@@ -11,7 +11,7 @@ impl SpeechDispatcher {
     pub fn set_default_voice(default_voice: &str) -> Result<(), Box<dyn Error>> {
         FileHandler::upsert_value_in_config(
             &dispatcher_config::get_module_config_path(),
-            "DefaultVoiceType",
+            "DefaultVoice",
             default_voice,
         )
     }
@@ -30,9 +30,12 @@ impl SpeechDispatcher {
     pub fn add_new_voice(
         language: &str,
         voice_name: &str,
-        voice_id: &str,
+        voice_key: &str,
     ) -> Result<(), Box<dyn Error>> {
-        let new_voice = add_voice_template(language, voice_name, voice_id);
+        // speechd want's language in format of en-GB not en_GB
+        let language = language.replace("_", "-");
+        let voice_file = format!("{}.onnx", voice_key);
+        let new_voice = add_voice_template(&language, voice_name, &voice_file);
 
         FileHandler::append_to_file(
             &dispatcher_config::get_module_config_path(),
@@ -66,10 +69,10 @@ impl SpeechDispatcher {
 fn config_template(default_lang: &str) -> String {
     format!(
         r#"
-###
-### Custom Speech Dispatcher Configuration
-### Please do not modify this file as it can cause issues with application
-###
+#
+# Piper Reader Speech Dispatcher Configuration
+# Please do not modify this file as it can cause issues with application
+#
 
 # Symbol preprocessing files
 SymbolsPreproc "char"
@@ -83,19 +86,17 @@ SymbolsPreprocFile "orca-chars.dic"
 AddModule "piper-reader" "sd_generic" "piper-reader.conf"
 
 DefaultLanguage "{}"
-DefaultVoiceType  ""
 DefaultModule "piper-reader" "#,
         default_lang
     )
 }
 
-fn module_template(piper_path: &str, module_path: &str) -> String {
-    let module_path_with_voice = format!("{}/${{VOICE}}", module_path);
+fn module_template(piper_path: &str, voices_path: &str) -> String {
     format!(
         r#"
-GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | \"{}\" -q -m \"{}\" -s 21 -f - | mpv --volume=100 --no-terminal --keep-open=no -"
+GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -"
     "#,
-        piper_path, module_path_with_voice
+        piper_path, voices_path
     )
 }
 
