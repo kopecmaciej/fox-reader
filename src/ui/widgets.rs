@@ -36,7 +36,7 @@ pub fn download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) ->
                 button.set_icon_name(SET_VOICE_DEFAULT_ICON);
                 if let Err(e) = SpeechDispatcher::add_new_voice(
                     &mut_voice.language.code,
-                    &mut_voice.language.name_english,
+                    &mut_voice.name,
                     &mut_voice.key,
                 ) {
                     eprintln!("{}", e);
@@ -75,7 +75,7 @@ pub fn remove_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) -> B
             }
             if let Err(e) = SpeechDispatcher::remove_voice(
                 &mut_voice.language.code,
-                &mut_voice.language.name_english,
+                &mut_voice.name,
                 &mut_voice.key,
             ) {
                 eprintln!("{}", e);

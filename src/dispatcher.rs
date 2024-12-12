@@ -44,13 +44,12 @@ impl SpeechDispatcher {
         Ok(())
     }
 
-    // AddVoice "language" "symbolicname" "name"
     pub fn add_new_voice(
         language: &str,
-        symbolic_name: &str,
+        voice_name: &str,
         voice_key: &str,
     ) -> Result<(), Box<dyn Error>> {
-        let new_voice = add_voice_template(language, symbolic_name, voice_key);
+        let new_voice = add_voice_template(language, voice_name, voice_key);
 
         FileHandler::append_to_file(
             &dispatcher_config::get_module_config_path(),
@@ -116,8 +115,8 @@ GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g
 fn add_voice_template(language: &str, voice_name: &str, voice_relative_path: &str) -> String {
     format!(
         r#" 
-AddVoice "{}" "male1" "{}"
+AddVoice "{}_{}" "male1" "{}"
 "#,
-        language, voice_relative_path
+        language, voice_name, voice_relative_path
     )
 }
