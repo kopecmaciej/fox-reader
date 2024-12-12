@@ -8,6 +8,7 @@ const HF_DOWNLOAD_PATH: &str = "$HOME/.local/share/piper-reader/voices";
 const DISPATCHER_CONFIG_PATH: &str = "$HOME/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/piper-reader.conf";
+const DISPATCHER_SCRIPT_FILE: &str = "piper-reader.sh";
 
 fn resolve_home(path: &str) -> String {
     let home = home_dir().expect("Failed to get home directory");
@@ -47,5 +48,9 @@ pub mod dispatcher_config {
 
     pub fn get_module_config_path() -> String {
         build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_MODULE_FILE)
+    }
+
+    pub fn get_script_path() -> String {
+        build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_SCRIPT_FILE)
     }
 }

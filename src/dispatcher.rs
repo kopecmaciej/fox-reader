@@ -5,6 +5,8 @@ use crate::{
     file_handler::FileHandler,
 };
 
+const PIPER_READER_SCRIPT: &[u8] = include_bytes!("../scripts/piper-reader.sh");
+
 pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
@@ -25,6 +27,20 @@ impl SpeechDispatcher {
                     .as_bytes(),
             )?;
         }
+        let script_path = &dispatcher_config::get_script_path();
+        if !FileHandler::does_file_exist(script_path) {
+            let mut cursor = std::io::Cursor::new(PIPER_READER_SCRIPT);
+            FileHandler::save_file(script_path, &mut cursor)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let metadata = std::fs::metadata(script_path)?;
+                let mut perms = metadata.permissions();
+                perms.set_mode(0o755); // rwxr-xr-x
+                std::fs::set_permissions(script_path, perms)?;
+            }
+        }
+
         Ok(())
     }
 
