@@ -42,6 +42,9 @@ impl FileHandler {
     }
 
     pub fn get_all_file_names(path: &str) -> Result<Vec<String>, Box<dyn Error>> {
+        if !Self::does_file_exist(path) {
+            return Ok(Vec::new())
+        }
         let files = fs::read_dir(path)?;
 
         let file_names: Vec<String> = files
