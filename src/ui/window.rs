@@ -68,12 +68,11 @@ impl UI {
             .object("search_entry")
             .expect("Failed to load search entry");
 
-        self.filter_voices(&search_entry, &grid, voices.clone());
-
         for (i, (_, voice)) in voices.iter().enumerate() {
-            let voice_rc = Rc::new(RefCell::new(voice.clone()));
-            Self::add_voice_row(&self.window, voice_rc, &grid, i as i32);
+            Self::add_voice_row(&self.window, voice, &grid, i as i32);
         }
+
+        self.filter_voices(&search_entry, &grid, voices);
 
         Ok(())
     }
@@ -82,7 +81,7 @@ impl UI {
         &self,
         search_entry: &SearchEntry,
         grid: &Grid,
-        voices: BTreeMap<String, Voice>,
+        voices: BTreeMap<String, Rc<RefCell<Voice>>>,
     ) {
         search_entry.connect_search_changed(clone!(
             #[weak]
@@ -93,9 +92,8 @@ impl UI {
                 let input = search.text().to_lowercase();
                 clear_grid(&grid);
                 for (i, (_, voice)) in voices.iter().enumerate() {
-                    if input.is_empty() || voice.key.to_lowercase().contains(&input) {
-                        let voice_rc = Rc::new(RefCell::new(voice.clone()));
-                        Self::add_voice_row(&window, voice_rc, &grid, i as i32);
+                    if input.is_empty() || voice.borrow().key.to_lowercase().contains(&input) {
+                        Self::add_voice_row(&window, voice, &grid, i as i32);
                     }
                 }
             }
@@ -104,11 +102,11 @@ impl UI {
 
     fn add_voice_row(
         window: &ApplicationWindow,
-        voice_rc: Rc<RefCell<Voice>>,
+        voice_rc: &Rc<RefCell<Voice>>,
         grid: &Grid,
         index: i32,
     ) {
-        let label = Label::new(Some(&voice_rc.borrow_mut().key));
+        let label = Label::new(Some(&voice_rc.borrow().key));
         label.set_halign(gtk::Align::Start);
         let download_button = download_button(window, Rc::clone(&voice_rc));
         let remove_button = remove_button(window, Rc::clone(&voice_rc));

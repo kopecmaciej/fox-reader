@@ -6,9 +6,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 pub struct VoiceManager {}
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Language {
     pub code: String,
     region: String,
@@ -17,12 +20,12 @@ pub struct Language {
     country_english: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct File {
     size_bytes: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Voice {
     pub name: String,
     pub key: String,
@@ -34,7 +37,8 @@ pub struct Voice {
 }
 
 impl VoiceManager {
-    pub fn list_all_avaliable_voices() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
+    pub fn list_all_avaliable_voices(
+    ) -> Result<BTreeMap<String, Rc<RefCell<Voice>>>, Box<dyn Error>> {
         let voices_url = huggingface_config::get_voices_url();
         let voices_file = FileHandler::download_file(voices_url)?;
         let raw_json = voices_file.text()?;
@@ -55,6 +59,14 @@ impl VoiceManager {
                 voice.downloaded = true;
             }
         });
+
+        let voices = voices
+            .into_iter()
+            .map(|(key, voice)| {
+                let voice = Rc::new(RefCell::new(voice));
+                (key, voice)
+            })
+            .collect();
 
         Ok(voices)
     }
