@@ -56,7 +56,7 @@ impl UI {
     }
 
     fn list_avaliable_voices(&self) -> Result<(), Box<dyn Error>> {
-        let voices = VoiceManager::list_all_avaliable_voices()?;
+        let voices = VoiceManager::list_all_available_voices()?;
 
         let grid: gtk::Grid = self
             .voices_box

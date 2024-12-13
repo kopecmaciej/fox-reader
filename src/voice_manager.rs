@@ -37,32 +37,26 @@ pub struct Voice {
 }
 
 impl VoiceManager {
-    pub fn list_all_avaliable_voices(
+    pub fn list_all_available_voices(
     ) -> Result<BTreeMap<String, Rc<RefCell<Voice>>>, Box<dyn Error>> {
         let voices_url = huggingface_config::get_voices_url();
         let voices_file = FileHandler::download_file(voices_url)?;
         let raw_json = voices_file.text()?;
 
         let value_data: Value = serde_json::from_str(&raw_json)?;
-        let mut voices: BTreeMap<String, Voice> = serde_json::from_value(value_data)?;
-
-        voices.iter_mut().for_each(|(_, voice)| {
-            // we want language in format of en-GB not en_GB
-            voice.language.code = voice.language.code.replace("_", "-");
-            // we want key to be as voice.onnx for dispatcher config
-            voice.key = format!("{}.onnx", voice.key);
-        });
+        let voices: BTreeMap<String, Voice> = serde_json::from_value(value_data)?;
 
         let downloaded_voices = Self::list_downloaded_voices()?;
-        downloaded_voices.iter().for_each(|f| {
-            if let Some(voice) = voices.get_mut(f) {
-                voice.downloaded = true;
-            }
-        });
 
         let voices = voices
             .into_iter()
-            .map(|(key, voice)| {
+            .map(|(key, mut voice)| {
+                voice.language.code = voice.language.code.replace("_", "-");
+                // we want key to be as voice.onnx for dispatcher config
+                voice.key = format!("{}.onnx", voice.key);
+                // Mark as downloaded if in the list of downloaded voices
+                voice.downloaded = downloaded_voices.contains(&voice.key);
+
                 let voice = Rc::new(RefCell::new(voice));
                 (key, voice)
             })
@@ -74,10 +68,8 @@ impl VoiceManager {
     pub fn list_downloaded_voices() -> Result<Vec<String>, Box<dyn Error>> {
         let downloaded_voices =
             FileHandler::get_all_file_names(&huggingface_config::get_download_path())?;
-        let downloaded_voices: Vec<String> = downloaded_voices
-            .iter()
-            .map(|f| f.split(".").next().unwrap_or(f).to_string())
-            .collect();
+        let downloaded_voices: Vec<String> =
+            downloaded_voices.iter().map(|f| f.to_string()).collect();
 
         Ok(downloaded_voices)
     }
