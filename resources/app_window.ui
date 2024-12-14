@@ -8,6 +8,18 @@
     <child type="titlebar">
       <object class="GtkHeaderBar" id="header_bar">
         <property name="show-title-buttons">True</property>
+        <child type="end">
+          <object class="GtkMenuButton" id="menu_button">
+            <property name="icon-name">open-menu-symbolic</property>
+            <property name="direction">down</property>
+            <property name="halign">end</property>
+            <property name="popover">
+              <object class="GtkPopoverMenu" id="menu_popover">
+                <property name="menu-model">menu_model</property>
+              </object>
+            </property>
+          </object>
+        </child>
       </object>
     </child>
     <child>
@@ -17,4 +29,12 @@
       </object>
     </child>
   </object>
+  <menu id="menu_model">
+    <section>
+      <item>
+        <attribute name="label">Purge voices</attribute>
+        <attribute name="action">app.purge_voices</attribute>
+      </item>
+    </section>
+  </menu>
 </interface>

@@ -27,6 +27,12 @@ impl UI {
         let window: ApplicationWindow = app_window.object("window").expect("Failed to load window");
         window.set_application(Some(app));
 
+        let action_item1 = gio::SimpleAction::new("purge_voices", None);
+        action_item1.connect_activate(|_, _| {
+            println!("Purge voices");
+        });
+        app.add_action(&action_item1);
+
         Self {
             window,
             app_window,
