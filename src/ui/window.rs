@@ -8,6 +8,7 @@ use std::{error::Error, rc::Rc};
 
 use crate::{
     dispatcher::SpeechDispatcher,
+    runtime::runtime,
     voice_manager::{Voice, VoiceManager},
 };
 
@@ -62,8 +63,6 @@ impl UI {
     }
 
     fn list_avaliable_voices(&self) -> Result<(), Box<dyn Error>> {
-        let voices = VoiceManager::list_all_available_voices()?;
-
         let grid: gtk::Grid = self
             .voices_box
             .object("voices_grid")
@@ -74,17 +73,19 @@ impl UI {
             .object("search_entry")
             .expect("Failed to load search entry");
 
+        let voices = runtime().block_on(VoiceManager::list_all_available_voices())?;
+
         for (i, (_, voice)) in voices.iter().enumerate() {
             Self::add_voice_row(&self.window, voice, &grid, i as i32);
         }
 
-        self.filter_voices(&search_entry, &grid, voices);
+        Self::filter_voices(&self.window, &search_entry, &grid, voices);
 
         Ok(())
     }
 
     fn filter_voices(
-        &self,
+        window: &ApplicationWindow,
         search_entry: &SearchEntry,
         grid: &Grid,
         voices: BTreeMap<String, Rc<RefCell<Voice>>>,
@@ -92,8 +93,8 @@ impl UI {
         search_entry.connect_search_changed(clone!(
             #[weak]
             grid,
-            #[weak(rename_to=window)]
-            self.window,
+            #[weak]
+            window,
             move |search| {
                 let input = search.text().to_lowercase();
                 clear_grid(&grid);

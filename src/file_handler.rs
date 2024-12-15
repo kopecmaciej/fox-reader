@@ -1,8 +1,7 @@
-use reqwest::blocking::{get, Response};
+use reqwest::get;
 use std::error::Error;
 use std::fs::{self, remove_file, File};
 use std::io::prelude::*;
-use std::io::{copy, Read};
 use std::path::Path;
 
 pub struct FileHandler {}
@@ -21,18 +20,16 @@ impl FileHandler {
         Ok(())
     }
 
-    pub fn download_file(link: String) -> Result<Response, Box<dyn Error>> {
-        let response = get(link)?;
-        Ok(response)
+    pub async fn download_file(link: String) -> Result<Vec<u8>, Box<dyn Error>> {
+        let response = get(link).await?;
+        let bytes = response.bytes().await?;
+        Ok(bytes.to_vec())
     }
 
-    pub fn save_file<R>(path: &str, data: &mut R) -> Result<(), Box<dyn Error>>
-    where
-        R: Read,
-    {
+    pub fn save_bytes(path: &str, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
         Self::create_all_dirs(path)?;
         let mut file = File::create(path)?;
-        copy(data, &mut file)?;
+        file.write_all(bytes)?;
         Ok(())
     }
 

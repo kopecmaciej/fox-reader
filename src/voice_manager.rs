@@ -37,11 +37,11 @@ pub struct Voice {
 }
 
 impl VoiceManager {
-    pub fn list_all_available_voices(
+    pub async fn list_all_available_voices(
     ) -> Result<BTreeMap<String, Rc<RefCell<Voice>>>, Box<dyn Error>> {
         let voices_url = huggingface_config::get_voices_url();
-        let voices_file = FileHandler::download_file(voices_url)?;
-        let raw_json = voices_file.text()?;
+        let voices_file = FileHandler::download_file(voices_url).await?;
+        let raw_json = String::from_utf8(voices_file)?;
 
         let value_data: Value = serde_json::from_str(&raw_json)?;
         let voices: BTreeMap<String, Voice> = serde_json::from_value(value_data)?;
@@ -74,24 +74,23 @@ impl VoiceManager {
         Ok(downloaded_voices)
     }
 
-    pub fn download_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
+    pub async fn download_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
         for (file_path, _) in voice_files {
             if file_path.ends_with(".json") || file_path.ends_with(".onnx") {
                 // Download the voice json config
                 let voice_config_url = huggingface_config::get_voice_url(&file_path);
-                let mut res = FileHandler::download_file(voice_config_url)?;
+                let file = FileHandler::download_file(voice_config_url).await?;
                 let file_name = Path::new(file_path)
                     .file_name()
                     .and_then(|f| f.to_str())
                     .ok_or("Failed to properly extract file name from path")?;
 
-                FileHandler::save_file(
+                FileHandler::save_bytes(
                     &huggingface_config::get_voice_file_path(file_name),
-                    &mut res,
+                    &file,
                 )?;
             }
         }
-
         Ok(())
     }
 

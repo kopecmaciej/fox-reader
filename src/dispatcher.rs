@@ -15,12 +15,12 @@ impl SpeechDispatcher {
         // TODO: Check if speechd.conf is default or already adjusted
         if !FileHandler::does_file_exist(config_file) {
             FileHandler::create_all_dirs(config_file)?;
-            FileHandler::save_file(config_file, &mut config_template("en-GB").trim().as_bytes())?;
+            FileHandler::save_bytes(config_file, &mut config_template("en-GB").trim().as_bytes())?;
         }
 
         let module_path = &dispatcher_config::get_module_config_path();
         if !FileHandler::does_file_exist(module_path) {
-            FileHandler::save_file(
+            FileHandler::save_bytes(
                 module_path,
                 &mut module_template("piper-tts", &huggingface_config::get_download_path())
                     .trim()
@@ -29,8 +29,7 @@ impl SpeechDispatcher {
         }
         let script_path = &dispatcher_config::get_script_path();
         if !FileHandler::does_file_exist(script_path) {
-            let mut cursor = std::io::Cursor::new(PIPER_READER_SCRIPT);
-            FileHandler::save_file(script_path, &mut cursor)?;
+            FileHandler::save_bytes(script_path, PIPER_READER_SCRIPT)?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;

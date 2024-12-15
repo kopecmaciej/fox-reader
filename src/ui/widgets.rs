@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::dispatcher::SpeechDispatcher;
+use crate::runtime::runtime;
 use crate::voice_manager::{Voice, VoiceManager};
 
 pub const SAVE_VOICE_ICON: &str = "document-save";
@@ -28,15 +29,17 @@ pub fn download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) ->
         #[strong]
         voice,
         move |button| {
-            if !voice.borrow().downloaded {
-                glib::MainContext::default().spawn_local(clone!(
-                    #[strong]
-                    voice,
-                    #[weak]
-                    button,
-                    async move {
+            glib::spawn_future_local(clone!(
+                #[weak]
+                button,
+                #[weak]
+                window,
+                #[strong]
+                voice,
+                async move {
+                    if !voice.borrow().downloaded {
                         let files = voice.borrow().files.clone();
-                        if let Err(e) = VoiceManager::download_voice(&files) {
+                        if let Err(e) = runtime().block_on(VoiceManager::download_voice(&files)) {
                             let err_msg = format!("Failed to download voice: {}", e);
                             return show_alert(&window, &err_msg);
                         }
@@ -53,16 +56,16 @@ pub fn download_button(window: &ApplicationWindow, voice: Rc<RefCell<Voice>>) ->
                             show_alert(&window, "Error while setting default voice");
                         }
                         button.set_icon_name(SET_VOICE_DEFAULT_ICON);
+                    } else {
+                        let key = voice.borrow().key.clone();
+                        if let Err(e) = SpeechDispatcher::set_default_voice(&key) {
+                            eprintln!("{}", e);
+                            show_alert(&window, "Error while setting default voice");
+                        }
+                        button.set_icon_name(SET_VOICE_DEFAULT_ICON);
                     }
-                ));
-            } else {
-                let key = voice.borrow().key.clone();
-                if let Err(e) = SpeechDispatcher::set_default_voice(&key) {
-                    eprintln!("{}", e);
-                    show_alert(&window, "Error while setting default voice");
                 }
-                button.set_icon_name(SET_VOICE_DEFAULT_ICON);
-            }
+            ));
         }
     ));
 
