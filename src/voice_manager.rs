@@ -20,7 +20,7 @@ pub struct Language {
     country_english: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct File {
     size_bytes: u64,
 }
@@ -76,24 +76,10 @@ impl VoiceManager {
 
     pub fn download_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
         for (file_path, _) in voice_files {
-            if file_path.ends_with(".json") {
+            if file_path.ends_with(".json") || file_path.ends_with(".onnx") {
                 // Download the voice json config
                 let voice_config_url = huggingface_config::get_voice_url(&file_path);
                 let mut res = FileHandler::download_file(voice_config_url)?;
-                let file_name = Path::new(file_path)
-                    .file_name()
-                    .and_then(|f| f.to_str())
-                    .ok_or("Failed to properly extract file name from path")?;
-
-                FileHandler::save_file(
-                    &huggingface_config::get_voice_file_path(file_name),
-                    &mut res,
-                )?;
-            }
-            if file_path.ends_with(".onnx") {
-                // Download the voice file
-                let voice_url = huggingface_config::get_voice_url(&file_path);
-                let mut res = FileHandler::download_file(voice_url)?;
                 let file_name = Path::new(file_path)
                     .file_name()
                     .and_then(|f| f.to_str())
