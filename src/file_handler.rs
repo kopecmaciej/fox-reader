@@ -20,13 +20,13 @@ impl FileHandler {
         Ok(())
     }
 
-    pub async fn download_file(link: String) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub async fn fetch_file(link: String) -> Result<Vec<u8>, Box<dyn Error>> {
         let response = get(link).await?;
         let bytes = response.bytes().await?;
         Ok(bytes.to_vec())
     }
 
-    pub fn save_bytes(path: &str, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    pub fn save_bytes(path: &str, bytes: &Vec<u8>) -> Result<(), Box<dyn Error>> {
         Self::create_all_dirs(path)?;
         let mut file = File::create(path)?;
         file.write_all(bytes)?;

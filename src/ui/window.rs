@@ -5,6 +5,7 @@ use gtk::{
 };
 use std::{cell::RefCell, collections::BTreeMap};
 use std::{error::Error, rc::Rc};
+use gtk::prelude::GridExt;
 
 use crate::{
     dispatcher::SpeechDispatcher,
@@ -63,7 +64,7 @@ impl UI {
     }
 
     fn list_avaliable_voices(&self) -> Result<(), Box<dyn Error>> {
-        let grid: gtk::Grid = self
+        let grid: Grid = self
             .voices_box
             .object("voices_grid")
             .expect("Failed to load voices grid");
