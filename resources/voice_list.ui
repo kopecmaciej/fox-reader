@@ -1,0 +1,76 @@
+<!-- Voice List --><child>
+  <object class="GtkScrolledWindow">
+    <property name="vexpand">true</property>
+    <child>
+      <object class="GtkColumnView" id="column_view">
+        <property name="show-column-separators">true</property>
+        <property name="show-row-separators">true</property>
+        <!-- Play Column -->
+        <child>
+          <object class="GtkColumnViewColumn">
+            <property name="title">Play</property>
+            <property name="fixed-width">60</property>
+            <property name="factory">
+              <object class="GtkSignalListItemFactory">
+                <signal handler="setup_play_button" name="setup"></signal>
+                <signal handler="bind_play_button" name="bind"></signal>
+              </object>
+            </property>
+          </object>
+        </child>
+        <!-- Accent Column -->
+        <child>
+          <object class="GtkColumnViewColumn">
+            <property name="title">Accent</property>
+            <property name="expand">true</property>
+            <property name="factory">
+              <object class="GtkSignalListItemFactory">
+                <signal handler="setup_label" name="setup"></signal>
+                <signal handler="bind_accent" name="bind"></signal>
+              </object>
+            </property>
+          </object>
+        </child>
+        <!-- Gender Column -->
+        <child>
+          <object class="GtkColumnViewColumn">
+            <property name="title">Gender</property>
+            <property name="fixed-width">100</property>
+            <property name="factory">
+              <object class="GtkSignalListItemFactory">
+                <signal handler="setup_label" name="setup"></signal>
+                <signal handler="bind_gender" name="bind"></signal>
+              </object>
+            </property>
+          </object>
+        </child>
+        <!-- Country Column -->
+        <child>
+          <object class="GtkColumnViewColumn">
+            <property name="title">Country</property>
+            <property name="fixed-width">120</property>
+            <property name="factory">
+              <object class="GtkSignalListItemFactory">
+                <signal handler="setup_label" name="setup"></signal>
+                <signal handler="bind_country" name="bind"></signal>
+              </object>
+            </property>
+          </object>
+        </child>
+        <!-- Actions Column -->
+        <child>
+          <object class="GtkColumnViewColumn">
+            <property name="title">Actions</property>
+            <property name="fixed-width">120</property>
+            <property name="factory">
+              <object class="GtkSignalListItemFactory">
+                <signal handler="setup_actions" name="setup"></signal>
+                <signal handler="bind_actions" name="bind"></signal>
+              </object>
+            </property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</child>

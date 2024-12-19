@@ -1,30 +1,22 @@
+use gtk::prelude::*;
 use gtk::{gio, glib};
 
-use gtk::prelude::*;
-use gtk::Application;
-use ui::window::UI;
-
-mod config;
-mod dispatcher;
-mod file_handler;
-mod runtime;
 mod ui;
-mod voice_manager;
 
-const APP_ID: &str = "org.piper-reader";
+const APP_ID: &str = "org.fox-reader";
 
 fn main() -> glib::ExitCode {
-    gio::resources_register_include!("compiled.gresource").expect("Failed to register resources.");
+    gio::resources_register_include!("fox-reader.gresource")
+        .expect("Failed to register resources.");
 
-    let app = Application::builder().application_id(APP_ID).build();
+    let app = adw::Application::builder().application_id(APP_ID).build();
 
-    app.connect_activate(build_ui);
+    app.connect_startup(build_ui);
 
     app.run()
 }
 
-fn build_ui(app: &Application) {
-    let ui = UI::new(app);
-
-    ui.setup_ui();
+fn build_ui(app: &adw::Application) {
+    let window = ui::window::FoxReaderAppWindow::new(app);
+    window.present();
 }

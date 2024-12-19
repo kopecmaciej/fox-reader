@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"></requires>
+  <requires lib="libadwaita" version="1.0"></requires>
+  <template class="FoxReaderAppWindow" parent="AdwApplicationWindow">
+    <property name="default-width">800</property>
+    <property name="default-height">600</property>
+    <property name="title">Fox Reader</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <!-- Header -->
+        <child>
+          <object class="AdwHeaderBar">
+            <property name="title-widget">
+              <object class="AdwWindowTitle">
+                <property name="title">Fox Reader</property>
+              </object>
+            </property>
+          </object>
+        </child>
+        <!-- Main Content -->
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="margin-start">16</property>
+            <property name="margin-end">16</property>
+            <property name="margin-top">16</property>
+            <property name="margin-bottom">16</property>
+            <property name="spacing">16</property>
+            <!-- Search and Filter Controls -->
+            <child>
+              <object class="GtkBox">
+                <property name="spacing">12</property>
+                <!-- Search Entry -->
+                <child>
+                  <object class="GtkSearchEntry" id="search_entry">
+                    <property name="hexpand">true</property>
+                    <property name="placeholder-text">Search voices...</property>
+                  </object>
+                </child>
+                <!-- Country Dropdown -->
+                <child>
+                  <object class="GtkDropDown" id="country_dropdown">
+                    <property name="model">
+                      <object class="GtkStringList">
+                        <items>
+                          <item>Great Britain</item>
+                          <item>United States</item>
+                          <item>Australia</item>
+                          <item>Canada</item>
+                          <item>Ireland</item>
+                        </items>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <!-- Voice List -->
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
