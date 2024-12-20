@@ -58,6 +58,11 @@
               </object>
             </child>
             <!-- Voice List -->
+            <child>
+              <object class="VoiceList" id="voice_list">
+                <property name="vexpand">true</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>

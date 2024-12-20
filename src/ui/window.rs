@@ -3,6 +3,8 @@ use gio::glib::Object;
 use gtk::glib;
 
 mod imp {
+    use crate::ui::voice_list::VoiceList;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -13,6 +15,8 @@ mod imp {
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
         pub country_dropdown: TemplateChild<gtk::DropDown>,
+        #[template_child]
+        pub voice_list: TemplateChild<VoiceList>,
     }
 
     #[glib::object_subclass]
