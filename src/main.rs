@@ -2,6 +2,8 @@ use gtk::prelude::*;
 use gtk::{gio, glib};
 
 mod ui;
+mod core;
+mod config;
 
 const APP_ID: &str = "org.fox-reader";
 
