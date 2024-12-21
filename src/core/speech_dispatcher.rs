@@ -2,10 +2,10 @@ use std::error::Error;
 
 use crate::{
     config::{dispatcher_config, huggingface_config},
-    file_handler::FileHandler,
+    core::file_handler::FileHandler,
 };
 
-const PIPER_READER_SCRIPT: &[u8] = include_bytes!("../scripts/piper-reader.sh");
+const PIPER_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/piper.sh");
 
 pub struct SpeechDispatcher {}
 

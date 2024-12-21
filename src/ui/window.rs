@@ -49,7 +49,10 @@ glib::wrapper! {
 
 impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
-        // Create new window
-        Object::builder().property("application", app).build()
+        let window: Self = Object::builder().property("application", app).build();
+
+        window.imp().voice_list.initialize();
+
+        window
     }
 }

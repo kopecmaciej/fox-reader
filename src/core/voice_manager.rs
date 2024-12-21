@@ -1,5 +1,5 @@
 use crate::config::huggingface_config;
-use crate::file_handler::FileHandler;
+use crate::core::file_handler::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};

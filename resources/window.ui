@@ -6,6 +6,7 @@
     <property name="default-width">800</property>
     <property name="default-height">600</property>
     <property name="title">Fox Reader</property>
+    <!-- Main layout -->
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>

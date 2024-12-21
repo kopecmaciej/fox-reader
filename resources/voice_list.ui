@@ -64,7 +64,7 @@
             <child>
               <object class="GtkColumnViewColumn">
                 <property name="title">Actions</property>
-                <property name="fixed-width">120</property>
+                <property name="fixed-width">140</property>
                 <property name="factory">
                   <object class="GtkSignalListItemFactory">
                     <signal handler="setup_actions" name="setup"></signal>
