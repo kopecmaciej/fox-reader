@@ -9,7 +9,6 @@ use gtk::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-// First, create a GObject wrapper for our Voice
 mod voice_object {
     use super::*;
     use gtk::glib;
@@ -143,11 +142,11 @@ impl VoiceList {
     }
 
     #[template_callback]
-    fn bind_gender(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
+    fn bind_quality(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
         let voice_obj = list_item.item().and_downcast::<VoiceObject>().unwrap();
         if let Some(voice) = voice_obj.voice() {
             let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-            label.set_text(&voice.borrow().quality); // Using quality as gender for now
+            label.set_text(&voice.borrow().quality);
         }
     }
 
