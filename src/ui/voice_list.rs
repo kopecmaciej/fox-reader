@@ -1,48 +1,11 @@
-use crate::core::{
-    runtime::spawn_tokio_future,
-    voice_manager::{Voice, VoiceManager},
-};
+use crate::core::{runtime::spawn_tokio_future, voice_manager::VoiceManager};
 use adw::subclass::prelude::*;
 use gtk::{
     glib::{self, clone},
     prelude::*,
 };
-use std::{cell::RefCell, rc::Rc};
 
-mod voice_object {
-    use super::*;
-    use gtk::glib;
-
-    #[derive(Default)]
-    pub struct VoiceObject {
-        pub voice: RefCell<Option<Rc<RefCell<Voice>>>>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for VoiceObject {
-        const NAME: &'static str = "VoiceObject";
-        type Type = super::VoiceObject;
-        type ParentType = glib::Object;
-    }
-
-    impl ObjectImpl for VoiceObject {}
-}
-
-glib::wrapper! {
-    pub struct VoiceObject(ObjectSubclass<voice_object::VoiceObject>);
-}
-
-impl VoiceObject {
-    pub fn new(voice: Rc<RefCell<Voice>>) -> Self {
-        let obj: Self = glib::Object::new();
-        obj.imp().voice.replace(Some(voice));
-        obj
-    }
-
-    pub fn voice(&self) -> Option<Rc<RefCell<Voice>>> {
-        self.imp().voice.borrow().clone()
-    }
-}
+use super::voice_row::VoiceRow;
 
 mod imp {
     use super::*;
@@ -85,8 +48,9 @@ impl VoiceList {
     pub fn new() -> Self {
         glib::Object::new()
     }
+
     pub fn initialize(&self) {
-        let model = gio::ListStore::new::<VoiceObject>();
+        let model = gio::ListStore::new::<VoiceRow>();
 
         spawn_tokio_future(clone!(
             #[strong]
@@ -94,7 +58,7 @@ impl VoiceList {
             async move {
                 if let Ok(voices) = VoiceManager::list_all_available_voices().await {
                     for (_, voice) in voices {
-                        let voice_obj = VoiceObject::new(voice);
+                        let voice_obj = VoiceRow::new(voice);
                         model.append(&voice_obj);
                     }
                 }
@@ -117,12 +81,13 @@ impl VoiceList {
             .build();
         list_item.set_child(Some(&button));
     }
+
     #[template_callback]
     fn bind_play_button(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_obj = list_item.item().and_downcast::<VoiceObject>().unwrap();
-        if let Some(voice) = voice_obj.voice() {
+        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
+        if let Some(voice) = voice_row.get_voice().borrow().as_ref() {
             let button = list_item.child().and_downcast::<gtk::Button>().unwrap();
-            button.set_sensitive(voice.borrow().downloaded);
+            button.set_sensitive(voice.downloaded);
         }
     }
 
@@ -134,28 +99,28 @@ impl VoiceList {
 
     #[template_callback]
     fn bind_accent(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_obj = list_item.item().and_downcast::<VoiceObject>().unwrap();
-        if let Some(voice) = voice_obj.voice() {
+        let voice_obj = list_item.item().and_downcast::<VoiceRow>().unwrap();
+        if let Some(voice) = voice_obj.get_voice().borrow().as_ref() {
             let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-            label.set_text(&voice.borrow().name);
+            label.set_text(&voice.name);
         }
     }
 
     #[template_callback]
     fn bind_quality(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_obj = list_item.item().and_downcast::<VoiceObject>().unwrap();
-        if let Some(voice) = voice_obj.voice() {
+        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
+        if let Some(voice) = voice_row.get_voice().borrow().as_ref() {
             let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-            label.set_text(&voice.borrow().quality);
+            label.set_text(&voice.quality);
         }
     }
 
     #[template_callback]
     fn bind_country(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_obj = list_item.item().and_downcast::<VoiceObject>().unwrap();
-        if let Some(voice) = voice_obj.voice() {
+        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
+        if let Some(voice) = voice_row.get_voice().borrow().as_ref() {
             let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-            label.set_text(&voice.borrow().language.name_english);
+            label.set_text(&voice.language.name_english);
         }
     }
 
@@ -189,8 +154,8 @@ impl VoiceList {
 
     #[template_callback]
     fn bind_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_obj = list_item.item().and_downcast::<VoiceObject>().unwrap();
-        if let Some(voice) = voice_obj.voice() {
+        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
+        if let Some(voice) = voice_row.get_voice().borrow().as_ref() {
             let box_ = list_item.child().and_downcast::<gtk::Box>().unwrap();
 
             let mut child = box_.first_child();
@@ -214,7 +179,7 @@ impl VoiceList {
                 .and_then(|c| c.downcast::<gtk::Button>().ok())
                 .expect("Failed to get delete button");
 
-            let downloaded = voice.borrow().downloaded;
+            let downloaded = voice.downloaded;
             download_button.set_sensitive(!downloaded);
             set_default_button.set_sensitive(downloaded);
             delete_button.set_sensitive(downloaded);

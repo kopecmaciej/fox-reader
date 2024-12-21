@@ -6,18 +6,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 pub struct VoiceManager {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Language {
     pub code: String,
-    region: String,
-    name_native: String,
     pub name_english: String,
-    country_english: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -37,8 +31,7 @@ pub struct Voice {
 }
 
 impl VoiceManager {
-    pub async fn list_all_available_voices(
-    ) -> Result<BTreeMap<String, Rc<RefCell<Voice>>>, Box<dyn Error>> {
+    pub async fn list_all_available_voices() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
         let voices_url = huggingface_config::get_voices_url();
         let voices_file = FileHandler::fetch_file(voices_url).await?;
         let raw_json = String::from_utf8(voices_file)?;
@@ -57,7 +50,6 @@ impl VoiceManager {
                 // Mark as downloaded if in the list of downloaded voices
                 voice.downloaded = downloaded_voices.contains(&voice.key);
 
-                let voice = Rc::new(RefCell::new(voice));
                 (key, voice)
             })
             .collect();
