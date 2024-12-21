@@ -6,6 +6,7 @@
     <property name="default-width">800</property>
     <property name="default-height">600</property>
     <property name="title">Fox Reader</property>
+    <!-- Main layout -->
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
@@ -21,43 +22,59 @@
         </child>
         <!-- Main Content -->
         <child>
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <property name="margin-start">16</property>
-            <property name="margin-end">16</property>
-            <property name="margin-top">16</property>
-            <property name="margin-bottom">16</property>
-            <property name="spacing">16</property>
-            <!-- Search and Filter Controls -->
+          <object class="AdwClamp">
+            <property name="maximum-size">800</property>
+            <property name="tightening-threshold">600</property>
             <child>
               <object class="GtkBox">
-                <property name="spacing">12</property>
-                <!-- Search Entry -->
+                <property name="orientation">vertical</property>
+                <property name="margin-start">16</property>
+                <property name="margin-end">16</property>
+                <property name="margin-top">16</property>
+                <property name="margin-bottom">16</property>
+                <property name="spacing">16</property>
+                <!-- Search and Filter Controls -->
                 <child>
-                  <object class="GtkSearchEntry" id="search_entry">
-                    <property name="hexpand">true</property>
-                    <property name="placeholder-text">Search voices...</property>
+                  <object class="GtkBox">
+                    <property name="spacing">12</property>
+                    <!-- Search Entry -->
+                    <child>
+                      <object class="GtkSearchEntry" id="search_entry">
+                        <property name="hexpand">true</property>
+                        <property name="placeholder-text">Search voices...</property>
+                      </object>
+                    </child>
+                    <!-- Country Dropdown -->
+                    <child>
+                      <object class="GtkDropDown" id="country_dropdown">
+                        <property name="model">
+                          <object class="GtkStringList">
+                            <items>
+                              <item>Great Britain</item>
+                              <item>United States</item>
+                              <item>Australia</item>
+                              <item>Canada</item>
+                              <item>Ireland</item>
+                            </items>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
                   </object>
                 </child>
-                <!-- Country Dropdown -->
+                <!-- Voice List -->
                 <child>
-                  <object class="GtkDropDown" id="country_dropdown">
-                    <property name="model">
-                      <object class="GtkStringList">
-                        <items>
-                          <item>Great Britain</item>
-                          <item>United States</item>
-                          <item>Australia</item>
-                          <item>Canada</item>
-                          <item>Ireland</item>
-                        </items>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title">Available Voices</property>
+                    <child>
+                      <object class="VoiceList" id="voice_list">
+                        <property name="vexpand">true</property>
                       </object>
-                    </property>
+                    </child>
                   </object>
                 </child>
               </object>
             </child>
-            <!-- Voice List -->
           </object>
         </child>
       </object>
