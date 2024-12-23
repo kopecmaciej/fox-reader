@@ -94,11 +94,25 @@ impl VoiceList {
     }
 
     pub fn get_country_list(&self) -> Vec<String> {
-        self.imp()
-            .voice_list
-            .into_iter()
-            .map(|v| v.borrow().language.name_english)
-            .collect()
+        let mut countries = Vec::new();
+        let model = self.imp().column_view.model()
+            .and_then(|m| m.model())
+            .and_then(|m| m.model())
+            .and_downcast::<gio::ListStore>()
+            .expect("Failed to get list store");
+
+        for i in 0..model.n_items() {
+            if let Some(voice_row) = model.item(i).and_downcast::<VoiceRow>() {
+                if let Some(voice) = voice_row.get_voice().borrow().as_ref() {
+                    let country = voice.language.name_english.clone();
+                    if !countries.contains(&country) {
+                        countries.push(country);
+                    }
+                }
+            }
+        }
+        countries.sort();
+        countries
     }
 
     fn set_sorters(&self) {
