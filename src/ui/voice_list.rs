@@ -4,10 +4,15 @@ use gtk::{
     glib::{self, clone},
     prelude::*,
 };
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use super::voice_row::VoiceRow;
 
 mod imp {
+
+    use crate::core::voice_manager::Voice;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -16,6 +21,15 @@ mod imp {
     pub struct VoiceList {
         #[template_child]
         pub column_view: TemplateChild<gtk::ColumnView>,
+        #[template_child]
+        pub play_column: TemplateChild<gtk::ColumnViewColumn>,
+        #[template_child]
+        pub name_column: TemplateChild<gtk::ColumnViewColumn>,
+        #[template_child]
+        pub country_column: TemplateChild<gtk::ColumnViewColumn>,
+        #[template_child]
+        pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
+        pub voice_list: Vec<Rc<RefCell<Voice>>>,
     }
 
     #[glib::object_subclass]
@@ -44,11 +58,13 @@ glib::wrapper! {
         @extends gtk::Widget, adw::Bin;
 }
 
-impl VoiceList {
-    pub fn new() -> Self {
+impl Default for VoiceList {
+    fn default() -> Self {
         glib::Object::new()
     }
+}
 
+impl VoiceList {
     pub fn initialize(&self) {
         let model = gio::ListStore::new::<VoiceRow>();
 
@@ -65,9 +81,42 @@ impl VoiceList {
             }
         ));
 
+        self.set_sorters();
+
+        let sort_model = gtk::SortListModel::builder()
+            .model(&model)
+            .sorter(&self.imp().column_view.sorter().unwrap())
+            .build();
+
         self.imp()
             .column_view
-            .set_model(Some(&gtk::NoSelection::new(Some(model))));
+            .set_model(Some(&gtk::NoSelection::new(Some(sort_model))));
+    }
+
+    pub fn get_country_list(&self) -> Vec<String> {
+        self.imp()
+            .voice_list
+            .into_iter()
+            .map(|v| v.borrow().language.name_english)
+            .collect()
+    }
+
+    fn set_sorters(&self) {
+        self.imp()
+            .name_column
+            .set_sorter(self.string_sorter("name").as_ref());
+
+        self.imp()
+            .country_column
+            .set_sorter(self.string_sorter("country").as_ref());
+    }
+
+    fn string_sorter(&self, prop_name: &str) -> Option<gtk::StringSorter> {
+        Some(gtk::StringSorter::new(Some(gtk::PropertyExpression::new(
+            VoiceRow::static_type(),
+            None::<&gtk::Expression>,
+            prop_name,
+        ))))
     }
 }
 
@@ -132,7 +181,7 @@ impl VoiceList {
             .build();
 
         let download_button = gtk::Button::builder()
-            .icon_name("emblem-downloads")
+            .icon_name("folder-download-symbolic")
             .action_name("voice.download")
             .build();
 
