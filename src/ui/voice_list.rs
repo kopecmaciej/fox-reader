@@ -1,17 +1,16 @@
-use crate::core::{runtime::spawn_tokio_future, voice_manager::VoiceManager};
+use crate::core::voice_manager::Voice;
+use crate::core::{runtime::runtime, voice_manager::VoiceManager};
 use adw::subclass::prelude::*;
 use gtk::{
-    glib::{self, clone},
+    glib::{self},
     prelude::*,
 };
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::collections::HashSet;
+use std::{cell::RefCell, collections::BTreeMap};
 
 use super::voice_row::VoiceRow;
 
 mod imp {
-
-    use crate::core::voice_manager::Voice;
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -29,7 +28,7 @@ mod imp {
         pub country_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
-        pub voice_list: Vec<Rc<RefCell<Voice>>>,
+        pub voice_list: RefCell<BTreeMap<String, Voice>>,
     }
 
     #[glib::object_subclass]
@@ -68,18 +67,14 @@ impl VoiceList {
     pub fn initialize(&self) {
         let model = gio::ListStore::new::<VoiceRow>();
 
-        spawn_tokio_future(clone!(
-            #[strong]
-            model,
-            async move {
-                if let Ok(voices) = VoiceManager::list_all_available_voices().await {
-                    for (_, voice) in voices {
-                        let voice_obj = VoiceRow::new(voice);
-                        model.append(&voice_obj);
-                    }
-                }
+        let voices = runtime().block_on(VoiceManager::list_all_available_voices());
+        if let Ok(voices) = voices {
+            self.imp().voice_list.replace(voices.clone());
+            for (_, voice) in voices {
+                let voice_row = VoiceRow::new(voice);
+                model.append(&voice_row);
             }
-        ));
+        }
 
         self.set_sorters();
 
@@ -93,26 +88,56 @@ impl VoiceList {
             .set_model(Some(&gtk::NoSelection::new(Some(sort_model))));
     }
 
-    pub fn get_country_list(&self) -> Vec<String> {
-        let mut countries = Vec::new();
-        let model = self.imp().column_view.model()
-            .and_then(|m| m.model())
-            .and_then(|m| m.model())
-            .and_downcast::<gio::ListStore>()
-            .expect("Failed to get list store");
-
-        for i in 0..model.n_items() {
-            if let Some(voice_row) = model.item(i).and_downcast::<VoiceRow>() {
-                if let Some(voice) = voice_row.get_voice().borrow().as_ref() {
-                    let country = voice.language.name_english.clone();
-                    if !countries.contains(&country) {
-                        countries.push(country);
-                    }
-                }
-            }
+    fn populate_voice_rows(&self, voice_list: BTreeMap<String, Voice>) {
+        let model = gio::ListStore::new::<VoiceRow>();
+        for (_, voice) in voice_list {
+            let voice_row = VoiceRow::new(voice);
+            model.append(&voice_row);
         }
-        countries.sort();
-        countries
+        self.set_sorters();
+
+        let sort_model = gtk::SortListModel::builder()
+            .model(&model)
+            .sorter(&self.imp().column_view.sorter().unwrap())
+            .build();
+
+        self.imp()
+            .column_view
+            .set_model(Some(&gtk::NoSelection::new(Some(sort_model))));
+    }
+
+    pub fn filter_by_country(&self, search_text: &str) {
+        let countries = self.get_country_list();
+
+        if countries.contains(&search_text.to_string()) {
+            let filtered_voices: BTreeMap<String, Voice> = self
+                .imp()
+                .voice_list
+                .borrow()
+                .iter()
+                .filter(|(_, v)| v.language.name_english == search_text)
+                .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                .collect();
+
+            self.populate_voice_rows(filtered_voices);
+        } else {
+            self.populate_voice_rows(self.imp().voice_list.borrow().clone());
+        }
+    }
+
+    pub fn get_country_list(&self) -> Vec<String> {
+        let mut list: Vec<String> = self
+            .imp()
+            .voice_list
+            .borrow()
+            .iter()
+            .map(|(_, v)| v.language.name_english.to_owned())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        list.sort();
+        list
     }
 
     fn set_sorters(&self) {

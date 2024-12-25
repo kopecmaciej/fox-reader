@@ -8,7 +8,7 @@ use std::path::Path;
 
 pub struct VoiceManager {}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Language {
     pub code: String,
     pub name_english: String,
@@ -19,7 +19,7 @@ pub struct File {
     size_bytes: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Voice {
     pub name: String,
     pub key: String,

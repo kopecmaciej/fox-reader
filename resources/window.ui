@@ -47,6 +47,7 @@
                     <!-- Country Dropdown -->
                     <child>
                       <object class="GtkDropDown" id="country_dropdown">
+                        <property name="enable-search">true</property>
                         <property name="model">
                           <object class="GtkStringList">
                             <items>

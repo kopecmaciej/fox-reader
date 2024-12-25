@@ -1,6 +1,10 @@
 use adw::subclass::prelude::*;
 use gio::glib::Object;
-use gtk::glib;
+use gtk::prelude::*;
+use gtk::{
+    glib::{self, clone},
+    StringList,
+};
 
 mod imp {
     use crate::ui::voice_list::VoiceList;
@@ -52,7 +56,33 @@ impl FoxReaderAppWindow {
         let window: Self = Object::builder().property("application", app).build();
 
         window.imp().voice_list.initialize();
+        window.populate_country_dropdown();
 
         window
+    }
+
+    fn populate_country_dropdown(&self) {
+        let country_list = self.imp().voice_list.get_country_list();
+        let string_list = StringList::new(&[]);
+        string_list.append("All");
+        for c in country_list {
+            string_list.append(&c);
+        }
+        self.imp().country_dropdown.set_model(Some(&string_list));
+        self.imp()
+            .country_dropdown
+            .connect_selected_item_notify(clone!(
+                #[weak(rename_to=this)]
+                self,
+                move |f| {
+                    if let Some(selected_item) = f.selected_item() {
+                        if let Some(string_obj) = selected_item.downcast_ref::<gtk::StringObject>()
+                        {
+                            let country = string_obj.string();
+                            this.imp().voice_list.filter_by_country(&country);
+                        };
+                    }
+                },
+            ));
     }
 }

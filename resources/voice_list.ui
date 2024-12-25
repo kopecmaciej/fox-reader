@@ -3,15 +3,15 @@
   <template class="VoiceList" parent="AdwBin">
     <property name="child">
       <object class="GtkScrolledWindow">
-        <property name="vexpand">true</property>
         <child>
           <object class="GtkColumnView" id="column_view">
             <property name="show-column-separators">true</property>
             <property name="show-row-separators">true</property>
-            <property name="enable-rubberband">true</property>
+            <property name="halign">0</property>
+            <property name="hexpand">true</property>
             <!-- Play Column -->
             <child>
-              <object class="GtkColumnViewColumn">
+              <object class="GtkColumnViewColumn" id="play_column">
                 <property name="title">Play</property>
                 <property name="fixed-width">60</property>
                 <property name="factory">
@@ -24,8 +24,8 @@
             </child>
             <!-- Accent Column -->
             <child>
-              <object class="GtkColumnViewColumn">
-                <property name="title">Accent</property>
+              <object class="GtkColumnViewColumn" id="name_column">
+                <property name="title">Voice name</property>
                 <property name="expand">true</property>
                 <property name="factory">
                   <object class="GtkSignalListItemFactory">
@@ -50,7 +50,7 @@
             </child>
             <!-- Country Column -->
             <child>
-              <object class="GtkColumnViewColumn">
+              <object class="GtkColumnViewColumn" id="country_column">
                 <property name="title">Country</property>
                 <property name="fixed-width">120</property>
                 <property name="factory">
@@ -63,7 +63,7 @@
             </child>
             <!-- Actions Column -->
             <child>
-              <object class="GtkColumnViewColumn">
+              <object class="GtkColumnViewColumn" id="actions_column">
                 <property name="title">Actions</property>
                 <property name="fixed-width">140</property>
                 <property name="factory">
