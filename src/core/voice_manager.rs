@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
+use std::sync::Arc;
 
 pub struct VoiceManager {}
 
@@ -66,43 +67,33 @@ impl VoiceManager {
         Ok(downloaded_voices)
     }
 
-    pub async fn download_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
-        for (file_path, _) in voice_files {
-            if file_path.ends_with(".json") || file_path.ends_with(".onnx") {
-                // Download the voice json config
-                let voice_config_url = huggingface_config::get_voice_url(&file_path);
-                let file = FileHandler::fetch_file(voice_config_url).await?;
-                let file_name = Path::new(file_path)
-                    .file_name()
-                    .and_then(|f| f.to_str())
-                    .ok_or("Failed to properly extract file name from path")?;
+    pub async fn download_voice(voice_files: Vec<String>) -> Result<(), Box<dyn Error>> {
+        for file_path in voice_files {
+            let voice_config_url = huggingface_config::get_voice_url(&file_path);
+            let file = FileHandler::fetch_file(voice_config_url).await?;
+            let file_name = Path::new(&file_path)
+                .file_name()
+                .and_then(|f| f.to_str())
+                .ok_or("Failed to properly extract file name from path")?;
 
-                FileHandler::save_bytes(
-                    &huggingface_config::get_voice_file_path(file_name),
-                    &file,
-                )?;
-            }
+            FileHandler::save_bytes(&huggingface_config::get_voice_file_path(file_name), &file)?;
         }
         Ok(())
     }
 
-    pub fn delete_voice(voice_files: &HashMap<String, File>) -> Result<(), Box<dyn Error>> {
-        for (file_path, _) in voice_files {
-            if file_path.ends_with(".onnx") {
-                let file_name = Path::new(file_path)
-                    .file_name()
-                    .and_then(|f| f.to_str())
-                    .ok_or("Failed to properly extract file name from path")?;
+    pub fn delete_voice(voice_files: Vec<String>) -> Result<(), Box<dyn Error>> {
+        for file_path in voice_files {
+            let file_name = Path::new(&file_path)
+                .file_name()
+                .and_then(|f| f.to_str())
+                .ok_or("Failed to properly extract file name from path")?;
 
-                // Remove the voice file
-                FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
+            // Remove the voice file
+            FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
 
-                // Remove the voice json config
-                let config_file_name = format!("{}.json", file_name);
-                FileHandler::remove_file(&huggingface_config::get_voice_file_path(
-                    &config_file_name,
-                ))?;
-            }
+            // Remove the voice json config
+            let config_file_name = format!("{}.json", file_name);
+            FileHandler::remove_file(&huggingface_config::get_voice_file_path(&config_file_name))?;
         }
 
         Ok(())

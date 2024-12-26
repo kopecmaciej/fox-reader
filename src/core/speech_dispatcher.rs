@@ -5,7 +5,7 @@ use crate::{
     core::file_handler::FileHandler,
 };
 
-const PIPER_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/piper.sh");
+const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
 
 pub struct SpeechDispatcher {}
 
@@ -31,7 +31,7 @@ impl SpeechDispatcher {
         }
         let script_path = &dispatcher_config::get_script_path();
         if !FileHandler::does_file_exist(script_path) {
-            FileHandler::save_bytes(script_path, &PIPER_READER_SCRIPT.to_vec())?;
+            FileHandler::save_bytes(script_path, &FOX_READER_SCRIPT.to_vec())?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -83,7 +83,7 @@ impl SpeechDispatcher {
 fn config_template(default_lang: &str) -> String {
     format!(
         r#"
-# Piper Reader 
+# Fox Reader 
 # Speech Dispatcher Configuration
 # Please do not modify this file as it can cause issues with application
 
@@ -96,20 +96,20 @@ SymbolsPreprocFile "emojis.dic"
 SymbolsPreprocFile "orca.dic"
 SymbolsPreprocFile "orca-chars.dic"
 
-AddModule "piper-reader" "sd_generic" "piper-reader.conf"
+AddModule "fox-reader" "sd_generic" "fox-reader.conf"
 
 DefaultLanguage "{}"
-DefaultModule "piper-reader" "#,
+DefaultModule "fox-reader" "#,
         default_lang
     )
 }
 
-fn module_template(piper_path: &str, voices_path: &str) -> String {
+fn module_template(module_path: &str, voices_path: &str) -> String {
     format!(
         r#"
 GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}/\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -"
     "#,
-        piper_path, voices_path
+        module_path, voices_path
     )
 }
 

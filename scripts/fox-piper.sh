@@ -13,7 +13,5 @@ else
   RATE=$(awk "BEGIN {printf \"%.2f\", ($RATE + 100) / 75}")
 fi
 
-echo "$DATA, $VOICE, $RATE" >>/tmp/piper-reader.log
-
 # Run the command using the provided arguments
 echo "$DATA" | sed -z 's/\n/ /g' | piper-tts -q -m "$HOME/.local/share/fox-reader/voices/$VOICE" -f - | mpv --speed="$RATE" --volume=100 --no-terminal --keep-open=no -

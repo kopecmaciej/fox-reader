@@ -3,12 +3,12 @@ use dirs::home_dir;
 const HF_BASE_URL: &str = "https://huggingface.co/rhasspy/piper-voices";
 const HF_VERSION: &str = "v1.0.0/";
 const HF_VOICES_JSON: &str = "voices.json";
-const HF_DOWNLOAD_PATH: &str = "$HOME/.local/share/piper-reader/voices";
+const HF_DOWNLOAD_PATH: &str = "$HOME/.local/share/fox-reader/voices";
 
 const DISPATCHER_CONFIG_PATH: &str = "$HOME/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
-const DISPATCHER_MODULE_FILE: &str = "modules/piper-reader.conf";
-const DISPATCHER_SCRIPT_FILE: &str = "piper-reader.sh";
+const DISPATCHER_MODULE_FILE: &str = "modules/fox-reader.conf";
+const DISPATCHER_SCRIPT_FILE: &str = "fox-reader.sh";
 
 fn resolve_home(path: &str) -> String {
     let home = home_dir().expect("Failed to get home directory");

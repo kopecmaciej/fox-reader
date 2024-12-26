@@ -55,7 +55,7 @@ impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
         let window: Self = Object::builder().property("application", app).build();
 
-        window.imp().voice_list.initialize();
+        window.imp().voice_list.init();
         window.populate_country_dropdown();
 
         window
