@@ -16,7 +16,7 @@ impl SpeechDispatcher {
         let vec_bytes = config_template("en-GB").trim().as_bytes().to_vec();
         let config_exists = FileHandler::does_file_exist(config_file);
         if !config_exists {
-            FileHandler::ensure_all_dirs_exists_exists(config_file)?;
+            FileHandler::ensure_all_dirs_exists(config_file)?;
             FileHandler::save_bytes(config_file, &vec_bytes)?;
         }
 

@@ -10,9 +10,9 @@ use gtk::{prelude::*, Button};
 
 pub const PLAY_ICON: &str = "media-playback-start-symbolic";
 pub const DOWNLOAD_VOICE_ICON: &str = "folder-download-symbolic";
-pub const SET_VOICE_DEFAULT_ICON: &str = "starred";
+pub const SET_AS_DEFAULT_ICON: &str = "starred";
 pub const DELETE_VOICE_ICON: &str = "edit-delete";
-pub const SET_AS_DEFAULT_ICON: &str = "object-select";
+pub const DEFAULT_VOICE_ICON: &str = "object-select";
 
 mod imp {
     use std::{
@@ -87,8 +87,31 @@ impl VoiceRow {
 
     pub fn setup_action_buttons() -> (Button, Button, Button) {
         let download_button = Button::builder().icon_name(DOWNLOAD_VOICE_ICON).build();
-        let set_default_button = Button::builder().icon_name(SET_VOICE_DEFAULT_ICON).build();
+        let set_default_button = Button::builder().icon_name(SET_AS_DEFAULT_ICON).build();
         let delete_button = Button::builder().icon_name(DELETE_VOICE_ICON).build();
+
+        // on download delete btn becomes sensitive
+        download_button
+            .bind_property("sensitive", &delete_button, "sensitive")
+            .invert_boolean()
+            .sync_create()
+            .build();
+
+        // on download set default btn becomes sensitive
+        download_button
+            .bind_property("sensitive", &set_default_button, "sensitive")
+            .invert_boolean()
+            .sync_create()
+            .build();
+
+        // on delete set default btn becomes insensitive
+        // also default btn will become insensitive as it's inverted from download btn
+        delete_button
+            .bind_property("sensitive", &download_button, "sensitive")
+            .invert_boolean()
+            .sync_create()
+            .build();
+
         (download_button, set_default_button, delete_button)
     }
 
@@ -166,9 +189,10 @@ impl VoiceRow {
             self,
             move |button| {
                 if let Err(e) = SpeechDispatcher::set_default_voice(&this.key()) {
-                    eprintln!("{}", e);
+                    let err_msg = format!("Failed to set voice as default. \nDetails: {}", e);
+                    dialogs::show_error_dialog(&err_msg, button);
                 }
-                button.set_icon_name(SET_AS_DEFAULT_ICON);
+                button.set_icon_name(DEFAULT_VOICE_ICON);
             }
         ));
     }

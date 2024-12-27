@@ -14,6 +14,8 @@ use super::voice_row::VoiceRow;
 
 mod imp {
 
+    use std::rc::Rc;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -31,6 +33,7 @@ mod imp {
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
         pub voice_list: RefCell<BTreeMap<String, Voice>>,
+        pub default_row: Rc<RefCell<Option<u32>>>,
     }
 
     #[glib::object_subclass]
@@ -195,7 +198,7 @@ impl VoiceList {
 
     #[template_callback]
     fn setup_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let grid = gtk::Grid::builder().column_spacing(8).hexpand(true).build();
+        let grid = gtk::Grid::builder().column_spacing(8).vexpand(true).build();
 
         let (download_button, set_default_button, delete_button) = VoiceRow::setup_action_buttons();
 
