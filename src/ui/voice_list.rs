@@ -186,34 +186,27 @@ impl VoiceList {
 
     #[template_callback]
     fn setup_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let box_ = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(8)
-            .build();
+        let grid = gtk::Grid::builder().column_spacing(8).hexpand(true).build();
 
         let (download_button, set_default_button, delete_button) = VoiceRow::setup_action_buttons();
 
-        box_.append(&download_button);
-        box_.append(&set_default_button);
-        box_.append(&delete_button);
-        list_item.set_child(Some(&box_));
+        grid.attach(&download_button, 0, 0, 1, 1);
+        grid.attach(&set_default_button, 1, 0, 1, 1);
+        grid.attach(&delete_button, 2, 0, 1, 1);
+        list_item.set_child(Some(&grid));
     }
 
     #[template_callback]
     fn bind_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
         let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let box_ = list_item.child().and_downcast::<gtk::Box>().unwrap();
+        let grid = list_item.child().and_downcast::<gtk::Grid>().unwrap();
 
-        let mut child = box_.first_child();
-        let download_button = child.take().and_downcast::<gtk::Button>().unwrap();
-
-        child = download_button.next_sibling();
-        let set_default_button = child.take().and_downcast::<gtk::Button>().unwrap();
-
-        child = set_default_button.next_sibling();
-        let delete_button = child.take().and_downcast::<gtk::Button>().unwrap();
+        let download_button = grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
+        let set_default_button = grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
+        let delete_button = grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
 
         voice_row.handle_download_click(&download_button);
+        voice_row.handle_set_default_click(&set_default_button);
         voice_row.handle_delete_click(&delete_button);
 
         download_button.set_sensitive(!voice_row.downloaded());
