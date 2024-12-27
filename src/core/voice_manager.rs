@@ -88,12 +88,7 @@ impl VoiceManager {
                 .and_then(|f| f.to_str())
                 .ok_or("Failed to properly extract file name from path")?;
 
-            // Remove the voice file
             FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
-
-            // Remove the voice json config
-            let config_file_name = format!("{}.json", file_name);
-            FileHandler::remove_file(&huggingface_config::get_voice_file_path(&config_file_name))?;
         }
 
         Ok(())

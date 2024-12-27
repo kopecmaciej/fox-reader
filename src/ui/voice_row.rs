@@ -1,11 +1,22 @@
-use crate::core::voice_manager::Voice;
+use crate::core::runtime::runtime;
+use crate::core::speech_dispatcher::SpeechDispatcher;
+use crate::core::voice_manager::{Voice, VoiceManager};
 use adw::subclass::prelude::*;
 use glib::Properties;
-use gtk::glib::{self};
-use gtk::prelude::*;
+use gtk::glib::{self, clone};
+use gtk::{prelude::*, Button};
+
+pub const PLAY_ICON: &str = "media-playback-start-symbolic";
+pub const DOWNLOAD_VOICE_ICON: &str = "folder-download-symbolic";
+pub const SET_VOICE_DEFAULT_ICON: &str = "starred";
+pub const DELETE_VOICE_ICON: &str = "edit-delete";
+pub const SET_AS_DEFAULT_ICON: &str = "object-select";
 
 mod imp {
-    use std::cell::{OnceCell, RefCell};
+    use std::{
+        cell::{OnceCell, RefCell},
+        sync::OnceLock,
+    };
 
     use super::*;
 
@@ -15,11 +26,15 @@ mod imp {
         #[property(get, set)]
         pub name: OnceCell<String>,
         #[property(get, set)]
+        pub key: OnceCell<String>,
+        #[property(get, set)]
         pub country: OnceCell<String>,
+        #[property(get, set)]
+        pub language_code: OnceCell<String>,
         #[property(get, set)]
         pub quality: OnceCell<String>,
         #[property(get, set)]
-        pub files: OnceCell<Vec<String>>,
+        pub files: OnceLock<Vec<String>>,
         #[property(get, set)]
         pub downloaded: RefCell<bool>,
     }
@@ -54,11 +69,76 @@ impl VoiceRow {
 
         let obj: Self = glib::Object::builder()
             .property("name", &voice.name)
+            .property("key", &voice.key)
             .property("country", &voice.language.name_english)
+            .property("language_code", &voice.language.code)
             .property("quality", &voice.quality)
             .property("files", &files)
             .property("downloaded", voice.downloaded)
             .build();
         obj
+    }
+
+    pub fn setup_play_button() -> Button {
+        Button::builder().icon_name(PLAY_ICON).build()
+    }
+
+    pub fn setup_action_buttons() -> (Button, Button, Button) {
+        let download_button = Button::builder().icon_name(DOWNLOAD_VOICE_ICON).build();
+        let set_default_button = Button::builder().icon_name(SET_VOICE_DEFAULT_ICON).build();
+        let delete_button = Button::builder().icon_name(DELETE_VOICE_ICON).build();
+        (download_button, set_default_button, delete_button)
+    }
+
+    pub fn handle_download_click(&self, download_button: &Button) {
+        download_button.connect_clicked(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |button| {
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    button,
+                    async move {
+                        let files = this.files();
+                        let _ = runtime()
+                            .spawn(clone!(async move {
+                                if let Err(e) = VoiceManager::download_voice(files).await {
+                                    eprintln!("Failed to download voice: {}", e);
+                                }
+                            }))
+                            .await;
+
+                        if let Err(e) = SpeechDispatcher::add_new_voice(
+                            &this.language_code(),
+                            &this.name(),
+                            &this.key(),
+                        ) {
+                            eprintln!("{}", e);
+                        }
+                        button.set_sensitive(false);
+                    }
+                ));
+            }
+        ));
+    }
+
+    pub fn handle_delete_click(&self, remove_button: &Button) {
+        remove_button.connect_clicked(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |button| {
+                button.set_sensitive(false);
+                if let Err(e) = VoiceManager::delete_voice(this.files()) {
+                    let err_msg = format!("Failed to remove voice: {}", e);
+                    eprintln!("{}", err_msg);
+                }
+                if let Err(e) =
+                    SpeechDispatcher::remove_voice(&this.language_code(), &this.name(), &this.key())
+                {
+                    eprintln!("{}", e);
+                };
+                this.set_downloaded(false);
+            }
+        ));
     }
 }

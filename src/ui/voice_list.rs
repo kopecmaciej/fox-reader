@@ -2,7 +2,7 @@ use crate::core::voice_manager::Voice;
 use crate::core::{runtime::runtime, voice_manager::VoiceManager};
 use adw::subclass::prelude::*;
 use gtk::{
-    glib::{self, clone},
+    glib::{self},
     prelude::*,
 };
 use std::collections::HashSet;
@@ -147,11 +147,7 @@ impl VoiceList {
 impl VoiceList {
     #[template_callback]
     fn setup_play_button(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let button = gtk::Button::builder()
-            .icon_name("media-playback-start-symbolic")
-            .action_name("voice.play")
-            .build();
-        list_item.set_child(Some(&button));
+        list_item.set_child(Some(&VoiceRow::setup_play_button()));
     }
 
     #[template_callback]
@@ -195,15 +191,7 @@ impl VoiceList {
             .spacing(8)
             .build();
 
-        let download_button = gtk::Button::builder()
-            .icon_name("folder-download-symbolic")
-            .build();
-
-        let set_default_button = gtk::Button::builder().icon_name("emblem-default").build();
-
-        let delete_button = gtk::Button::builder()
-            .icon_name("user-trash-symbolic")
-            .build();
+        let (download_button, set_default_button, delete_button) = VoiceRow::setup_action_buttons();
 
         box_.append(&download_button);
         box_.append(&set_default_button);
@@ -217,39 +205,16 @@ impl VoiceList {
         let box_ = list_item.child().and_downcast::<gtk::Box>().unwrap();
 
         let mut child = box_.first_child();
-
         let download_button = child.take().and_downcast::<gtk::Button>().unwrap();
-        child = download_button.next_sibling();
 
+        child = download_button.next_sibling();
         let set_default_button = child.take().and_downcast::<gtk::Button>().unwrap();
-        child = download_button.next_sibling();
 
+        child = set_default_button.next_sibling();
         let delete_button = child.take().and_downcast::<gtk::Button>().unwrap();
 
-        let files = voice_row.files();
-        download_button.connect_clicked(clone!(
-            #[strong]
-            files,
-            move |button| {
-                glib::spawn_future_local(clone!(
-                    #[weak]
-                    button,
-                    #[strong]
-                    files,
-                    async move {
-                        let _ = runtime()
-                            .spawn(clone!(async move {
-                                if let Err(e) = VoiceManager::download_voice(files).await {
-                                    eprintln!("Failed to download voice: {}", e);
-                                }
-                            }))
-                            .await;
-
-                        button.set_sensitive(false);
-                    }
-                ));
-            }
-        ));
+        voice_row.handle_download_click(&download_button);
+        voice_row.handle_delete_click(&delete_button);
 
         download_button.set_sensitive(!voice_row.downloaded());
         set_default_button.set_sensitive(voice_row.downloaded());
