@@ -14,8 +14,9 @@ impl SpeechDispatcher {
         let config_file = &dispatcher_config::get_config_file_path();
         // TODO: Check if speechd.conf is default or already adjusted
         let vec_bytes = config_template("en-GB").trim().as_bytes().to_vec();
-        if !FileHandler::does_file_exist(config_file) {
-            FileHandler::create_all_dirs(config_file)?;
+        let config_exists = FileHandler::does_file_exist(config_file);
+        if !config_exists {
+            FileHandler::ensure_all_dirs_exists_exists(config_file)?;
             FileHandler::save_bytes(config_file, &vec_bytes)?;
         }
 
@@ -58,14 +59,14 @@ impl SpeechDispatcher {
         )
     }
 
-    pub fn remove_voice(
+    pub fn delete_voice_from_config(
         language: &str,
         voice_name: &str,
         voice_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         let voice_template = add_voice_template(language, voice_name, voice_id);
 
-        FileHandler::remove_line_from_config(
+        FileHandler::delete_line_from_config(
             &dispatcher_config::get_module_config_path(),
             &voice_template,
         )

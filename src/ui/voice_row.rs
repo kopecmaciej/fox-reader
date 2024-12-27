@@ -1,6 +1,7 @@
 use crate::core::runtime::runtime;
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::core::voice_manager::{Voice, VoiceManager};
+use crate::ui::dialogs;
 use adw::subclass::prelude::*;
 use adw::Spinner;
 use glib::Properties;
@@ -142,13 +143,16 @@ impl VoiceRow {
             self,
             move |button| {
                 if let Err(e) = VoiceManager::delete_voice(this.files()) {
-                    let err_msg = format!("Failed to remove voice: {}", e);
-                    eprintln!("{}", err_msg);
+                    let err_msg = format!("Failed to delete voice. \nDetails: {}", e);
+                    dialogs::show_error_dialog(&err_msg, button);
                 }
-                if let Err(e) =
-                    SpeechDispatcher::remove_voice(&this.language_code(), &this.name(), &this.key())
-                {
-                    eprintln!("{}", e);
+                if let Err(e) = SpeechDispatcher::delete_voice_from_config(
+                    &this.language_code(),
+                    &this.name(),
+                    &this.key(),
+                ) {
+                    let err_msg = format!("Failed to update config file. \nDetails: {}", e);
+                    dialogs::show_error_dialog(&err_msg, button);
                 };
                 this.set_downloaded(false);
                 button.set_sensitive(false);

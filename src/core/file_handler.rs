@@ -11,7 +11,7 @@ impl FileHandler {
         Path::new(file_path).exists()
     }
 
-    pub fn create_all_dirs(path: &str) -> Result<(), std::io::Error> {
+    pub fn ensure_all_dirs_exists(path: &str) -> Result<(), std::io::Error> {
         let path = Path::new(path);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -27,7 +27,7 @@ impl FileHandler {
     }
 
     pub fn save_bytes(path: &str, bytes: &Vec<u8>) -> Result<(), Box<dyn Error>> {
-        Self::create_all_dirs(path)?;
+        Self::ensure_all_dirs_exists(path)?;
         let mut file = File::create(path)?;
         file.write_all(bytes)?;
         Ok(())
@@ -63,7 +63,7 @@ impl FileHandler {
         Ok(())
     }
 
-    pub fn remove_line_from_config(path: &str, line_to_remove: &str) -> Result<(), Box<dyn Error>> {
+    pub fn delete_line_from_config(path: &str, line_to_remove: &str) -> Result<(), Box<dyn Error>> {
         let content = fs::read_to_string(path)?;
         let updated_content = content
             .lines()
