@@ -24,15 +24,14 @@ impl SpeechDispatcher {
         if !FileHandler::does_file_exist(module_path) {
             FileHandler::save_bytes(
                 module_path,
-                &module_template("piper-tts", &huggingface_config::get_download_path())
+                module_template("piper-tts", &huggingface_config::get_download_path())
                     .trim()
-                    .as_bytes()
-                    .to_vec(),
+                    .as_bytes(),
             )?;
         }
         let script_path = &dispatcher_config::get_script_path();
         if !FileHandler::does_file_exist(script_path) {
-            FileHandler::save_bytes(script_path, &FOX_READER_SCRIPT.to_vec())?;
+            FileHandler::save_bytes(script_path, FOX_READER_SCRIPT)?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;

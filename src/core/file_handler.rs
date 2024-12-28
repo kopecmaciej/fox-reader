@@ -26,7 +26,7 @@ impl FileHandler {
         Ok(bytes.to_vec())
     }
 
-    pub fn save_bytes(path: &str, bytes: &Vec<u8>) -> Result<(), Box<dyn Error>> {
+    pub fn save_bytes(path: &str, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
         Self::ensure_all_dirs_exists(path)?;
         let mut file = File::create(path)?;
         file.write_all(bytes)?;
