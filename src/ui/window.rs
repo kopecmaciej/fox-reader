@@ -21,6 +21,8 @@ mod imp {
         pub country_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
+        #[template_child]
+        pub downloaded_filter: TemplateChild<gtk::CheckButton>,
     }
 
     #[glib::object_subclass]
@@ -56,12 +58,29 @@ impl FoxReaderAppWindow {
         let window: Self = Object::builder().property("application", app).build();
 
         window.imp().voice_list.init();
-        window.populate_country_dropdown();
+        window.filter_out_by_country();
+        window.filter_out_downloaded_voices();
 
         window
     }
 
-    fn populate_country_dropdown(&self) {
+    fn filter_out_downloaded_voices(&self) {
+        self.imp().downloaded_filter.connect_toggled(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |btn| {
+                let is_checked = btn.is_active();
+                let voice_list = &this.imp().voice_list;
+                if is_checked {
+                    voice_list.filter_downloaded_voices();
+                } else {
+                    voice_list.show_all_voices();
+                }
+            },
+        ));
+    }
+
+    fn filter_out_by_country(&self) {
         let country_list = self.imp().voice_list.get_country_list();
         let string_list = StringList::new(&[]);
         string_list.append("All");

@@ -17,6 +17,7 @@ pub struct Language {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct File {
     size_bytes: u64,
+    md5_digest: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -43,10 +44,15 @@ impl VoiceManager {
 
         let voices = voices
             .into_iter()
-            .map(|(key, mut voice)| {
+            .map(|(mut key, mut voice)| {
                 voice.language.code = voice.language.code.replace("_", "-");
                 // we want key to be as voice.onnx for dispatcher config
                 voice.key = format!("{}.onnx", voice.key);
+                key = format!("{}.onnx", key);
+                voice
+                    .files
+                    .retain(|f, _| f.ends_with("json") || f.ends_with("onnx"));
+
                 // Mark as downloaded if in the list of downloaded voices
                 voice.downloaded = downloaded_voices.contains(&voice.key);
 
@@ -66,8 +72,8 @@ impl VoiceManager {
         Ok(downloaded_voices)
     }
 
-    pub async fn download_voice(voice_files: Vec<String>) -> Result<(), Box<dyn Error>> {
-        for file_path in voice_files {
+    pub async fn download_voice(file_names: Vec<String>) -> Result<(), Box<dyn Error>> {
+        for file_path in file_names {
             let voice_config_url = huggingface_config::get_voice_url(&file_path);
             let file = FileHandler::fetch_file(voice_config_url).await?;
             let file_name = Path::new(&file_path)
@@ -80,8 +86,8 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub fn delete_voice(voice_files: Vec<String>) -> Result<(), Box<dyn Error>> {
-        for file_path in voice_files {
+    pub fn delete_voice(file_names: Vec<String>) -> Result<(), Box<dyn Error>> {
+        for file_path in file_names {
             let file_name = Path::new(&file_path)
                 .file_name()
                 .and_then(|f| f.to_str())

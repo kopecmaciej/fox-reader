@@ -3,7 +3,7 @@ use crate::core::voice_manager::Voice;
 use crate::core::{runtime::runtime, voice_manager::VoiceManager};
 use adw::subclass::prelude::*;
 use gtk::{
-    glib::{self},
+    glib::{self, clone},
     prelude::*,
 };
 use std::collections::HashSet;
@@ -13,9 +13,6 @@ use super::dialogs;
 use super::voice_row::VoiceRow;
 
 mod imp {
-
-    use std::rc::Rc;
-
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -33,7 +30,6 @@ mod imp {
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
         pub voice_list: RefCell<BTreeMap<String, Voice>>,
-        pub default_row: Rc<RefCell<Option<u32>>>,
     }
 
     #[glib::object_subclass]
@@ -88,6 +84,22 @@ impl VoiceList {
         let model = gio::ListStore::new::<VoiceRow>();
         for (_, voice) in voice_list {
             let voice_row = VoiceRow::new(voice);
+
+            voice_row.connect_notify_local(
+                Some("downloaded"),
+                clone!(
+                    #[strong(rename_to=this)]
+                    self,
+                    move |voice_row, _| {
+                        if let Ok(mut voices) = this.imp().voice_list.try_borrow_mut() {
+                            if let Some(voice) = voices.get_mut(&voice_row.key()) {
+                                voice.downloaded = voice_row.downloaded();
+                            }
+                        }
+                    }
+                ),
+            );
+
             model.append(&voice_row);
         }
         self.set_sorters();
@@ -119,6 +131,31 @@ impl VoiceList {
         } else {
             self.set_voice_row_model(self.imp().voice_list.borrow().clone());
         }
+    }
+
+    pub fn filter_downloaded_voices(&self) {
+        let filtered_voices: BTreeMap<String, Voice> = self
+            .imp()
+            .voice_list
+            .borrow()
+            .iter()
+            .filter(|(_, v)| v.downloaded)
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect();
+
+        self.set_voice_row_model(filtered_voices);
+    }
+
+    pub fn show_all_voices(&self) {
+        let filtered_voices: BTreeMap<String, Voice> = self
+            .imp()
+            .voice_list
+            .borrow()
+            .iter()
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect();
+
+        self.set_voice_row_model(filtered_voices);
     }
 
     pub fn get_country_list(&self) -> Vec<String> {

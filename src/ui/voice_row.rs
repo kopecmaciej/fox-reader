@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::core::runtime::runtime;
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::core::voice_manager::{Voice, VoiceManager};
@@ -15,10 +17,9 @@ pub const DELETE_VOICE_ICON: &str = "edit-delete";
 pub const DEFAULT_VOICE_ICON: &str = "object-select";
 
 mod imp {
-    use std::{
-        cell::{OnceCell, RefCell},
-        sync::OnceLock,
-    };
+    use std::{cell::OnceCell, collections::HashMap, rc::Rc};
+
+    use crate::core::voice_manager::File;
 
     use super::*;
 
@@ -36,9 +37,8 @@ mod imp {
         #[property(get, set)]
         pub quality: OnceCell<String>,
         #[property(get, set)]
-        pub files: OnceLock<Vec<String>>,
-        #[property(get, set)]
         pub downloaded: RefCell<bool>,
+        pub files: Rc<RefCell<HashMap<String, File>>>,
     }
 
     #[glib::object_subclass]
@@ -62,22 +62,15 @@ glib::wrapper! {
 
 impl VoiceRow {
     pub fn new(voice: Voice) -> Self {
-        let files = voice
-            .files
-            .clone()
-            .into_keys()
-            .filter(|f| f.ends_with("json") || f.ends_with("onnx"))
-            .collect::<Vec<String>>();
-
         let obj: Self = glib::Object::builder()
             .property("name", &voice.name)
             .property("key", &voice.key)
             .property("country", &voice.language.name_english)
             .property("language_code", &voice.language.code)
             .property("quality", &voice.quality)
-            .property("files", &files)
             .property("downloaded", voice.downloaded)
             .build();
+        obj.imp().files.replace(voice.files);
         obj
     }
 
@@ -133,7 +126,7 @@ impl VoiceRow {
                             grid.attach(&spinner, 0, 0, 1, 1);
                         }
 
-                        let files = this.files();
+                        let files = this.imp().files.borrow().clone().into_keys().collect();
                         let _ = runtime()
                             .spawn(clone!(async move {
                                 if let Err(e) = VoiceManager::download_voice(files).await {
@@ -147,13 +140,19 @@ impl VoiceRow {
                             &this.name(),
                             &this.key(),
                         ) {
-                            eprintln!("{}", e);
+                            let err_msg =
+                                format!("Failed to add voice to config. \nDetails: {}", e);
+                            dialogs::show_error_dialog(&err_msg, &button);
                         }
                         if let Some(grid) = grid {
                             grid.remove(&spinner);
                             grid.attach(&button, 0, 0, 1, 1);
                         }
                         button.set_sensitive(false);
+
+                        this.set_downloaded(true);
+
+                        this.notify("downloaded");
                     }
                 ));
             }
@@ -165,7 +164,8 @@ impl VoiceRow {
             #[weak(rename_to=this)]
             self,
             move |button| {
-                if let Err(e) = VoiceManager::delete_voice(this.files()) {
+                let files = this.imp().files.borrow().clone().into_keys().collect();
+                if let Err(e) = VoiceManager::delete_voice(files) {
                     let err_msg = format!("Failed to delete voice. \nDetails: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
                 }
