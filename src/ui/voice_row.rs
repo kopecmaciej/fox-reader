@@ -17,7 +17,7 @@ pub const DELETE_VOICE_ICON: &str = "edit-delete";
 pub const DEFAULT_VOICE_ICON: &str = "object-select";
 
 mod imp {
-    use std::{cell::OnceCell, collections::HashMap, rc::Rc};
+    use std::{cell::OnceCell, collections::HashMap};
 
     use crate::core::voice_manager::File;
 
@@ -38,7 +38,9 @@ mod imp {
         pub quality: OnceCell<String>,
         #[property(get, set)]
         pub downloaded: RefCell<bool>,
-        pub files: Rc<RefCell<HashMap<String, File>>>,
+        #[property(get, set)]
+        pub is_default: RefCell<bool>,
+        pub files: RefCell<HashMap<String, File>>,
     }
 
     #[glib::object_subclass]
@@ -69,6 +71,7 @@ impl VoiceRow {
             .property("language_code", &voice.language.code)
             .property("quality", &voice.quality)
             .property("downloaded", voice.downloaded)
+            .property("is_default", voice.is_default.unwrap_or(false))
             .build();
         obj.imp().files.replace(voice.files);
         obj
@@ -126,10 +129,10 @@ impl VoiceRow {
                             grid.attach(&spinner, 0, 0, 1, 1);
                         }
 
-                        let files = this.imp().files.borrow().clone().into_keys().collect();
+                        let file_names = this.imp().files.borrow().clone().into_keys().collect();
                         let _ = runtime()
                             .spawn(clone!(async move {
-                                if let Err(e) = VoiceManager::download_voice(files).await {
+                                if let Err(e) = VoiceManager::download_voice(file_names).await {
                                     eprintln!("Failed to download voice: {}", e);
                                 }
                             }))
@@ -149,10 +152,7 @@ impl VoiceRow {
                             grid.attach(&button, 0, 0, 1, 1);
                         }
                         button.set_sensitive(false);
-
                         this.set_downloaded(true);
-
-                        this.notify("downloaded");
                     }
                 ));
             }
@@ -177,8 +177,8 @@ impl VoiceRow {
                     let err_msg = format!("Failed to update config file. \nDetails: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
                 };
-                this.set_downloaded(false);
                 button.set_sensitive(false);
+                this.set_downloaded(false);
             }
         ));
     }
@@ -193,6 +193,7 @@ impl VoiceRow {
                     dialogs::show_error_dialog(&err_msg, button);
                 }
                 button.set_icon_name(DEFAULT_VOICE_ICON);
+                this.set_is_default(true);
             }
         ));
     }

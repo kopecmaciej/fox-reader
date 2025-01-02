@@ -63,6 +63,15 @@ impl FileHandler {
         Ok(())
     }
 
+    pub fn get_default_voice_from_config(path: &str) -> Result<Option<String>, Box<dyn Error>> {
+        let content = fs::read_to_string(path)?;
+        Ok(content
+            .lines()
+            .find(|line| line.trim().contains("DefaultVoice"))
+            .and_then(|line| line.split_whitespace().nth(1))
+            .map(|s| s.to_string()))
+    }
+
     pub fn delete_line_from_config(path: &str, line_to_remove: &str) -> Result<(), Box<dyn Error>> {
         let content = fs::read_to_string(path)?;
         let updated_content = content

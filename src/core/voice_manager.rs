@@ -1,4 +1,4 @@
-use crate::config::huggingface_config;
+use crate::config::{dispatcher_config, huggingface_config};
 use crate::core::file_handler::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -28,6 +28,7 @@ pub struct Voice {
     pub quality: String,
     #[serde(default)]
     pub downloaded: bool,
+    pub is_default: Option<bool>,
     pub files: HashMap<String, File>,
 }
 
@@ -41,6 +42,7 @@ impl VoiceManager {
         let voices: BTreeMap<String, Voice> = serde_json::from_value(value_data)?;
 
         let downloaded_voices = Self::list_downloaded_voices()?;
+        let default_voice = Self::get_default_voice()?;
 
         let voices = voices
             .into_iter()
@@ -55,6 +57,9 @@ impl VoiceManager {
 
                 // Mark as downloaded if in the list of downloaded voices
                 voice.downloaded = downloaded_voices.contains(&voice.key);
+                if let Some(ref default_voice) = default_voice {
+                    voice.is_default = Some(default_voice == &voice.key);
+                }
 
                 (key, voice)
             })
@@ -64,12 +69,11 @@ impl VoiceManager {
     }
 
     pub fn list_downloaded_voices() -> Result<Vec<String>, Box<dyn Error>> {
-        let downloaded_voices =
-            FileHandler::get_all_file_names(&huggingface_config::get_download_path())?;
-        let downloaded_voices: Vec<String> =
-            downloaded_voices.iter().map(|f| f.to_string()).collect();
+        FileHandler::get_all_file_names(&huggingface_config::get_download_path())
+    }
 
-        Ok(downloaded_voices)
+    pub fn get_default_voice() -> Result<Option<String>, Box<dyn Error>> {
+        FileHandler::get_default_voice_from_config(&dispatcher_config::get_module_config_path())
     }
 
     pub async fn download_voice(file_names: Vec<String>) -> Result<(), Box<dyn Error>> {

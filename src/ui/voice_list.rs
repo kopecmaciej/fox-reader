@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::{cell::RefCell, collections::BTreeMap};
 
 use super::dialogs;
-use super::voice_row::VoiceRow;
+use super::voice_row::{VoiceRow, DEFAULT_VOICE_ICON};
 
 mod imp {
     use super::*;
@@ -100,8 +100,28 @@ impl VoiceList {
                 ),
             );
 
+            voice_row.connect_notify_local(
+                Some("is_default"),
+                clone!(
+                    #[strong(rename_to=this)]
+                    self,
+                    move |voice_row, _| {
+                        if let Ok(mut voices) = this.imp().voice_list.try_borrow_mut() {
+                            voices.values_mut().for_each(|v| {
+                                if v.key == voice_row.key() {
+                                    v.is_default = Some(true);
+                                } else {
+                                    v.is_default = None;
+                                }
+                            });
+                        }
+                    }
+                ),
+            );
+
             model.append(&voice_row);
         }
+
         self.set_sorters();
 
         let sort_model = gtk::SortListModel::builder()
@@ -253,6 +273,9 @@ impl VoiceList {
         let download_button = grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
         let set_default_button = grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
         let delete_button = grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
+        if voice_row.is_default() {
+            set_default_button.set_icon_name(DEFAULT_VOICE_ICON);
+        }
 
         voice_row.handle_download_click(&download_button);
         voice_row.handle_set_default_click(&set_default_button);
