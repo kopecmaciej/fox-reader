@@ -97,7 +97,7 @@ impl FileHandler {
     ) -> Result<(), Box<dyn Error>> {
         let content = fs::read_to_string(path)?;
         if !content.contains(key) {
-            let updated_line = format!("{} {}", key, new_value);
+            let updated_line = format!("\n{} {}", key, new_value);
             Self::append_to_file(path, updated_line.as_bytes())
         } else {
             let content = content

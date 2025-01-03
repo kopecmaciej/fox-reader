@@ -99,7 +99,7 @@ SymbolsPreprocFile "orca-chars.dic"
 AddModule "fox-reader" "sd_generic" "fox-reader.conf"
 
 DefaultLanguage "{}"
-DefaultModule "fox-reader" "#,
+DefaultModule "fox-reader""#,
         default_lang
     )
 }
@@ -107,17 +107,15 @@ DefaultModule "fox-reader" "#,
 fn module_template(module_path: &str, voices_path: &str) -> String {
     format!(
         r#"
-GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}/\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -"
-    "#,
+GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}/\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -""#,
         module_path, voices_path
     )
 }
 
 fn add_voice_template(language: &str, voice_name: &str, voice_relative_path: &str) -> String {
     format!(
-        r#" 
-AddVoice "{}_{}" "male1" "{}"
-"#,
+        r#"
+AddVoice "{}_{}" "male1" "{}""#,
         language, voice_name, voice_relative_path
     )
 }
