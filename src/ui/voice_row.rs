@@ -128,7 +128,6 @@ impl VoiceRow {
                             grid.remove(&button);
                             grid.attach(&spinner, 0, 0, 1, 1);
                         }
-
                         let file_names = this.imp().files.borrow().clone().into_keys().collect();
                         let _ = runtime()
                             .spawn(clone!(async move {
@@ -138,7 +137,7 @@ impl VoiceRow {
                             }))
                             .await;
 
-                        if let Err(e) = SpeechDispatcher::add_new_voice(
+                        if let Err(e) = SpeechDispatcher::add_new_voice_to_config(
                             &this.language_code(),
                             &this.name(),
                             &this.key(),

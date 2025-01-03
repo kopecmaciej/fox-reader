@@ -45,7 +45,7 @@ impl SpeechDispatcher {
         Ok(())
     }
 
-    pub fn add_new_voice(
+    pub fn add_new_voice_to_config(
         language: &str,
         voice_name: &str,
         voice_key: &str,
@@ -64,6 +64,12 @@ impl SpeechDispatcher {
         voice_id: &str,
     ) -> Result<(), Box<dyn Error>> {
         let voice_template = add_voice_template(language, voice_name, voice_id);
+        let default_voice = format!("DefaultVoice {}", voice_id);
+
+        FileHandler::delete_line_from_config(
+            &dispatcher_config::get_module_config_path(),
+            &default_voice,
+        )?;
 
         FileHandler::delete_line_from_config(
             &dispatcher_config::get_module_config_path(),

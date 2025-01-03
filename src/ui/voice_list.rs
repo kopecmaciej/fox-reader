@@ -29,6 +29,7 @@ mod imp {
         pub country_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
+        pub filter: RefCell<Option<gtk::CustomFilter>>,
         pub voice_list: RefCell<BTreeMap<String, Voice>>,
     }
 
@@ -124,58 +125,45 @@ impl VoiceList {
 
         self.set_sorters();
 
+        let filter = gtk::CustomFilter::new(|_| true);
+        let filter_model = gtk::FilterListModel::new(Some(model), Some(filter.clone()));
         let sort_model = gtk::SortListModel::builder()
-            .model(&model)
+            .model(&filter_model)
             .sorter(&self.imp().column_view.sorter().unwrap())
             .build();
 
         self.imp()
             .column_view
             .set_model(Some(&gtk::NoSelection::new(Some(sort_model))));
+
+        self.imp().filter.replace(Some(filter));
     }
 
-    pub fn filter_by_country(&self, search_text: &str) {
-        let countries = self.get_country_list();
-
-        if countries.contains(&search_text.to_string()) {
-            let filtered_voices: BTreeMap<String, Voice> = self
-                .imp()
-                .voice_list
-                .borrow()
-                .iter()
-                .filter(|(_, v)| v.language.name_english == search_text)
-                .map(|(k, v)| (k.to_owned(), v.to_owned()))
-                .collect();
-
-            self.set_voice_row_model(filtered_voices);
-        } else {
-            self.set_voice_row_model(self.imp().voice_list.borrow().clone());
+    pub fn filter_by_country(&self, search_text: glib::GString) {
+        if let Some(filter) = &*self.imp().filter.borrow() {
+            filter.set_filter_func(move |obj| {
+                if search_text == "All" {
+                    return true;
+                }
+                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
+                voice_row.country() == search_text
+            })
         }
     }
 
     pub fn filter_downloaded_voices(&self) {
-        let filtered_voices: BTreeMap<String, Voice> = self
-            .imp()
-            .voice_list
-            .borrow()
-            .iter()
-            .filter(|(_, v)| v.downloaded)
-            .map(|(k, v)| (k.to_owned(), v.to_owned()))
-            .collect();
-
-        self.set_voice_row_model(filtered_voices);
+        if let Some(filter) = &*self.imp().filter.borrow() {
+            filter.set_filter_func(move |obj| {
+                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
+                voice_row.downloaded()
+            });
+        }
     }
 
     pub fn show_all_voices(&self) {
-        let filtered_voices: BTreeMap<String, Voice> = self
-            .imp()
-            .voice_list
-            .borrow()
-            .iter()
-            .map(|(k, v)| (k.to_owned(), v.to_owned()))
-            .collect();
-
-        self.set_voice_row_model(filtered_voices);
+        if let Some(filter) = &*self.imp().filter.borrow() {
+            filter.set_filter_func(move |_| true)
+        };
     }
 
     pub fn get_country_list(&self) -> Vec<String> {

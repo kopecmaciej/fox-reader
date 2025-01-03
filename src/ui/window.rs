@@ -98,7 +98,7 @@ impl FoxReaderAppWindow {
                         if let Some(string_obj) = selected_item.downcast_ref::<gtk::StringObject>()
                         {
                             let country = string_obj.string();
-                            this.imp().voice_list.filter_by_country(&country);
+                            this.imp().voice_list.filter_by_country(country);
                         };
                     }
                 },
