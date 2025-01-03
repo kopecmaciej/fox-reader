@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::{cell::RefCell, collections::BTreeMap};
 
 use super::dialogs;
-use super::voice_row::{VoiceRow, DEFAULT_VOICE_ICON};
+use super::voice_row::VoiceRow;
 
 mod imp {
     use super::*;
@@ -102,19 +102,24 @@ impl VoiceList {
             );
 
             voice_row.connect_notify_local(
-                Some("is_default"),
+                Some("is-default"),
                 clone!(
                     #[strong(rename_to=this)]
                     self,
                     move |voice_row, _| {
-                        if let Ok(mut voices) = this.imp().voice_list.try_borrow_mut() {
-                            voices.values_mut().for_each(|v| {
-                                if v.key == voice_row.key() {
-                                    v.is_default = Some(true);
-                                } else {
-                                    v.is_default = None;
+                        if !voice_row.is_default() {
+                            return;
+                        }
+                        let model = this.get_list_model();
+
+                        for i in 0..model.n_items() {
+                            if let Some(obj) = model.item(i) {
+                                if let Ok(row) = obj.downcast::<VoiceRow>() {
+                                    if row.key() != voice_row.key() && row.is_default() {
+                                        row.set_is_default(false);
+                                    }
                                 }
-                            });
+                            }
                         }
                     }
                 ),
@@ -137,6 +142,23 @@ impl VoiceList {
             .set_model(Some(&gtk::NoSelection::new(Some(sort_model))));
 
         self.imp().filter.replace(Some(filter));
+    }
+
+    fn get_list_model(&self) -> gio::ListStore {
+        self.imp()
+            .column_view
+            .model()
+            .and_downcast::<gtk::NoSelection>()
+            .unwrap()
+            .model()
+            .and_downcast::<gtk::SortListModel>()
+            .unwrap()
+            .model()
+            .and_downcast::<gtk::FilterListModel>()
+            .unwrap()
+            .model()
+            .and_downcast::<gio::ListStore>()
+            .unwrap()
     }
 
     pub fn filter_by_country(&self, search_text: glib::GString) {
@@ -167,12 +189,12 @@ impl VoiceList {
     }
 
     pub fn get_country_list(&self) -> Vec<String> {
-        let mut list: Vec<String> = self
-            .imp()
-            .voice_list
-            .borrow()
-            .iter()
-            .map(|(_, v)| v.language.name_english.to_owned())
+        let model = self.get_list_model();
+
+        let mut list: Vec<String> = (0..model.n_items())
+            .filter_map(|i| model.item(i))
+            .filter_map(|obj| obj.downcast::<VoiceRow>().ok())
+            .map(|voice_row| voice_row.country())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
@@ -261,13 +283,10 @@ impl VoiceList {
         let download_button = grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
         let set_default_button = grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
         let delete_button = grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
-        if voice_row.is_default() {
-            set_default_button.set_icon_name(DEFAULT_VOICE_ICON);
-        }
 
-        voice_row.handle_download_click(&download_button);
-        voice_row.handle_set_default_click(&set_default_button);
-        voice_row.handle_delete_click(&delete_button);
+        voice_row.handle_download_actions(&download_button);
+        voice_row.handle_set_default_actions(&set_default_button);
+        voice_row.handle_delete_actions(&delete_button);
 
         download_button.set_sensitive(!voice_row.downloaded());
         set_default_button.set_sensitive(voice_row.downloaded());

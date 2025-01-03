@@ -111,7 +111,7 @@ impl VoiceRow {
         (download_button, set_default_button, delete_button)
     }
 
-    pub fn handle_download_click(&self, download_button: &Button) {
+    pub fn handle_download_actions(&self, download_button: &Button) {
         download_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
@@ -158,7 +158,7 @@ impl VoiceRow {
         ));
     }
 
-    pub fn handle_delete_click(&self, remove_button: &Button) {
+    pub fn handle_delete_actions(&self, remove_button: &Button) {
         remove_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
@@ -182,7 +182,7 @@ impl VoiceRow {
         ));
     }
 
-    pub fn handle_set_default_click(&self, set_default_button: &Button) {
+    pub fn handle_set_default_actions(&self, set_default_button: &Button) {
         set_default_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
@@ -191,9 +191,19 @@ impl VoiceRow {
                     let err_msg = format!("Failed to set voice as default. \nDetails: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
                 }
-                button.set_icon_name(DEFAULT_VOICE_ICON);
                 this.set_is_default(true);
             }
         ));
+
+        self.bind_property("is_default", set_default_button, "icon-name")
+            .transform_to(|_, is_default: bool| {
+                Some(if is_default {
+                    DEFAULT_VOICE_ICON
+                } else {
+                    SET_AS_DEFAULT_ICON
+                })
+            })
+            .sync_create()
+            .build();
     }
 }
