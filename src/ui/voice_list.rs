@@ -30,7 +30,6 @@ mod imp {
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
         pub filter: RefCell<Option<gtk::CustomFilter>>,
-        pub voice_list: RefCell<BTreeMap<String, Voice>>,
     }
 
     #[glib::object_subclass]
@@ -69,7 +68,6 @@ impl VoiceList {
     pub fn init(&self) {
         let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
         if let Ok(voices) = voice_list {
-            self.imp().voice_list.replace(voices.clone());
             self.set_voice_row_model(voices);
         }
         if let Err(e) = SpeechDispatcher::initialize_config() {
@@ -85,21 +83,6 @@ impl VoiceList {
         let model = gio::ListStore::new::<VoiceRow>();
         for (_, voice) in voice_list {
             let voice_row = VoiceRow::new(voice);
-
-            voice_row.connect_notify_local(
-                Some("downloaded"),
-                clone!(
-                    #[strong(rename_to=this)]
-                    self,
-                    move |voice_row, _| {
-                        if let Ok(mut voices) = this.imp().voice_list.try_borrow_mut() {
-                            if let Some(voice) = voices.get_mut(&voice_row.key()) {
-                                voice.downloaded = voice_row.downloaded();
-                            }
-                        }
-                    }
-                ),
-            );
 
             voice_row.connect_notify_local(
                 Some("is-default"),

@@ -115,20 +115,20 @@ impl VoiceRow {
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
-        let sink_ref = Arc::new(Mutex::new(None::<Arc<Sink>>));
+        let sink = Arc::new(Mutex::new(None::<Arc<Sink>>));
         play_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
             move |button| {
                 let is_playing = button.icon_name().map_or(false, |icon| icon == STOP_ICON);
                 if is_playing {
-                    if let Some(sink) = sink_ref.lock().unwrap().take() {
+                    if let Some(sink) = sink.lock().unwrap().take() {
                         sink.stop();
                     }
                     button.set_icon_name(PLAY_ICON);
                     return;
                 }
-                let sink_ref_clone = Arc::clone(&sink_ref);
+                let sink_clone = Arc::clone(&sink);
                 button.set_icon_name(STOP_ICON);
                 glib::spawn_future_local(clone!(
                     #[weak]
@@ -140,10 +140,9 @@ impl VoiceRow {
                             .spawn(clone!(async move {
                                 match VoiceManager::download_voice_samples(file_paths).await {
                                     Ok(audio_data) => {
-                                        if let Err(e) = VoiceManager::play_audio_data(
-                                            audio_data,
-                                            sink_ref_clone,
-                                        ) {
+                                        if let Err(e) =
+                                            VoiceManager::play_audio_data(audio_data, sink_clone)
+                                        {
                                             eprintln!(
                                                 "Failed to play voice sample. \nDetails: {}",
                                                 e
