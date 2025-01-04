@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use rodio::{Decoder, OutputStream, Sink};
 use std::io::Cursor;
@@ -93,13 +94,15 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub fn download_voice_samples(file_paths: Vec<String>) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub async fn download_voice_samples(
+        file_paths: Vec<String>,
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
         if let Some(file_name) = file_paths.first() {
             let (base_path, _) = file_name.rsplit_once("/").unwrap();
             let sample_path = format!("{}/samples/speaker_0.mp3", base_path);
 
             let voice_sample_url = huggingface_config::get_voice_url(&sample_path);
-            let file = FileHandler::fetch_file(voice_sample_url)?;
+            let file = FileHandler::fetch_file_async(voice_sample_url).await?;
             Ok(file)
         } else {
             Err("Invalid file path structure".into())
@@ -119,27 +122,26 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub fn play_audio_data(audio_data: Vec<u8>) -> Result<(), String> {
+    pub fn play_audio_data(
+        audio_data: Vec<u8>,
+        sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,
+    ) -> Result<(), String> {
         let cursor = Cursor::new(audio_data);
 
-        // Create output stream
-        let (stream, stream_handle) = OutputStream::try_default()
+        let (_stream, stream_handle) = OutputStream::try_default()
             .map_err(|e| format!("Failed to setup audio output: {}", e))?;
 
-        // Create a Sink
         let sink = Sink::try_new(&stream_handle)
             .map_err(|e| format!("Failed to create audio sink: {}", e))?;
 
-        // Decode and append to sink
+        let sink = Arc::new(sink);
+
+        *sink_ref.lock().unwrap() = Some(Arc::clone(&sink));
+
         let source = Decoder::new(cursor).map_err(|e| format!("Failed to decode audio: {}", e))?;
 
         sink.append(source);
-
-        // Wait for playback to complete
         sink.sleep_until_end();
-
-        // Keep stream in scope
-        drop(stream);
 
         Ok(())
     }

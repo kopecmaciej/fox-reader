@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
 
 use crate::core::runtime::runtime;
 use crate::core::speech_dispatcher::SpeechDispatcher;
@@ -9,8 +10,10 @@ use adw::Spinner;
 use glib::Properties;
 use gtk::glib::{self, clone};
 use gtk::{prelude::*, Button};
+use rodio::Sink;
 
 pub const PLAY_ICON: &str = "media-playback-start-symbolic";
+pub const STOP_ICON: &str = "media-playback-stop-symbolic";
 pub const DOWNLOAD_VOICE_ICON: &str = "folder-download-symbolic";
 pub const SET_AS_DEFAULT_ICON: &str = "starred";
 pub const DELETE_VOICE_ICON: &str = "edit-delete";
@@ -112,33 +115,49 @@ impl VoiceRow {
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
+        let sink_ref = Arc::new(Mutex::new(None::<Arc<Sink>>));
         play_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
             move |button| {
-                button.set_sensitive(false);
+                let is_playing = button.icon_name().map_or(false, |icon| icon == STOP_ICON);
+                if is_playing {
+                    if let Some(sink) = sink_ref.lock().unwrap().take() {
+                        sink.stop();
+                    }
+                    button.set_icon_name(PLAY_ICON);
+                    return;
+                }
+                let sink_ref_clone = Arc::clone(&sink_ref);
+                button.set_icon_name(STOP_ICON);
                 glib::spawn_future_local(clone!(
                     #[weak]
                     button,
                     async move {
                         let file_paths = this.imp().files.borrow().clone().into_keys().collect();
 
-                        match VoiceManager::download_voice_samples(file_paths) {
-                            Ok(audio_data) => {
-                                if let Err(e) = VoiceManager::play_audio_data(audio_data) {
-                                    let err_msg =
-                                        format!("Failed to play voice sample. \nDetails: {}", e);
-                                    dialogs::show_error_dialog(&err_msg, &button);
+                        let _ = runtime()
+                            .spawn(clone!(async move {
+                                match VoiceManager::download_voice_samples(file_paths).await {
+                                    Ok(audio_data) => {
+                                        if let Err(e) = VoiceManager::play_audio_data(
+                                            audio_data,
+                                            sink_ref_clone,
+                                        ) {
+                                            eprintln!(
+                                                "Failed to play voice sample. \nDetails: {}",
+                                                e
+                                            );
+                                        };
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to play voice sample. \nDetails: {}", e);
+                                    }
                                 };
-                            }
-                            Err(e) => {
-                                let err_msg =
-                                    format!("Failed to play voice sample. \nDetails: {}", e);
-                                dialogs::show_error_dialog(&err_msg, &button);
-                            }
-                        };
+                            }))
+                            .await;
 
-                        button.set_sensitive(true);
+                        button.set_icon_name(PLAY_ICON);
                     }
                 ));
             }
