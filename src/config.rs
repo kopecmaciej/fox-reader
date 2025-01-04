@@ -18,7 +18,6 @@ fn resolve_home(path: &str) -> String {
 fn build_path(base_path: &str, relative_path: &str) -> String {
     resolve_home(base_path).to_string() + "/" + relative_path
 }
-
 pub mod huggingface_config {
     use super::*;
 

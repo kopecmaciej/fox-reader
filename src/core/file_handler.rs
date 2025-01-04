@@ -1,4 +1,5 @@
-use reqwest::get;
+use reqwest::blocking::get;
+use reqwest::get as get_async;
 use std::error::Error;
 use std::fs::{self, remove_file, File};
 use std::io::prelude::*;
@@ -20,9 +21,15 @@ impl FileHandler {
         Ok(())
     }
 
-    pub async fn fetch_file(link: String) -> Result<Vec<u8>, Box<dyn Error>> {
-        let response = get(link).await?;
+    pub async fn fetch_file_async(link: String) -> Result<Vec<u8>, Box<dyn Error>> {
+        let response = get_async(link).await?;
         let bytes = response.bytes().await?;
+        Ok(bytes.to_vec())
+    }
+
+    pub fn fetch_file(link: String) -> Result<Vec<u8>, Box<dyn Error>> {
+        let response = get(link)?;
+        let bytes = response.bytes()?;
         Ok(bytes.to_vec())
     }
 

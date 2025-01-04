@@ -111,6 +111,40 @@ impl VoiceRow {
         (download_button, set_default_button, delete_button)
     }
 
+    pub fn handle_play_actions(&self, play_button: &Button) {
+        play_button.connect_clicked(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |button| {
+                button.set_sensitive(false);
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    button,
+                    async move {
+                        let file_paths = this.imp().files.borrow().clone().into_keys().collect();
+
+                        match VoiceManager::download_voice_samples(file_paths) {
+                            Ok(audio_data) => {
+                                if let Err(e) = VoiceManager::play_audio_data(audio_data) {
+                                    let err_msg =
+                                        format!("Failed to play voice sample. \nDetails: {}", e);
+                                    dialogs::show_error_dialog(&err_msg, &button);
+                                };
+                            }
+                            Err(e) => {
+                                let err_msg =
+                                    format!("Failed to play voice sample. \nDetails: {}", e);
+                                dialogs::show_error_dialog(&err_msg, &button);
+                            }
+                        };
+
+                        button.set_sensitive(true);
+                    }
+                ));
+            }
+        ));
+    }
+
     pub fn handle_download_actions(&self, download_button: &Button) {
         download_button.connect_clicked(clone!(
             #[weak(rename_to=this)]

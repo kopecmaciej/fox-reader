@@ -6,6 +6,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 
+use rodio::{Decoder, OutputStream, Sink};
+use std::io::Cursor;
+
 pub struct VoiceManager {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -35,7 +38,7 @@ pub struct Voice {
 impl VoiceManager {
     pub async fn list_all_available_voices() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
         let voices_url = huggingface_config::get_voices_url();
-        let voices_file = FileHandler::fetch_file(voices_url).await?;
+        let voices_file = FileHandler::fetch_file_async(voices_url).await?;
         let raw_json = String::from_utf8(voices_file)?;
 
         let value_data: Value = serde_json::from_str(&raw_json)?;
@@ -76,10 +79,10 @@ impl VoiceManager {
         FileHandler::get_default_voice_from_config(&dispatcher_config::get_module_config_path())
     }
 
-    pub async fn download_voice(file_names: Vec<String>) -> Result<(), Box<dyn Error>> {
-        for file_path in file_names {
+    pub async fn download_voice(file_paths: Vec<String>) -> Result<(), Box<dyn Error>> {
+        for file_path in file_paths {
             let voice_config_url = huggingface_config::get_voice_url(&file_path);
-            let file = FileHandler::fetch_file(voice_config_url).await?;
+            let file = FileHandler::fetch_file_async(voice_config_url).await?;
             let file_name = Path::new(&file_path)
                 .file_name()
                 .and_then(|f| f.to_str())
@@ -90,8 +93,21 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub fn delete_voice(file_names: Vec<String>) -> Result<(), Box<dyn Error>> {
-        for file_path in file_names {
+    pub fn download_voice_samples(file_paths: Vec<String>) -> Result<Vec<u8>, Box<dyn Error>> {
+        if let Some(file_name) = file_paths.first() {
+            let (base_path, _) = file_name.rsplit_once("/").unwrap();
+            let sample_path = format!("{}/samples/speaker_0.mp3", base_path);
+
+            let voice_sample_url = huggingface_config::get_voice_url(&sample_path);
+            let file = FileHandler::fetch_file(voice_sample_url)?;
+            Ok(file)
+        } else {
+            Err("Invalid file path structure".into())
+        }
+    }
+
+    pub fn delete_voice(file_paths: Vec<String>) -> Result<(), Box<dyn Error>> {
+        for file_path in file_paths {
             let file_name = Path::new(&file_path)
                 .file_name()
                 .and_then(|f| f.to_str())
@@ -99,6 +115,31 @@ impl VoiceManager {
 
             FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
         }
+
+        Ok(())
+    }
+
+    pub fn play_audio_data(audio_data: Vec<u8>) -> Result<(), String> {
+        let cursor = Cursor::new(audio_data);
+
+        // Create output stream
+        let (stream, stream_handle) = OutputStream::try_default()
+            .map_err(|e| format!("Failed to setup audio output: {}", e))?;
+
+        // Create a Sink
+        let sink = Sink::try_new(&stream_handle)
+            .map_err(|e| format!("Failed to create audio sink: {}", e))?;
+
+        // Decode and append to sink
+        let source = Decoder::new(cursor).map_err(|e| format!("Failed to decode audio: {}", e))?;
+
+        sink.append(source);
+
+        // Wait for playback to complete
+        sink.sleep_until_end();
+
+        // Keep stream in scope
+        drop(stream);
 
         Ok(())
     }

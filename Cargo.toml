@@ -13,6 +13,7 @@ reqwest = { version = "0.12.9", features = ["blocking"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 tokio = { version = "1", features = ["rt-multi-thread"] }
+rodio = "0.20.1"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"

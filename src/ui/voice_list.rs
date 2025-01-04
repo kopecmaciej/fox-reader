@@ -232,8 +232,8 @@ impl VoiceList {
     #[template_callback]
     fn bind_play_button(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
         let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let button = list_item.child().and_downcast::<gtk::Button>().unwrap();
-        button.set_sensitive(voice_row.downloaded());
+        let play_button = list_item.child().and_downcast::<gtk::Button>().unwrap();
+        voice_row.handle_play_actions(&play_button);
     }
 
     #[template_callback]
