@@ -203,6 +203,16 @@ impl VoiceList {
             prop_name,
         ))))
     }
+
+    pub fn filter_by_search(&self, search_text: glib::GString) {
+        if let Some(filter) = &*self.imp().filter.borrow() {
+            let search_string = search_text.to_lowercase();
+            filter.set_filter_func(move |obj| {
+                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
+                voice_row.name().to_lowercase().contains(&search_string)
+            });
+        }
+    }
 }
 
 #[gtk::template_callbacks]

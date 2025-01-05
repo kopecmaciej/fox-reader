@@ -60,8 +60,20 @@ impl FoxReaderAppWindow {
         window.imp().voice_list.init();
         window.filter_out_by_country();
         window.filter_out_downloaded_voices();
+        window.setup_search();
 
         window
+    }
+
+    fn setup_search(&self) {
+        self.imp().search_entry.connect_search_changed(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |entry| {
+                let search_text = entry.text();
+                this.imp().voice_list.filter_by_search(search_text);
+            }),
+        );
     }
 
     fn filter_out_downloaded_voices(&self) {
@@ -87,21 +99,27 @@ impl FoxReaderAppWindow {
         for c in country_list {
             string_list.append(&c);
         }
-        self.imp().country_dropdown.set_model(Some(&string_list));
-        self.imp()
-            .country_dropdown
-            .connect_selected_item_notify(clone!(
-                #[weak(rename_to=this)]
-                self,
-                move |f| {
-                    if let Some(selected_item) = f.selected_item() {
-                        if let Some(string_obj) = selected_item.downcast_ref::<gtk::StringObject>()
-                        {
-                            let country = string_obj.string();
-                            this.imp().voice_list.filter_by_country(country);
-                        };
-                    }
-                },
-            ));
+        
+        // Configure the dropdown for searching
+        let dropdown = &self.imp().country_dropdown;
+        dropdown.set_model(Some(&string_list));
+        dropdown.set_expression(Some(&gtk::PropertyExpression::new(
+            gtk::StringObject::static_type(),
+            None::<&gtk::Expression>,
+            "string"
+        )));
+
+        dropdown.connect_selected_item_notify(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |f| {
+                if let Some(selected_item) = f.selected_item() {
+                    if let Some(string_obj) = selected_item.downcast_ref::<gtk::StringObject>() {
+                        let country = string_obj.string();
+                        this.imp().voice_list.filter_by_country(country);
+                    };
+                }
+            },
+        ));
     }
 }
