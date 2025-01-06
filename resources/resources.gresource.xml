@@ -3,5 +3,6 @@
   <gresource prefix="/org/fox-reader">
     <file compressed="true" preprocess="xml-stripblanks">voice_list.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">window.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">piper_window.ui</file>
   </gresource>
 </gresources>

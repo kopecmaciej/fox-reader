@@ -1,14 +1,17 @@
 use dirs::home_dir;
 
+const FOX_READER_BASE_PATH: &str = "$HOME/.local/share/fox-reader";
+
 const HF_BASE_URL: &str = "https://huggingface.co/rhasspy/piper-voices";
 const HF_VERSION: &str = "v1.0.0/";
 const HF_VOICES_JSON: &str = "voices.json";
-const HF_DOWNLOAD_PATH: &str = "$HOME/.local/share/fox-reader/voices";
 
 const DISPATCHER_CONFIG_PATH: &str = "$HOME/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/fox-reader.conf";
 const DISPATCHER_SCRIPT_FILE: &str = "fox-reader.sh";
+
+const PIPER_RELEASES_URL: &str = "https://github.com/rhasspy/piper/releases/download/v1.2.0/";
 
 fn resolve_home(path: &str) -> String {
     let home = home_dir().expect("Failed to get home directory");
@@ -30,11 +33,11 @@ pub mod huggingface_config {
     }
 
     pub fn get_voice_file_path(voice_file: &str) -> String {
-        build_path(HF_DOWNLOAD_PATH, voice_file)
+        build_path(&format!("{}/voices", FOX_READER_BASE_PATH), voice_file)
     }
 
     pub fn get_download_path() -> String {
-        resolve_home(HF_DOWNLOAD_PATH)
+        resolve_home(&format!("{}/voices", FOX_READER_BASE_PATH))
     }
 }
 
@@ -51,5 +54,44 @@ pub mod dispatcher_config {
 
     pub fn get_script_path() -> String {
         build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_SCRIPT_FILE)
+    }
+}
+
+pub mod piper_config {
+    use super::*;
+
+    pub fn get_binary_name() -> String {
+        #[cfg(target_os = "linux")]
+        {
+            if cfg!(target_arch = "x86_64") {
+                "piper_linux_x86_64".to_string()
+            } else if cfg!(target_arch = "aarch64") {
+                "piper_linux_aarch64".to_string()
+            } else {
+                panic!("Unsupported architecture");
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            if cfg!(target_arch = "x86_64") {
+                "piper_macos_x86_64".to_string()
+            } else if cfg!(target_arch = "aarch64") {
+                "piper_macos_aarch64".to_string()
+            } else {
+                panic!("Unsupported architecture");
+            }
+        }
+    }
+
+    pub fn get_download_url() -> String {
+        format!("{}{}", PIPER_RELEASES_URL, get_binary_name())
+    }
+
+    pub fn get_binary_path() -> String {
+        build_path(FOX_READER_BASE_PATH, "piper")
+    }
+
+    pub fn get_download_path() -> String {
+        resolve_home(FOX_READER_BASE_PATH)
     }
 }

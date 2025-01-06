@@ -6,6 +6,8 @@ use gtk::{
     StringList,
 };
 
+use super::piper::PiperWindow;
+
 mod imp {
     use crate::ui::voice_list::VoiceList;
 
@@ -62,6 +64,13 @@ impl FoxReaderAppWindow {
         window.filter_out_downloaded_voices();
         window.setup_search();
 
+        // Only show Piper window if piper is not found in PATH
+        if PiperWindow::find_piper().is_none() {
+            let piper_window = PiperWindow::new();
+            piper_window.set_transient_for(Some(&window));
+            piper_window.present();
+        }
+
         window
     }
 
@@ -72,8 +81,8 @@ impl FoxReaderAppWindow {
             move |entry| {
                 let search_text = entry.text();
                 this.imp().voice_list.filter_by_search(search_text);
-            }),
-        );
+            }
+        ));
     }
 
     fn filter_out_downloaded_voices(&self) {
@@ -99,14 +108,14 @@ impl FoxReaderAppWindow {
         for c in country_list {
             string_list.append(&c);
         }
-        
+
         // Configure the dropdown for searching
         let dropdown = &self.imp().country_dropdown;
         dropdown.set_model(Some(&string_list));
         dropdown.set_expression(Some(&gtk::PropertyExpression::new(
             gtk::StringObject::static_type(),
             None::<&gtk::Expression>,
-            "string"
+            "string",
         )));
 
         dropdown.connect_selected_item_notify(clone!(
