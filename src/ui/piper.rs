@@ -5,6 +5,7 @@ use gtk::prelude::*;
 use reqwest;
 use std::fs::{self, create_dir_all};
 use std::process::Command;
+use which::which;
 
 use crate::core::runtime::runtime;
 
@@ -62,24 +63,11 @@ impl PiperWindow {
 
         window.setup_buttons();
 
-        if let Some(path) = PiperWindow::find_piper() {
-            window.imp().path_entry.set_text(&path);
-        }
-
         window
     }
 
-    pub fn find_piper() -> Option<String> {
-        for cmd in ["piper", "piper-tts"] {
-            if let Ok(output) = Command::new("which").arg(cmd).output() {
-                if output.status.success() {
-                    return String::from_utf8(output.stdout)
-                        .ok()
-                        .map(|s| s.trim().to_string());
-                }
-            }
-        }
-        None
+    pub fn is_paper_available() -> bool {
+        which("piper").is_ok() || which("piper-tts").is_ok()
     }
 
     fn setup_buttons(&self) {
