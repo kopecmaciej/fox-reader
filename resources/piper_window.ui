@@ -37,7 +37,7 @@
             </child>
             <child>
               <object class="GtkEntry" id="path_entry">
-                <property name="placeholder-text">Enter path to piper executable...</property>
+                <property name="placeholder-text">Enter custom path to piper...</property>
                 <property name="margin-top">12</property>
               </object>
             </child>
@@ -56,7 +56,7 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="confirm_button">
-                    <property name="label">Confirm Path</property>
+                    <property name="label">Confirm custom path</property>
                   </object>
                 </child>
               </object>

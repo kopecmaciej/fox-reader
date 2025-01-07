@@ -65,12 +65,12 @@ impl Default for VoiceList {
 }
 
 impl VoiceList {
-    pub fn init(&self, piper_path: &str) {
+    pub fn init(&self) {
         let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
         if let Ok(voices) = voice_list {
             self.set_voice_row_model(voices);
         }
-        if let Err(e) = SpeechDispatcher::init_config(piper_path) {
+        if let Err(e) = SpeechDispatcher::init_config() {
             let err_msg = format!(
                 "Error initializing speech dispatcher config. \nDetails: {}",
                 e

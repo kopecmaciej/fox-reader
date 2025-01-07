@@ -8,10 +8,9 @@ use std::fs::{self, create_dir_all};
 use std::process::Command;
 
 use crate::core::runtime::runtime;
+use crate::core::speech_dispatcher::SpeechDispatcher;
 
 mod imp {
-    use std::cell::RefCell;
-
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -24,7 +23,6 @@ mod imp {
         pub download_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub confirm_button: TemplateChild<gtk::Button>,
-        pub piper_path: RefCell<Option<String>>,
     }
 
     #[glib::object_subclass]
@@ -91,7 +89,12 @@ impl PiperWindow {
                     async move {
                         match download_piper().await {
                             Ok(path) => {
-                                this.imp().piper_path.replace(Some(path));
+                                if let Err(e) = SpeechDispatcher::update_piper_path(&path) {
+                                    super::dialogs::show_error_dialog(
+                                        &format!("Failed to add piper to configuration: {}", e),
+                                        &this,
+                                    );
+                                }
                                 button.set_label("Downloaded");
                                 this.close();
                             }
@@ -115,7 +118,12 @@ impl PiperWindow {
             move |_| {
                 let path = this.imp().path_entry.text();
                 if Self::verify_piper_path(&path) {
-                    this.imp().piper_path.replace(Some(path.to_string()));
+                    if let Err(e) = SpeechDispatcher::update_piper_path(&path) {
+                        super::dialogs::show_error_dialog(
+                            &format!("Failed to add piper to configuration: {}", e),
+                            &this,
+                        );
+                    }
                     this.close();
                 } else {
                     super::dialogs::show_error_dialog("Invalid piper path", &this);

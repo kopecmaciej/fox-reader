@@ -10,7 +10,7 @@ const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
 pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
-    pub fn init_config(piper_path: &str) -> Result<(), Box<dyn Error>> {
+    pub fn init_config() -> Result<(), Box<dyn Error>> {
         let config_file = &dispatcher_config::get_config_file_path();
         // TODO: Check if speechd.conf is default or already adjusted
         let vec_bytes = config_template("en-GB").trim().as_bytes().to_vec();
@@ -24,7 +24,7 @@ impl SpeechDispatcher {
         if !FileHandler::does_file_exist(module_path) {
             FileHandler::save_bytes(
                 module_path,
-                module_template_v2(piper_path).trim().as_bytes(),
+                module_template_v2("piper-tts").trim().as_bytes(),
             )?;
         }
         let script_path = &dispatcher_config::get_script_path();
@@ -80,6 +80,14 @@ impl SpeechDispatcher {
             &dispatcher_config::get_module_config_path(),
             "DefaultVoice",
             default_voice,
+        )
+    }
+
+    pub fn update_piper_path(piper_path: &str) -> Result<(), Box<dyn Error>> {
+        FileHandler::update_env(
+            &dispatcher_config::get_module_config_path(),
+            "PIPER_PATH",
+            piper_path,
         )
     }
 }

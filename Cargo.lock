@@ -454,6 +454,7 @@ dependencies = [
  "glib-build-tools",
  "gtk4",
  "libadwaita",
+ "regex",
  "reqwest",
  "rodio",
  "serde",

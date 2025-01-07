@@ -63,6 +63,21 @@ impl FileHandler {
         Ok(())
     }
 
+    pub fn update_env(
+        file_path: &str,
+        env_name: &str,
+        new_env: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let content = fs::read_to_string(file_path)?;
+        let re = regex::Regex::new(&format!(r"{}='[^']+'", env_name))?;
+
+        let updated = re.replace(&content, format!("{}='{}'", env_name, new_env));
+
+        fs::write(file_path, updated.to_string())?;
+
+        Ok(())
+    }
+
     pub fn get_default_voice_from_config(path: &str) -> Result<Option<String>, Box<dyn Error>> {
         let content = fs::read_to_string(path)?;
         Ok(content
