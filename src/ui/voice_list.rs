@@ -66,16 +66,16 @@ impl Default for VoiceList {
 
 impl VoiceList {
     pub fn init(&self) {
-        let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
-        if let Ok(voices) = voice_list {
-            self.set_voice_row_model(voices);
-        }
         if let Err(e) = SpeechDispatcher::init_config() {
             let err_msg = format!(
                 "Error initializing speech dispatcher config. \nDetails: {}",
                 e
             );
             dialogs::show_error_dialog(&err_msg, self);
+        }
+        let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
+        if let Ok(voices) = voice_list {
+            self.set_voice_row_model(voices);
         }
     }
 

@@ -119,7 +119,7 @@ DefaultModule "fox-reader""#,
 fn module_template_v2(piper_path: &str) -> String {
     format!(
         r#"
-GenericExecuteSynth "export PIPER_PATH='{}'; export VOICE_PATH='{}';{}""#,
+GenericExecuteSynth "export DATA='$DATA'; export RATE='$RATE'; export VOICE='$VOICE';export PIPER_PATH='{}'; export VOICE_PATH='{}';{}""#,
         piper_path,
         huggingface_config::get_download_path(),
         dispatcher_config::get_script_path()

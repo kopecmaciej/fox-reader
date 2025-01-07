@@ -88,8 +88,9 @@ impl PiperWindow {
                     button,
                     async move {
                         match download_piper().await {
-                            Ok(path) => {
-                                if let Err(e) = SpeechDispatcher::update_piper_path(&path) {
+                            Ok(piper_dir) => {
+                                let piper_exec = format!("{}/piper", piper_dir);
+                                if let Err(e) = SpeechDispatcher::update_piper_path(&piper_exec) {
                                     super::dialogs::show_error_dialog(
                                         &format!("Failed to add piper to configuration: {}", e),
                                         &this,
