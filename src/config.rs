@@ -11,7 +11,7 @@ const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/fox-reader.conf";
 const DISPATCHER_SCRIPT_FILE: &str = "fox-reader.sh";
 
-const PIPER_RELEASES_URL: &str = "https://github.com/rhasspy/piper/releases/download/v1.2.0/";
+const PIPER_RELEASES_URL: &str = "https://github.com/rhasspy/piper/releases/latest/download";
 
 fn resolve_home(path: &str) -> String {
     let home = home_dir().expect("Failed to get home directory");
@@ -84,7 +84,7 @@ pub mod piper_config {
     }
 
     pub fn get_download_url() -> String {
-        format!("{}{}", PIPER_RELEASES_URL, get_binary_name())
+        format!("{}/{}.tar.gzxz", PIPER_RELEASES_URL, get_binary_name())
     }
 
     pub fn get_binary_path() -> String {

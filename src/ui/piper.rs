@@ -5,7 +5,6 @@ use gtk::prelude::*;
 use reqwest;
 use std::fs::{self, create_dir_all};
 use std::process::Command;
-use which::which;
 
 use crate::core::runtime::runtime;
 
@@ -67,7 +66,7 @@ impl PiperWindow {
     }
 
     pub fn is_paper_available() -> bool {
-        which("piper").is_ok() || which("piper-tts").is_ok()
+        which::which("piper").is_ok() || which::which("piper-tts").is_ok()
     }
 
     fn setup_buttons(&self) {
@@ -81,9 +80,9 @@ impl PiperWindow {
                 button.set_child(Some(&spinner));
 
                 glib::spawn_future_local(clone!(
-                    #[strong]
+                    #[weak]
                     this,
-                    #[strong]
+                    #[weak]
                     button,
                     async move {
                         match download_piper().await {
@@ -110,39 +109,51 @@ impl PiperWindow {
             self,
             move |_| {
                 let path = this.imp().path_entry.text();
-                if verify_piper_path(&path) {
-                    // TODO: Save path to config
+                if Self::verify_piper_path(&path) {
                     this.close();
                 } else {
-                    // Use common dialog implementation
                     super::dialogs::show_error_dialog("Invalid piper path", &this);
                 }
             }
         ));
     }
+
+    fn verify_piper_path(path: &str) -> bool {
+        if path.is_empty() {
+            return false;
+        }
+
+        Command::new(path)
+            .arg("--help")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
 }
 
 async fn download_piper() -> Result<String, Box<dyn std::error::Error>> {
     use crate::config::piper_config;
+    use flate2::read::GzDecoder;
+    use tar::Archive;
 
-    // Create download directory
     let download_path = piper_config::get_download_path();
     create_dir_all(&download_path)?;
 
-    // Download binary using tokio runtime
     let url = piper_config::get_download_url();
-    let binary = runtime()
+    let compressed_data = runtime()
         .spawn(async move {
             let response = reqwest::get(&url).await?;
             response.bytes().await
         })
         .await??;
 
-    // Save binary
-    let binary_path = piper_config::get_binary_path();
-    fs::write(&binary_path, binary)?;
+    let gz = GzDecoder::new(&compressed_data[..]);
+    let mut archive = Archive::new(gz);
 
-    // Make binary executable
+    archive.unpack(&download_path)?;
+
+    let binary_path = piper_config::get_binary_path();
+
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -152,16 +163,4 @@ async fn download_piper() -> Result<String, Box<dyn std::error::Error>> {
     }
 
     Ok(binary_path)
-}
-
-fn verify_piper_path(path: &str) -> bool {
-    if path.is_empty() {
-        return false;
-    }
-
-    Command::new(path)
-        .arg("--help")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
 }

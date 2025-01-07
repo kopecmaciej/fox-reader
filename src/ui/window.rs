@@ -64,8 +64,7 @@ impl FoxReaderAppWindow {
         window.filter_out_downloaded_voices();
         window.setup_search();
 
-        // Only show Piper window if piper is not found in PATH
-        if PiperWindow::is_paper_available() {
+        if !PiperWindow::is_paper_available() {
             let piper_window = PiperWindow::new();
             piper_window.set_transient_for(Some(&window));
             piper_window.present();
