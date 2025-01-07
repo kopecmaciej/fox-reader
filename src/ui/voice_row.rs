@@ -34,7 +34,7 @@ mod imp {
         #[property(get, set)]
         pub key: OnceCell<String>,
         #[property(get, set)]
-        pub country: OnceCell<String>,
+        pub language: OnceCell<String>,
         #[property(get, set)]
         pub language_code: OnceCell<String>,
         #[property(get, set)]
@@ -67,10 +67,14 @@ glib::wrapper! {
 
 impl VoiceRow {
     pub fn new(voice: Voice) -> Self {
+        let mut language = voice.language.name_english;
+        if language == "English" {
+            language = format!("{} ({})", language, voice.language.region);
+        }
         let obj: Self = glib::Object::builder()
             .property("name", &voice.name)
             .property("key", &voice.key)
-            .property("country", &voice.language.name_english)
+            .property("language", language)
             .property("language_code", &voice.language.code)
             .property("quality", &voice.quality)
             .property("downloaded", voice.downloaded)
@@ -180,10 +184,11 @@ impl VoiceRow {
                             grid.remove(&button);
                             grid.attach(&spinner, 0, 0, 1, 1);
                         }
-                        let file_names = this.imp().files.borrow().clone().into_keys().collect();
+                        let file_paths = this.imp().files.borrow().clone().into_keys().collect();
+                        println!("Downloading {:?}", file_paths);
                         let _ = runtime()
                             .spawn(clone!(async move {
-                                if let Err(e) = VoiceManager::download_voice(file_names).await {
+                                if let Err(e) = VoiceManager::download_voice(file_paths).await {
                                     eprintln!("Failed to download voice: {}", e);
                                 }
                             }))
@@ -216,6 +221,7 @@ impl VoiceRow {
             self,
             move |button| {
                 let files = this.imp().files.borrow().clone().into_keys().collect();
+                println!("Removing {:?}", files);
                 if let Err(e) = VoiceManager::delete_voice(files) {
                     let err_msg = format!("Failed to delete voice. \nDetails: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);

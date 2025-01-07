@@ -26,7 +26,7 @@ mod imp {
         #[template_child]
         pub name_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
-        pub country_column: TemplateChild<gtk::ColumnViewColumn>,
+        pub language_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
         pub filter: RefCell<Option<gtk::CustomFilter>>,
@@ -87,7 +87,7 @@ impl VoiceList {
             voice_row.connect_notify_local(
                 Some("is-default"),
                 clone!(
-                    #[strong(rename_to=this)]
+                    #[weak(rename_to=this)]
                     self,
                     move |voice_row, _| {
                         if !voice_row.is_default() {
@@ -144,14 +144,14 @@ impl VoiceList {
             .unwrap()
     }
 
-    pub fn filter_by_country(&self, search_text: glib::GString) {
+    pub fn filter_by_language(&self, search_text: glib::GString) {
         if let Some(filter) = &*self.imp().filter.borrow() {
             filter.set_filter_func(move |obj| {
                 if search_text == "All" {
                     return true;
                 }
                 let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
-                voice_row.country() == search_text
+                voice_row.language() == search_text
             })
         }
     }
@@ -171,13 +171,13 @@ impl VoiceList {
         };
     }
 
-    pub fn get_country_list(&self) -> Vec<String> {
+    pub fn get_language_list(&self) -> Vec<String> {
         let model = self.get_list_model();
 
         let mut list: Vec<String> = (0..model.n_items())
             .filter_map(|i| model.item(i))
             .filter_map(|obj| obj.downcast::<VoiceRow>().ok())
-            .map(|voice_row| voice_row.country())
+            .map(|voice_row| voice_row.language())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
@@ -192,8 +192,8 @@ impl VoiceList {
             .set_sorter(self.string_sorter("name").as_ref());
 
         self.imp()
-            .country_column
-            .set_sorter(self.string_sorter("country").as_ref());
+            .language_column
+            .set_sorter(self.string_sorter("language").as_ref());
     }
 
     fn string_sorter(&self, prop_name: &str) -> Option<gtk::StringSorter> {
@@ -250,10 +250,10 @@ impl VoiceList {
     }
 
     #[template_callback]
-    fn bind_country(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
+    fn bind_language(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
         let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
         let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-        label.set_text(&voice_row.country());
+        label.set_text(&voice_row.language());
     }
 
     #[template_callback]

@@ -48,15 +48,15 @@
                 </property>
               </object>
             </child>
-            <!-- Country Column -->
+            <!-- language Column -->
             <child>
-              <object class="GtkColumnViewColumn" id="country_column">
-                <property name="title">Country</property>
+              <object class="GtkColumnViewColumn" id="language_column">
+                <property name="title">Language</property>
                 <property name="fixed-width">120</property>
                 <property name="factory">
                   <object class="GtkSignalListItemFactory">
                     <signal handler="setup_label" name="setup"></signal>
-                    <signal handler="bind_country" name="bind"></signal>
+                    <signal handler="bind_language" name="bind"></signal>
                   </object>
                 </property>
               </object>

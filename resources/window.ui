@@ -45,9 +45,9 @@
                         <property name="placeholder-text">Search voices...</property>
                       </object>
                     </child>
-                    <!-- Country Dropdown -->
+                    <!-- language Dropdown -->
                     <child>
-                      <object class="GtkDropDown" id="country_dropdown">
+                      <object class="GtkDropDown" id="language_dropdown">
                         <property name="enable-search">true</property>
                         <property name="model">
                           <object class="GtkStringList"></object>

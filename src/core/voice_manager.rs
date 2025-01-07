@@ -16,6 +16,7 @@ pub struct VoiceManager {}
 pub struct Language {
     pub code: String,
     pub name_english: String,
+    pub region: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

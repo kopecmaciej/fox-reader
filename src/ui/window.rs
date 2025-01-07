@@ -21,7 +21,7 @@ mod imp {
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
-        pub country_dropdown: TemplateChild<gtk::DropDown>,
+        pub language_dropdown: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
         #[template_child]
@@ -66,7 +66,7 @@ impl FoxReaderAppWindow {
         }
 
         window.imp().voice_list.init();
-        window.filter_out_by_country();
+        window.filter_out_by_language();
         window.filter_out_downloaded_voices();
         window.setup_search();
 
@@ -100,16 +100,16 @@ impl FoxReaderAppWindow {
         ));
     }
 
-    fn filter_out_by_country(&self) {
-        let country_list = self.imp().voice_list.get_country_list();
+    fn filter_out_by_language(&self) {
+        let language_list = self.imp().voice_list.get_language_list();
         let string_list = StringList::new(&[]);
         string_list.append("All");
-        for c in country_list {
+        for c in language_list {
             string_list.append(&c);
         }
 
         // Configure the dropdown for searching
-        let dropdown = &self.imp().country_dropdown;
+        let dropdown = &self.imp().language_dropdown;
         dropdown.set_model(Some(&string_list));
         dropdown.set_expression(Some(&gtk::PropertyExpression::new(
             gtk::StringObject::static_type(),
@@ -123,8 +123,8 @@ impl FoxReaderAppWindow {
             move |f| {
                 if let Some(selected_item) = f.selected_item() {
                     if let Some(string_obj) = selected_item.downcast_ref::<gtk::StringObject>() {
-                        let country = string_obj.string();
-                        this.imp().voice_list.filter_by_country(country);
+                        let language = string_obj.string();
+                        this.imp().voice_list.filter_by_language(language);
                     };
                 }
             },
