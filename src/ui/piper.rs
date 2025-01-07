@@ -1,3 +1,4 @@
+use adw::prelude::AdwDialogExt;
 use adw::subclass::prelude::*;
 use gio::glib::Object;
 use gtk::glib::{self, clone};
@@ -9,6 +10,8 @@ use std::process::Command;
 use crate::core::runtime::runtime;
 
 mod imp {
+    use std::cell::RefCell;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -21,13 +24,14 @@ mod imp {
         pub download_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub confirm_button: TemplateChild<gtk::Button>,
+        pub piper_path: RefCell<Option<String>>,
     }
 
     #[glib::object_subclass]
     impl ObjectSubclass for PiperWindow {
         const NAME: &'static str = "PiperWindow";
         type Type = super::PiperWindow;
-        type ParentType = adw::Window;
+        type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -41,12 +45,12 @@ mod imp {
     impl ObjectImpl for PiperWindow {}
     impl WidgetImpl for PiperWindow {}
     impl WindowImpl for PiperWindow {}
-    impl AdwWindowImpl for PiperWindow {}
+    impl AdwDialogImpl for PiperWindow {}
 }
 
 glib::wrapper! {
     pub struct PiperWindow(ObjectSubclass<imp::PiperWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window,
+        @extends gtk::Widget, adw::Dialog,
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
@@ -87,8 +91,9 @@ impl PiperWindow {
                     async move {
                         match download_piper().await {
                             Ok(path) => {
-                                this.imp().path_entry.set_text(&path);
+                                this.imp().piper_path.replace(Some(path));
                                 button.set_label("Downloaded");
+                                this.close();
                             }
                             Err(e) => {
                                 super::dialogs::show_error_dialog(
@@ -110,6 +115,7 @@ impl PiperWindow {
             move |_| {
                 let path = this.imp().path_entry.text();
                 if Self::verify_piper_path(&path) {
+                    this.imp().piper_path.replace(Some(path.to_string()));
                     this.close();
                 } else {
                     super::dialogs::show_error_dialog("Invalid piper path", &this);

@@ -21,6 +21,7 @@ fn resolve_home(path: &str) -> String {
 fn build_path(base_path: &str, relative_path: &str) -> String {
     resolve_home(base_path).to_string() + "/" + relative_path
 }
+
 pub mod huggingface_config {
     use super::*;
 
@@ -84,7 +85,7 @@ pub mod piper_config {
     }
 
     pub fn get_download_url() -> String {
-        format!("{}/{}.tar.gzxz", PIPER_RELEASES_URL, get_binary_name())
+        format!("{}/{}.tar.gz", PIPER_RELEASES_URL, get_binary_name())
     }
 
     pub fn get_binary_path() -> String {

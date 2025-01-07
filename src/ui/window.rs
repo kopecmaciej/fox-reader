@@ -1,3 +1,4 @@
+use adw::prelude::AdwDialogExt;
 use adw::subclass::prelude::*;
 use gio::glib::Object;
 use gtk::prelude::*;
@@ -59,16 +60,20 @@ impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
         let window: Self = Object::builder().property("application", app).build();
 
-        window.imp().voice_list.init();
-        window.filter_out_by_country();
-        window.filter_out_downloaded_voices();
-        window.setup_search();
+        let mut piper_path = String::from("piper-tts");
 
         if !PiperWindow::is_paper_available() {
             let piper_window = PiperWindow::new();
-            piper_window.set_transient_for(Some(&window));
-            piper_window.present();
+            piper_window.present(Some(&window));
+            if let Some(pp) = piper_window.imp().piper_path.borrow().clone() {
+                piper_path = pp;
+            };
         }
+
+        window.imp().voice_list.init(&piper_path);
+        window.filter_out_by_country();
+        window.filter_out_downloaded_voices();
+        window.setup_search();
 
         window
     }

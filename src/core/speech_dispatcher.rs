@@ -10,7 +10,7 @@ const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
 pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
-    pub fn initialize_config() -> Result<(), Box<dyn Error>> {
+    pub fn init_config(piper_path: &str) -> Result<(), Box<dyn Error>> {
         let config_file = &dispatcher_config::get_config_file_path();
         // TODO: Check if speechd.conf is default or already adjusted
         let vec_bytes = config_template("en-GB").trim().as_bytes().to_vec();
@@ -24,9 +24,7 @@ impl SpeechDispatcher {
         if !FileHandler::does_file_exist(module_path) {
             FileHandler::save_bytes(
                 module_path,
-                module_template("piper-tts", &huggingface_config::get_download_path())
-                    .trim()
-                    .as_bytes(),
+                module_template_v2(piper_path).trim().as_bytes(),
             )?;
         }
         let script_path = &dispatcher_config::get_script_path();
@@ -110,11 +108,13 @@ DefaultModule "fox-reader""#,
     )
 }
 
-fn module_template(module_path: &str, voices_path: &str) -> String {
+fn module_template_v2(piper_path: &str) -> String {
     format!(
         r#"
-GenericExecuteSynth "export XDATA=\'$DATA\'; echo \"$XDATA\" | sed -z 's/\\n/ /g' | {} -q -m {}/\'$VOICE\' -f - | mpv --speed=\'$RATE\' --volume=100 --no-terminal --keep-open=no -""#,
-        module_path, voices_path
+GenericExecuteSynth "export PIPER_PATH='{}'; export VOICE_PATH='{}';{}""#,
+        piper_path,
+        huggingface_config::get_download_path(),
+        dispatcher_config::get_script_path()
     )
 }
 

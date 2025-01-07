@@ -14,4 +14,4 @@ else
 fi
 
 # Run the command using the provided arguments
-echo "$DATA" | sed -z 's/\n/ /g' | piper-tts -q -m "$HOME/.local/share/fox-reader/voices/$VOICE" -f - | mpv --speed="$RATE" --volume=100 --no-terminal --keep-open=no -
+echo "$DATA" | sed -z 's/\n/ /g' | $PIPER_PATH -q -m "$HOME/$VOICE_PATH/$VOICE" -f - | mpv --speed="$RATE" --volume=100 --no-terminal --keep-open=no -
