@@ -7,8 +7,6 @@ use gtk::{
     StringList,
 };
 
-use super::piper::PiperWindow;
-
 mod imp {
     use crate::ui::voice_list::VoiceList;
 
@@ -58,6 +56,8 @@ glib::wrapper! {
 
 impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
+        use crate::ui::piper::PiperWindow;
+
         let window: Self = Object::builder().property("application", app).build();
 
         if !PiperWindow::is_paper_available() {
@@ -108,7 +108,6 @@ impl FoxReaderAppWindow {
             string_list.append(&c);
         }
 
-        // Configure the dropdown for searching
         let dropdown = &self.imp().language_dropdown;
         dropdown.set_model(Some(&string_list));
         dropdown.set_expression(Some(&gtk::PropertyExpression::new(

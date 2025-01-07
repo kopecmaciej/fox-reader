@@ -11,7 +11,6 @@ use std::{cell::RefCell, collections::BTreeMap};
 
 use super::dialogs;
 use super::voice_row::VoiceRow;
-
 mod imp {
     use super::*;
     use gtk::CompositeTemplate;
@@ -30,6 +29,7 @@ mod imp {
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
         pub filter: RefCell<Option<gtk::CustomFilter>>,
+        pub filter_criteria: RefCell<FilterCriteria>,
     }
 
     #[glib::object_subclass]
@@ -64,8 +64,28 @@ impl Default for VoiceList {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct FilterCriteria {
+    search_text: String,
+    selected_language: String,
+    show_downloaded_only: bool,
+}
+
+impl Default for FilterCriteria {
+    fn default() -> Self {
+        Self {
+            search_text: String::new(),
+            selected_language: "All".to_string(),
+            show_downloaded_only: false,
+        }
+    }
+}
+
 impl VoiceList {
     pub fn init(&self) {
+        self.imp()
+            .filter_criteria
+            .replace(FilterCriteria::default());
         if let Err(e) = SpeechDispatcher::init_config() {
             let err_msg = format!(
                 "Error initializing speech dispatcher config. \nDetails: {}",
@@ -144,30 +164,57 @@ impl VoiceList {
             .unwrap()
     }
 
-    pub fn filter_by_language(&self, search_text: glib::GString) {
-        if let Some(filter) = &*self.imp().filter.borrow() {
-            filter.set_filter_func(move |obj| {
-                if search_text == "All" {
-                    return true;
-                }
-                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
-                voice_row.language() == search_text
-            })
+    pub fn filter_by_language(&self, language: impl Into<String>) {
+        {
+            let mut criteria = self.imp().filter_criteria.borrow_mut();
+            criteria.selected_language = language.into();
         }
+        self.update_filter();
+    }
+
+    pub fn filter_by_search(&self, search_text: impl Into<String>) {
+        {
+            let mut criteria = self.imp().filter_criteria.borrow_mut();
+            criteria.search_text = search_text.into();
+        }
+        self.update_filter();
     }
 
     pub fn filter_downloaded_voices(&self) {
-        if let Some(filter) = &*self.imp().filter.borrow() {
-            filter.set_filter_func(move |obj| {
-                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
-                voice_row.downloaded()
-            });
+        {
+            let mut criteria = self.imp().filter_criteria.borrow_mut();
+            criteria.show_downloaded_only = true;
         }
+        self.update_filter();
     }
 
     pub fn show_all_voices(&self) {
+        {
+            let mut criteria = self.imp().filter_criteria.borrow_mut();
+            criteria.show_downloaded_only = false;
+        }
+        self.update_filter();
+    }
+
+    fn update_filter(&self) {
         if let Some(filter) = &*self.imp().filter.borrow() {
-            filter.set_filter_func(move |_| true)
+            let criteria = self.imp().filter_criteria.borrow().clone();
+            filter.set_filter_func(move |obj| {
+                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
+
+                let language_matches = criteria.selected_language == "All"
+                    || voice_row.language() == criteria.selected_language;
+
+                let search_matches = criteria.search_text.is_empty()
+                    || voice_row
+                        .name()
+                        .to_lowercase()
+                        .contains(&criteria.search_text.to_lowercase());
+
+                let download_matches = !criteria.show_downloaded_only || voice_row.downloaded();
+
+                language_matches && search_matches && download_matches
+            });
         };
     }
 
@@ -202,16 +249,6 @@ impl VoiceList {
             None::<&gtk::Expression>,
             prop_name,
         ))))
-    }
-
-    pub fn filter_by_search(&self, search_text: glib::GString) {
-        if let Some(filter) = &*self.imp().filter.borrow() {
-            let search_string = search_text.to_lowercase();
-            filter.set_filter_func(move |obj| {
-                let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
-                voice_row.name().to_lowercase().contains(&search_string)
-            });
-        }
     }
 }
 
