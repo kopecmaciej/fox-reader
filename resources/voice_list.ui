@@ -14,12 +14,6 @@
               <object class="GtkColumnViewColumn" id="play_column">
                 <property name="title">Play</property>
                 <property name="fixed-width">60</property>
-                <property name="factory">
-                  <object class="GtkSignalListItemFactory">
-                    <signal handler="setup_play_button" name="setup"></signal>
-                    <signal handler="bind_play_button" name="bind"></signal>
-                  </object>
-                </property>
               </object>
             </child>
             <!-- Accent Column -->
@@ -27,25 +21,13 @@
               <object class="GtkColumnViewColumn" id="name_column">
                 <property name="title">Voice name</property>
                 <property name="expand">true</property>
-                <property name="factory">
-                  <object class="GtkSignalListItemFactory">
-                    <signal handler="setup_label" name="setup"></signal>
-                    <signal handler="bind_accent" name="bind"></signal>
-                  </object>
-                </property>
               </object>
             </child>
             <!-- Gender Column -->
             <child>
-              <object class="GtkColumnViewColumn">
+              <object class="GtkColumnViewColumn" id="quality_column">
                 <property name="title">Quality</property>
                 <property name="fixed-width">100</property>
-                <property name="factory">
-                  <object class="GtkSignalListItemFactory">
-                    <signal handler="setup_label" name="setup"></signal>
-                    <signal handler="bind_quality" name="bind"></signal>
-                  </object>
-                </property>
               </object>
             </child>
             <!-- language Column -->
@@ -53,12 +35,6 @@
               <object class="GtkColumnViewColumn" id="language_column">
                 <property name="title">Language</property>
                 <property name="fixed-width">120</property>
-                <property name="factory">
-                  <object class="GtkSignalListItemFactory">
-                    <signal handler="setup_label" name="setup"></signal>
-                    <signal handler="bind_language" name="bind"></signal>
-                  </object>
-                </property>
               </object>
             </child>
             <!-- Actions Column -->
@@ -66,12 +42,6 @@
               <object class="GtkColumnViewColumn" id="actions_column">
                 <property name="title">Actions</property>
                 <property name="fixed-width">140</property>
-                <property name="factory">
-                  <object class="GtkSignalListItemFactory">
-                    <signal handler="setup_actions" name="setup"></signal>
-                    <signal handler="bind_actions" name="bind"></signal>
-                  </object>
-                </property>
               </object>
             </child>
           </object>

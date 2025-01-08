@@ -25,6 +25,8 @@ mod imp {
         #[template_child]
         pub name_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
+        pub quality_column: TemplateChild<gtk::ColumnViewColumn>,
+        #[template_child]
         pub language_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub actions_column: TemplateChild<gtk::ColumnViewColumn>,
@@ -40,7 +42,6 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
-            klass.bind_template_instance_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -83,6 +84,7 @@ impl Default for FilterCriteria {
 
 impl VoiceList {
     pub fn init(&self) {
+        self.create_factories();
         self.imp()
             .filter_criteria
             .replace(FilterCriteria::default());
@@ -250,79 +252,121 @@ impl VoiceList {
             prop_name,
         ))))
     }
-}
 
-#[gtk::template_callbacks]
-impl VoiceList {
-    #[template_callback]
-    fn setup_play_button(_factory: &gtk::SignalListItemFactory, _: &gtk::ListItem) {}
+    fn create_factories(&self) {
+        let play_factory = gtk::SignalListItemFactory::new();
+        play_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let play_button = VoiceRow::setup_play_button();
+                list_item.set_child(Some(&play_button));
+            }
+        });
+        play_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(play_button) = list_item.child().and_downcast::<gtk::Button>() {
+                        voice_row.handle_play_actions(&play_button);
+                    }
+                }
+            }
+        });
 
-    #[template_callback]
-    fn bind_play_button(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let play_button = VoiceRow::setup_play_button();
-        voice_row.handle_play_actions(&play_button);
-        list_item.set_child(Some(&play_button));
-    }
+        let name_factory = gtk::SignalListItemFactory::new();
+        name_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::builder().xalign(0.0).build();
+                list_item.set_child(Some(&label));
+            }
+        });
+        name_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
+                        label.set_text(&voice_row.name());
+                    }
+                }
+            }
+        });
 
-    #[template_callback]
-    fn setup_label(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let label = gtk::Label::builder().xalign(0.0).build();
-        list_item.set_child(Some(&label));
-    }
+        let quality_factory = gtk::SignalListItemFactory::new();
+        quality_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::new(None);
+                list_item.set_child(Some(&label));
+            }
+        });
+        quality_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
+                        label.set_text(&voice_row.quality());
+                    }
+                }
+            }
+        });
 
-    #[template_callback]
-    fn bind_accent(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-        label.set_text(&voice_row.name());
-    }
+        let language_factory = gtk::SignalListItemFactory::new();
+        language_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::new(None);
+                list_item.set_child(Some(&label));
+            }
+        });
+        language_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
+                        label.set_text(&voice_row.language());
+                    }
+                }
+            }
+        });
 
-    #[template_callback]
-    fn bind_quality(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-        label.set_text(&voice_row.quality());
-    }
+        let actions_factory = gtk::SignalListItemFactory::new();
+        actions_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let grid = gtk::Grid::builder().column_spacing(8).vexpand(true).build();
+                list_item.set_child(Some(&grid));
+            }
+        });
+        actions_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(grid) = list_item.child().and_downcast::<gtk::Grid>() {
+                        grid.remove_row(0);
 
-    #[template_callback]
-    fn bind_language(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
-        label.set_text(&voice_row.language());
-    }
+                        let (download_button, set_default_button, delete_button) =
+                            VoiceRow::setup_action_buttons();
 
-    #[template_callback]
-    fn setup_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let grid = gtk::Grid::builder().column_spacing(8).vexpand(true).build();
+                        grid.attach(&download_button, 0, 0, 1, 1);
+                        grid.attach(&set_default_button, 1, 0, 1, 1);
+                        grid.attach(&delete_button, 2, 0, 1, 1);
 
-        list_item.set_child(Some(&grid));
-    }
+                        let download_button =
+                            grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
+                        let set_default_button =
+                            grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
+                        let delete_button =
+                            grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
 
-    #[template_callback]
-    fn bind_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let grid = list_item.child().and_downcast::<gtk::Grid>().unwrap();
+                        voice_row.handle_download_actions(&download_button);
+                        download_button.set_sensitive(!voice_row.downloaded());
 
-        grid.remove_row(0);
+                        voice_row.handle_delete_actions(&delete_button);
+                        delete_button.set_sensitive(voice_row.downloaded());
 
-        let (download_button, set_default_button, delete_button) = VoiceRow::setup_action_buttons();
+                        voice_row.handle_set_default_actions(&set_default_button);
+                        set_default_button.set_sensitive(voice_row.downloaded());
+                    }
+                }
+            }
+        });
 
-        grid.attach(&download_button, 0, 0, 1, 1);
-        grid.attach(&set_default_button, 1, 0, 1, 1);
-        grid.attach(&delete_button, 2, 0, 1, 1);
-
-        let download_button = grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
-        let set_default_button = grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
-        let delete_button = grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
-
-        voice_row.handle_download_actions(&download_button);
-        download_button.set_sensitive(!voice_row.downloaded());
-
-        voice_row.handle_delete_actions(&delete_button);
-        delete_button.set_sensitive(voice_row.downloaded());
-
-        voice_row.handle_set_default_actions(&set_default_button);
-        set_default_button.set_sensitive(voice_row.downloaded());
+        let imp = self.imp();
+        imp.play_column.set_factory(Some(&play_factory));
+        imp.name_column.set_factory(Some(&name_factory));
+        imp.quality_column.set_factory(Some(&quality_factory));
+        imp.language_column.set_factory(Some(&language_factory));
+        imp.actions_column.set_factory(Some(&actions_factory));
     }
 }
