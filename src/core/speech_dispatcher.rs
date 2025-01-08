@@ -22,10 +22,7 @@ impl SpeechDispatcher {
 
         let module_path = &dispatcher_config::get_module_config_path();
         if !FileHandler::does_file_exist(module_path) {
-            FileHandler::save_bytes(
-                module_path,
-                module_template_v2("piper-tts").trim().as_bytes(),
-            )?;
+            FileHandler::save_bytes(module_path, module_template_v2().trim().as_bytes())?;
         }
         let script_path = &dispatcher_config::get_script_path();
         if !FileHandler::does_file_exist(script_path) {
@@ -90,6 +87,17 @@ impl SpeechDispatcher {
             piper_path,
         )
     }
+
+    pub fn check_if_piper_already_added() -> Result<bool, Box<dyn Error>> {
+        let value =
+            FileHandler::get_env_value(&dispatcher_config::get_module_config_path(), "PIPER_PATH")?;
+        if let Some(v) = value {
+            if v != "$PIPER_PATH" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
 }
 
 fn config_template(default_lang: &str) -> String {
@@ -116,11 +124,10 @@ DefaultModule "fox-reader""#,
     )
 }
 
-fn module_template_v2(piper_path: &str) -> String {
+fn module_template_v2() -> String {
     format!(
         r#"
-GenericExecuteSynth "export DATA='$DATA'; export RATE='$RATE'; export VOICE='$VOICE';export PIPER_PATH='{}'; export VOICE_PATH='{}';{}""#,
-        piper_path,
+GenericExecuteSynth "export DATA='$DATA'; export RATE='$RATE'; export VOICE='$VOICE';export PIPER_PATH='$PIPER_PATH'; export VOICE_PATH='{}';{}""#,
         huggingface_config::get_download_path(),
         dispatcher_config::get_script_path()
     )

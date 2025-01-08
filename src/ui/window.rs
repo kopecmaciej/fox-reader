@@ -60,15 +60,25 @@ impl FoxReaderAppWindow {
 
         let window: Self = Object::builder().property("application", app).build();
 
-        if !PiperWindow::is_paper_available() {
-            let piper_window = PiperWindow::new();
-            piper_window.present(Some(&window));
-        }
-
         window.imp().voice_list.init();
         window.filter_out_by_language();
         window.filter_out_downloaded_voices();
         window.setup_search();
+
+        match PiperWindow::is_paper_available() {
+            Ok(ok) => {
+                if !ok {
+                    let piper_window = PiperWindow::new();
+                    piper_window.present(Some(&window));
+                }
+            }
+            Err(e) => {
+                super::dialogs::show_error_dialog(
+                    &format!("Failed to check if piper was already added: {}", e),
+                    &window,
+                );
+            }
+        }
 
         window
     }
@@ -102,8 +112,7 @@ impl FoxReaderAppWindow {
 
     fn filter_out_by_language(&self) {
         let language_list = self.imp().voice_list.get_language_list();
-        let string_list = StringList::new(&[]);
-        string_list.append("All");
+        let string_list = StringList::new(&["All"]);
         for c in language_list {
             string_list.append(&c);
         }

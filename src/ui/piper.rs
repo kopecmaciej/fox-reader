@@ -4,6 +4,7 @@ use gio::glib::Object;
 use gtk::glib::{self, clone};
 use gtk::prelude::*;
 use reqwest;
+use std::error::Error;
 use std::fs::{self, create_dir_all};
 use std::process::Command;
 
@@ -67,8 +68,10 @@ impl PiperWindow {
         window
     }
 
-    pub fn is_paper_available() -> bool {
-        which::which("piper").is_ok() || which::which("piper-tts").is_ok()
+    pub fn is_paper_available() -> Result<bool, Box<dyn Error>> {
+        let is_piper_added = SpeechDispatcher::check_if_piper_already_added()?;
+
+        Ok(is_piper_added || which::which("piper").is_ok() || which::which("piper-tts").is_ok())
     }
 
     fn setup_buttons(&self) {
@@ -146,7 +149,7 @@ impl PiperWindow {
     }
 }
 
-async fn download_piper() -> Result<String, Box<dyn std::error::Error>> {
+async fn download_piper() -> Result<String, Box<dyn Error>> {
     use crate::config::piper_config;
     use flate2::read::GzDecoder;
     use tar::Archive;

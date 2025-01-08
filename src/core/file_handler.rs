@@ -63,6 +63,20 @@ impl FileHandler {
         Ok(())
     }
 
+    pub fn get_env_value(
+        file_path: &str,
+        env_name: &str,
+    ) -> Result<Option<String>, Box<dyn Error>> {
+        let content = fs::read_to_string(file_path)?;
+        let re = regex::Regex::new(&format!(r"{}='([^']+)'", env_name))?;
+        if let Some(cap_group) = re.captures(&content) {
+            if let Some(value) = cap_group.get(1) {
+                return Ok(Some(value.as_str().to_owned()));
+            };
+        };
+        Ok(None)
+    }
+
     pub fn update_env(
         file_path: &str,
         env_name: &str,
