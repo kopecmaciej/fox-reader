@@ -197,7 +197,7 @@ impl VoiceList {
     }
 
     fn update_filter(&self) {
-        if let Some(filter) = &*self.imp().filter.borrow() {
+        if let Some(filter) = &*self.imp().filter.borrow_mut() {
             let criteria = self.imp().filter_criteria.borrow().clone();
             filter.set_filter_func(move |obj| {
                 let voice_row = obj.downcast_ref::<VoiceRow>().unwrap();
@@ -255,15 +255,14 @@ impl VoiceList {
 #[gtk::template_callbacks]
 impl VoiceList {
     #[template_callback]
-    fn setup_play_button(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
-        list_item.set_child(Some(&VoiceRow::setup_play_button()));
-    }
+    fn setup_play_button(_factory: &gtk::SignalListItemFactory, _: &gtk::ListItem) {}
 
     #[template_callback]
     fn bind_play_button(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
         let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
-        let play_button = list_item.child().and_downcast::<gtk::Button>().unwrap();
+        let play_button = VoiceRow::setup_play_button();
         voice_row.handle_play_actions(&play_button);
+        list_item.set_child(Some(&play_button));
     }
 
     #[template_callback]
@@ -297,11 +296,6 @@ impl VoiceList {
     fn setup_actions(_factory: &gtk::SignalListItemFactory, list_item: &gtk::ListItem) {
         let grid = gtk::Grid::builder().column_spacing(8).vexpand(true).build();
 
-        let (download_button, set_default_button, delete_button) = VoiceRow::setup_action_buttons();
-
-        grid.attach(&download_button, 0, 0, 1, 1);
-        grid.attach(&set_default_button, 1, 0, 1, 1);
-        grid.attach(&delete_button, 2, 0, 1, 1);
         list_item.set_child(Some(&grid));
     }
 
@@ -310,16 +304,25 @@ impl VoiceList {
         let voice_row = list_item.item().and_downcast::<VoiceRow>().unwrap();
         let grid = list_item.child().and_downcast::<gtk::Grid>().unwrap();
 
+        grid.remove_row(0);
+
+        let (download_button, set_default_button, delete_button) = VoiceRow::setup_action_buttons();
+
+        grid.attach(&download_button, 0, 0, 1, 1);
+        grid.attach(&set_default_button, 1, 0, 1, 1);
+        grid.attach(&delete_button, 2, 0, 1, 1);
+
         let download_button = grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
         let set_default_button = grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
         let delete_button = grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
 
         voice_row.handle_download_actions(&download_button);
-        voice_row.handle_set_default_actions(&set_default_button);
-        voice_row.handle_delete_actions(&delete_button);
-
         download_button.set_sensitive(!voice_row.downloaded());
-        set_default_button.set_sensitive(voice_row.downloaded());
+
+        voice_row.handle_delete_actions(&delete_button);
         delete_button.set_sensitive(voice_row.downloaded());
+
+        voice_row.handle_set_default_actions(&set_default_button);
+        set_default_button.set_sensitive(voice_row.downloaded());
     }
 }
