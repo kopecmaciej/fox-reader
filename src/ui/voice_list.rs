@@ -255,18 +255,13 @@ impl VoiceList {
 
     fn create_factories(&self) {
         let play_factory = gtk::SignalListItemFactory::new();
-        play_factory.connect_setup(|_, list_item| {
-            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
-                let play_button = VoiceRow::setup_play_button();
-                list_item.set_child(Some(&play_button));
-            }
-        });
+        play_factory.connect_setup(|_, _| {});
         play_factory.connect_bind(|_, list_item| {
             if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
                 if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
-                    if let Some(play_button) = list_item.child().and_downcast::<gtk::Button>() {
-                        voice_row.handle_play_actions(&play_button);
-                    }
+                    let play_button = VoiceRow::setup_play_button();
+                    voice_row.handle_play_actions(&play_button);
+                    list_item.set_child(Some(&play_button));
                 }
             }
         });
