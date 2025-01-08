@@ -44,6 +44,11 @@ mod imp {
         #[property(get, set)]
         pub is_default: RefCell<bool>,
         pub files: RefCell<HashMap<String, File>>,
+        // TODO: Think about better solution for that
+        pub play_handler_connected: RefCell<bool>,
+        pub download_handler_connected: RefCell<bool>,
+        pub delete_handler_connected: RefCell<bool>,
+        pub default_handler_connected: RefCell<bool>,
     }
 
     #[glib::object_subclass]
@@ -119,6 +124,9 @@ impl VoiceRow {
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
+        if *self.imp().play_handler_connected.borrow() {
+            return;
+        }
         let sink = Arc::new(Mutex::new(None::<Arc<Sink>>));
         play_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
@@ -165,9 +173,13 @@ impl VoiceRow {
                 ));
             }
         ));
+        self.imp().play_handler_connected.replace(true);
     }
 
     pub fn handle_download_actions(&self, download_button: &Button) {
+        if *self.imp().download_handler_connected.borrow() {
+            return;
+        }
         download_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
@@ -213,9 +225,13 @@ impl VoiceRow {
                 ));
             }
         ));
+        self.imp().download_handler_connected.replace(true);
     }
 
     pub fn handle_delete_actions(&self, remove_button: &Button) {
+        if *self.imp().delete_handler_connected.borrow() {
+            return;
+        }
         remove_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
@@ -238,9 +254,13 @@ impl VoiceRow {
                 this.set_downloaded(false);
             }
         ));
+        self.imp().delete_handler_connected.replace(true);
     }
 
     pub fn handle_set_default_actions(&self, set_default_button: &Button) {
+        if *self.imp().default_handler_connected.borrow() {
+            return;
+        }
         set_default_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
@@ -252,6 +272,7 @@ impl VoiceRow {
                 this.set_is_default(true);
             }
         ));
+        self.imp().default_handler_connected.replace(true);
 
         self.bind_property("is_default", set_default_button, "icon-name")
             .transform_to(|_, is_default: bool| {
