@@ -4,5 +4,6 @@
     <file compressed="true" preprocess="xml-stripblanks">voice_list.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">window.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">piper_installer.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">text_reader.ui</file>
   </gresource>
 </gresources>

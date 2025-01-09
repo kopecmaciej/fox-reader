@@ -8,7 +8,7 @@ use gtk::{
 };
 
 mod imp {
-    use crate::ui::voice_list::VoiceList;
+    use crate::ui::{text_reader::TextReader, voice_list::VoiceList};
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -18,6 +18,8 @@ mod imp {
     pub struct FoxReaderAppWindow {
         #[template_child]
         pub theme_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub text_reader: TemplateChild<TextReader>,
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
@@ -65,12 +67,13 @@ impl FoxReaderAppWindow {
         use crate::ui::piper_installer::PiperInstaller;
 
         let window: Self = Object::builder().property("application", app).build();
+        window.setup_actions();
 
         window.imp().voice_list.init();
-        window.filter_out_by_language();
-        window.setup_search();
         window.setup_stack_switching();
-        window.setup_actions();
+        window.filter_out_by_language();
+        window.setup_text_reader();
+        window.setup_search();
 
         match PiperInstaller::is_paper_available() {
             Ok(ok) => {
@@ -100,6 +103,11 @@ impl FoxReaderAppWindow {
                 adw::ColorScheme::ForceDark
             });
         });
+    }
+
+    fn setup_text_reader(&self) {
+        let voice_rows = self.imp().voice_list.get_downloaded_rows();
+        self.imp().text_reader.populate_voice_selector(voice_rows);
     }
 
     fn setup_stack_switching(&self) {
@@ -149,15 +157,15 @@ impl FoxReaderAppWindow {
             string_list.append(&c);
         }
 
-        let dropdown = &self.imp().language_filter;
-        dropdown.set_model(Some(&string_list));
-        dropdown.set_expression(Some(&gtk::PropertyExpression::new(
+        let language_filter = &self.imp().language_filter;
+        language_filter.set_model(Some(&string_list));
+        language_filter.set_expression(Some(&gtk::PropertyExpression::new(
             gtk::StringObject::static_type(),
             None::<&gtk::Expression>,
             "string",
         )));
 
-        dropdown.connect_selected_item_notify(clone!(
+        language_filter.connect_selected_item_notify(clone!(
             #[weak(rename_to=this)]
             self,
             move |f| {

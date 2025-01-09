@@ -113,17 +113,14 @@ impl VoiceList {
                         if !voice_row.is_default() {
                             return;
                         }
-                        let model = this.get_list_model();
-
-                        for i in 0..model.n_items() {
-                            if let Some(obj) = model.item(i) {
-                                if let Ok(row) = obj.downcast::<VoiceRow>() {
-                                    if row.key() != voice_row.key() && row.is_default() {
-                                        row.set_is_default(false);
-                                    }
+                        this.get_list_model()
+                            .into_iter()
+                            .filter_map(|obj| obj.ok().and_then(|o| o.downcast::<VoiceRow>().ok()))
+                            .for_each(|row| {
+                                if row.key() != voice_row.key() && row.is_default() {
+                                    row.set_is_default(false);
                                 }
-                            }
-                        }
+                            });
                     }
                 ),
             );
@@ -218,12 +215,25 @@ impl VoiceList {
         };
     }
 
-    pub fn get_language_list(&self) -> Vec<String> {
-        let model = self.get_list_model();
+    pub fn get_downloaded_rows(&self) -> Vec<VoiceRow> {
+        let downloaded_rows: Vec<VoiceRow> = self
+            .get_list_model()
+            .into_iter()
+            .filter_map(|obj| {
+                obj.ok()
+                    .and_then(|o| o.downcast::<VoiceRow>().ok())
+                    .filter(|row| row.downloaded())
+            })
+            .collect();
 
-        let mut list: Vec<String> = (0..model.n_items())
-            .filter_map(|i| model.item(i))
-            .filter_map(|obj| obj.downcast::<VoiceRow>().ok())
+        downloaded_rows
+    }
+
+    pub fn get_language_list(&self) -> Vec<String> {
+        let mut list: Vec<String> = self
+            .get_list_model()
+            .into_iter()
+            .filter_map(|obj| obj.ok().and_then(|o| o.downcast::<VoiceRow>().ok()))
             .map(|voice_row| voice_row.language())
             .collect::<HashSet<_>>()
             .into_iter()
@@ -334,10 +344,10 @@ impl VoiceList {
                         voice_row.handle_set_default_actions(&set_default_button);
                         set_default_button.set_sensitive(voice_row.downloaded());
 
-                        grid.attach(&play_button, 1, 0, 1, 1);
-                        grid.attach(&download_button, 2, 0, 1, 1);
-                        grid.attach(&set_default_button, 3, 0, 1, 1);
-                        grid.attach(&delete_button, 4, 0, 1, 1);
+                        grid.attach(&play_button, 0, 0, 1, 1);
+                        grid.attach(&download_button, 1, 0, 1, 1);
+                        grid.attach(&set_default_button, 2, 0, 1, 1);
+                        grid.attach(&delete_button, 3, 0, 1, 1);
                     }
                 }
             }

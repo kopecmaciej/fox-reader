@@ -195,7 +195,7 @@ impl VoiceRow {
                         let grid = button.parent().and_downcast::<gtk::Grid>();
                         if let Some(grid) = &grid {
                             grid.remove(&button);
-                            grid.attach(&spinner, 0, 0, 1, 1);
+                            grid.attach(&spinner, 1, 0, 1, 1);
                         }
                         let file_paths = this.imp().files.borrow().clone().into_keys().collect();
                         let _ = runtime()
@@ -217,7 +217,7 @@ impl VoiceRow {
                         }
                         if let Some(grid) = grid {
                             grid.remove(&spinner);
-                            grid.attach(&button, 0, 0, 1, 1);
+                            grid.attach(&button, 1, 0, 1, 1);
                         }
                         button.set_sensitive(false);
                         this.set_downloaded(true);

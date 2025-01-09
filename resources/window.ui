@@ -39,52 +39,9 @@
                 <property name="margin-bottom">16</property>
                 <property name="spacing">16</property>
                 <!-- Text Input Area -->
+
                 <child>
-                  <object class="GtkBox">
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">12</property>
-
-                    <child>
-                      <object class="AdwPreferencesGroup">
-                        <property name="title">Text to Speech Reader</property>
-                        <child>
-                          <object class="GtkTextView" id="text_input">
-                            <property name="wrap-mode">word</property>
-                            <property name="height-request">120</property>
-                            <property name="hexpand">true</property>
-                            <style>
-                              <class name="card" />
-                            </style>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-
-                    <child>
-                      <object class="GtkBox">
-                        <property name="spacing">8</property>
-                        <property name="halign">0</property>
-
-                        <child>
-                          <object class="GtkDropDown" id="voice_selector">
-                            <property name="enable-search">true</property>
-                            <property name="model">
-                              <object class="GtkStringList" />
-                            </property>
-                          </object>
-                        </child>
-
-                        <child>
-                          <object class="GtkButton" id="play_button">
-                            <property name="label">Play</property>
-                            <style>
-                              <class name="suggested-action" />
-                            </style>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
+                  <object class="TextReader" id="text_reader" />
                 </child>
 
 
