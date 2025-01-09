@@ -23,7 +23,11 @@ mod imp {
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
         #[template_child]
-        pub downloaded_filter: TemplateChild<gtk::CheckButton>,
+        pub voice_stack: TemplateChild<adw::ViewStack>,
+        #[template_child]
+        pub all_voices_container: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub downloaded_container: TemplateChild<gtk::Box>,
     }
 
     #[glib::object_subclass]
@@ -62,8 +66,8 @@ impl FoxReaderAppWindow {
 
         window.imp().voice_list.init();
         window.filter_out_by_language();
-        window.filter_out_downloaded_voices();
         window.setup_search();
+        window.setup_stack_switching();
 
         match PiperWindow::is_paper_available() {
             Ok(ok) => {
@@ -83,6 +87,35 @@ impl FoxReaderAppWindow {
         window
     }
 
+    fn setup_stack_switching(&self) {
+        let voice_list = self.imp().voice_list.downgrade();
+        let stack = &self.imp().voice_stack;
+
+        stack.connect_visible_child_notify(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |stack| {
+                if let Some(page_name) = stack.visible_child_name() {
+                    if let Some(voice_list) = voice_list.upgrade() {
+                        match page_name.as_str() {
+                            "all_voices" => {
+                                voice_list.show_all_voices();
+                                voice_list.unparent();
+                                voice_list.set_parent(&this.imp().all_voices_container.get());
+                            }
+                            "downloaded_voices" => {
+                                voice_list.filter_downloaded_voices();
+                                voice_list.unparent();
+                                voice_list.set_parent(&this.imp().downloaded_container.get());
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        ));
+    }
+
     fn setup_search(&self) {
         self.imp().search_entry.connect_search_changed(clone!(
             #[weak(rename_to=this)]
@@ -91,22 +124,6 @@ impl FoxReaderAppWindow {
                 let search_text = entry.text();
                 this.imp().voice_list.filter_by_search(search_text);
             }
-        ));
-    }
-
-    fn filter_out_downloaded_voices(&self) {
-        self.imp().downloaded_filter.connect_toggled(clone!(
-            #[weak(rename_to=this)]
-            self,
-            move |btn| {
-                let is_checked = btn.is_active();
-                let voice_list = &this.imp().voice_list;
-                if is_checked {
-                    voice_list.filter_downloaded_voices();
-                } else {
-                    voice_list.show_all_voices();
-                }
-            },
         ));
     }
 
