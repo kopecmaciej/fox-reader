@@ -9,7 +9,6 @@
             <property name="show-row-separators">true</property>
             <property name="halign">0</property>
             <property name="hexpand">true</property>
-
             <!-- Accent Column -->
             <child>
               <object class="GtkColumnViewColumn" id="name_column">
@@ -35,9 +34,10 @@
             <child>
               <object class="GtkColumnViewColumn" id="actions_column">
                 <property name="title">Actions</property>
-                <property name="fixed-width">200</property>
+                <property name="fixed-width">180</property>
               </object>
             </child>
+
           </object>
         </child>
       </object>

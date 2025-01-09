@@ -1,0 +1,76 @@
+columnview.view {
+  padding: 2px 6px;
+}
+
+textview.card {
+  padding: 6px;
+}
+
+play-button {
+  color: rgba(255, 99, 71, 0.8);
+  border: 1px solid rgba(255, 99, 71, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  transition: all 200ms ease;
+}
+
+play-button:hover {
+  background-color: rgba(255, 99, 71, 0.2);
+  border-color: rgba(255, 99, 71, 0.8);
+}
+
+download-button {
+  color: rgb(60, 179, 113);
+  border: 1px solid rgba(60, 179, 113, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  transition: all 200ms ease;
+}
+
+download-button:hover {
+  background-color: rgba(60, 179, 113, 0.2);
+  border-color: rgba(60, 179, 113, 0.8);
+}
+
+download-button:disabled {
+  color: rgba(60, 179, 113, 0.3);
+  border-color: rgba(60, 179, 113, 0.2);
+}
+
+default-button {
+  color: rgb(70, 130, 180);
+  /* Steel Blue */
+  border: 1px solid rgba(70, 130, 180, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  transition: all 200ms ease;
+}
+
+default-button:hover {
+  background-color: rgba(70, 130, 180, 0.2);
+  border-color: rgba(70, 130, 180, 0.8);
+}
+
+default-button:disabled {
+  color: rgba(70, 130, 180, 0.3);
+  border-color: rgba(70, 130, 180, 0.2);
+}
+
+delete-button {
+  color: rgb(220, 20, 60);
+  /* Crimson Red */
+  border: 1px solid rgba(220, 20, 60, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  transition: all 200ms ease;
+}
+
+delete-button:hover {
+  background-color: rgba(220, 20, 60, 0.2);
+  border-color: rgba(220, 20, 60, 0.8);
+}
+
+delete-button:disabled {
+  color: rgba(220, 20, 60, 0.3);
+  border-color: rgba(220, 20, 60, 0.2);
+}

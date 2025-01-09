@@ -239,6 +239,10 @@ impl VoiceList {
             .set_sorter(self.string_sorter("name").as_ref());
 
         self.imp()
+            .quality_column
+            .set_sorter(self.string_sorter("quality").as_ref());
+
+        self.imp()
             .language_column
             .set_sorter(self.string_sorter("language").as_ref());
     }
@@ -316,8 +320,7 @@ impl VoiceList {
                     if let Some(grid) = list_item.child().and_downcast::<gtk::Grid>() {
                         grid.remove_row(0);
 
-                        let play_button = VoiceRow::setup_play_button();
-                        let (download_button, set_default_button, delete_button) =
+                        let (play_button, download_button, set_default_button, delete_button) =
                             VoiceRow::setup_action_buttons();
 
                         voice_row.handle_play_actions(&play_button);

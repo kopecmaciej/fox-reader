@@ -17,6 +17,8 @@ mod imp {
     #[template(resource = "/org/fox-reader/window.ui")]
     pub struct FoxReaderAppWindow {
         #[template_child]
+        pub theme_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
         pub language_filter: TemplateChild<gtk::DropDown>,
@@ -68,6 +70,7 @@ impl FoxReaderAppWindow {
         window.filter_out_by_language();
         window.setup_search();
         window.setup_stack_switching();
+        window.setup_actions();
 
         match PiperInstaller::is_paper_available() {
             Ok(ok) => {
@@ -85,6 +88,18 @@ impl FoxReaderAppWindow {
         }
 
         window
+    }
+
+    fn setup_actions(&self) {
+        self.imp().theme_button.connect_clicked(|_| {
+            let style_manager = adw::StyleManager::default();
+            let is_dark = style_manager.is_dark();
+            style_manager.set_color_scheme(if is_dark {
+                adw::ColorScheme::ForceLight
+            } else {
+                adw::ColorScheme::ForceDark
+            });
+        });
     }
 
     fn setup_stack_switching(&self) {

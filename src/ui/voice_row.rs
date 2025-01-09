@@ -84,14 +84,23 @@ impl VoiceRow {
         obj
     }
 
-    pub fn setup_play_button() -> Button {
-        Button::builder().icon_name(PLAY_ICON).build()
-    }
-
-    pub fn setup_action_buttons() -> (Button, Button, Button) {
-        let download_button = Button::builder().icon_name(DOWNLOAD_VOICE_ICON).build();
-        let set_default_button = Button::builder().icon_name(SET_AS_DEFAULT_ICON).build();
-        let delete_button = Button::builder().icon_name(DELETE_VOICE_ICON).build();
+    pub fn setup_action_buttons() -> (Button, Button, Button, Button) {
+        let play_button = Button::builder()
+            .icon_name(PLAY_ICON)
+            .css_name("play-button")
+            .build();
+        let download_button = Button::builder()
+            .icon_name(DOWNLOAD_VOICE_ICON)
+            .css_name("download-button")
+            .build();
+        let set_default_button = Button::builder()
+            .icon_name(SET_AS_DEFAULT_ICON)
+            .css_name("default-button")
+            .build();
+        let delete_button = Button::builder()
+            .icon_name(DELETE_VOICE_ICON)
+            .css_name("delete-button")
+            .build();
 
         // on download delete btn becomes sensitive
         download_button
@@ -115,7 +124,12 @@ impl VoiceRow {
             .sync_create()
             .build();
 
-        (download_button, set_default_button, delete_button)
+        (
+            play_button,
+            download_button,
+            set_default_button,
+            delete_button,
+        )
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
