@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"/>
-  <requires lib="libadwaita" version="1.0"/>
-  <template class="PiperWindow" parent="AdwDialog">
+  <requires lib="gtk" version="4.0" />
+  <requires lib="libadwaita" version="1.0" />
+  <template class="PiperInstaller" parent="AdwDialog">
     <property name="width-request">400</property>
     <property name="height-request">200</property>
     <property name="title">Piper Installation Check</property>
@@ -31,7 +31,7 @@
                 <property name="label">Piper not found in your system path</property>
                 <property name="wrap">true</property>
                 <style>
-                  <class name="title-2"/>
+                  <class name="title-2" />
                 </style>
               </object>
             </child>
@@ -50,7 +50,7 @@
                   <object class="GtkButton" id="download_button">
                     <property name="label">Download Piper</property>
                     <style>
-                      <class name="suggested-action"/>
+                      <class name="suggested-action" />
                     </style>
                   </object>
                 </child>

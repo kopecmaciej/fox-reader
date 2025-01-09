@@ -17,7 +17,7 @@ mod imp {
 
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/org/fox-reader/piper_window.ui")]
-    pub struct PiperWindow {
+    pub struct PiperInstallerler {
         #[template_child]
         pub path_entry: TemplateChild<gtk::Entry>,
         #[template_child]
@@ -27,9 +27,9 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for PiperWindow {
-        const NAME: &'static str = "PiperWindow";
-        type Type = super::PiperWindow;
+    impl ObjectSubclass for PiperInstallerler {
+        const NAME: &'static str = "PiperInstaller";
+        type Type = super::PiperInstaller;
         type ParentType = adw::Dialog;
 
         fn class_init(klass: &mut Self::Class) {
@@ -41,25 +41,25 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for PiperWindow {}
-    impl WidgetImpl for PiperWindow {}
-    impl WindowImpl for PiperWindow {}
-    impl AdwDialogImpl for PiperWindow {}
+    impl ObjectImpl for PiperInstallerler {}
+    impl WidgetImpl for PiperInstallerler {}
+    impl WindowImpl for PiperInstallerler {}
+    impl AdwDialogImpl for PiperInstallerler {}
 }
 
 glib::wrapper! {
-    pub struct PiperWindow(ObjectSubclass<imp::PiperWindow>)
+    pub struct PiperInstaller(ObjectSubclass<imp::PiperInstallerler>)
         @extends gtk::Widget, adw::Dialog,
         @implements gio::ActionGroup, gio::ActionMap;
 }
 
-impl Default for PiperWindow {
+impl Default for PiperInstaller {
     fn default() -> Self {
-        PiperWindow::new()
+        PiperInstaller::new()
     }
 }
 
-impl PiperWindow {
+impl PiperInstaller {
     pub fn new() -> Self {
         let window: Self = Object::new();
 

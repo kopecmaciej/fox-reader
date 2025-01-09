@@ -21,8 +21,6 @@ mod imp {
         #[template_child]
         pub column_view: TemplateChild<gtk::ColumnView>,
         #[template_child]
-        pub play_column: TemplateChild<gtk::ColumnViewColumn>,
-        #[template_child]
         pub name_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub quality_column: TemplateChild<gtk::ColumnViewColumn>,
@@ -254,18 +252,6 @@ impl VoiceList {
     }
 
     fn create_factories(&self) {
-        let play_factory = gtk::SignalListItemFactory::new();
-        play_factory.connect_setup(|_, _| {});
-        play_factory.connect_bind(|_, list_item| {
-            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
-                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
-                    let play_button = VoiceRow::setup_play_button();
-                    voice_row.handle_play_actions(&play_button);
-                    list_item.set_child(Some(&play_button));
-                }
-            }
-        });
-
         let name_factory = gtk::SignalListItemFactory::new();
         name_factory.connect_setup(|_, list_item| {
             if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
@@ -286,7 +272,7 @@ impl VoiceList {
         let quality_factory = gtk::SignalListItemFactory::new();
         quality_factory.connect_setup(|_, list_item| {
             if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
-                let label = gtk::Label::new(None);
+                let label = gtk::Label::builder().xalign(0.0).build();
                 list_item.set_child(Some(&label));
             }
         });
@@ -303,7 +289,7 @@ impl VoiceList {
         let language_factory = gtk::SignalListItemFactory::new();
         language_factory.connect_setup(|_, list_item| {
             if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
-                let label = gtk::Label::new(None);
+                let label = gtk::Label::builder().xalign(0.0).build();
                 list_item.set_child(Some(&label));
             }
         });
@@ -330,19 +316,11 @@ impl VoiceList {
                     if let Some(grid) = list_item.child().and_downcast::<gtk::Grid>() {
                         grid.remove_row(0);
 
+                        let play_button = VoiceRow::setup_play_button();
                         let (download_button, set_default_button, delete_button) =
                             VoiceRow::setup_action_buttons();
 
-                        grid.attach(&download_button, 0, 0, 1, 1);
-                        grid.attach(&set_default_button, 1, 0, 1, 1);
-                        grid.attach(&delete_button, 2, 0, 1, 1);
-
-                        let download_button =
-                            grid.child_at(0, 0).and_downcast::<gtk::Button>().unwrap();
-                        let set_default_button =
-                            grid.child_at(1, 0).and_downcast::<gtk::Button>().unwrap();
-                        let delete_button =
-                            grid.child_at(2, 0).and_downcast::<gtk::Button>().unwrap();
+                        voice_row.handle_play_actions(&play_button);
 
                         voice_row.handle_download_actions(&download_button);
                         download_button.set_sensitive(!voice_row.downloaded());
@@ -352,13 +330,17 @@ impl VoiceList {
 
                         voice_row.handle_set_default_actions(&set_default_button);
                         set_default_button.set_sensitive(voice_row.downloaded());
+
+                        grid.attach(&play_button, 1, 0, 1, 1);
+                        grid.attach(&download_button, 2, 0, 1, 1);
+                        grid.attach(&set_default_button, 3, 0, 1, 1);
+                        grid.attach(&delete_button, 4, 0, 1, 1);
                     }
                 }
             }
         });
 
         let imp = self.imp();
-        imp.play_column.set_factory(Some(&play_factory));
         imp.name_column.set_factory(Some(&name_factory));
         imp.quality_column.set_factory(Some(&quality_factory));
         imp.language_column.set_factory(Some(&language_factory));

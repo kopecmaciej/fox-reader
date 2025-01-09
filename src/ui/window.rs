@@ -19,7 +19,7 @@ mod imp {
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
-        pub language_dropdown: TemplateChild<gtk::DropDown>,
+        pub language_filter: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
         #[template_child]
@@ -60,7 +60,7 @@ glib::wrapper! {
 
 impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
-        use crate::ui::piper::PiperWindow;
+        use crate::ui::piper_installer::PiperInstaller;
 
         let window: Self = Object::builder().property("application", app).build();
 
@@ -69,10 +69,10 @@ impl FoxReaderAppWindow {
         window.setup_search();
         window.setup_stack_switching();
 
-        match PiperWindow::is_paper_available() {
+        match PiperInstaller::is_paper_available() {
             Ok(ok) => {
                 if !ok {
-                    let piper_window = PiperWindow::new();
+                    let piper_window = PiperInstaller::new();
                     piper_window.present(Some(&window));
                 }
             }
@@ -134,7 +134,7 @@ impl FoxReaderAppWindow {
             string_list.append(&c);
         }
 
-        let dropdown = &self.imp().language_dropdown;
+        let dropdown = &self.imp().language_filter;
         dropdown.set_model(Some(&string_list));
         dropdown.set_expression(Some(&gtk::PropertyExpression::new(
             gtk::StringObject::static_type(),
