@@ -67,4 +67,8 @@ impl TextReader {
             "string",
         )));
     }
+
+    pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
+        &self.imp().voice_selector
+    }
 }

@@ -106,8 +106,22 @@ impl FoxReaderAppWindow {
     }
 
     fn setup_text_reader(&self) {
-        let voice_rows = self.imp().voice_list.get_downloaded_rows();
-        self.imp().text_reader.populate_voice_selector(voice_rows);
+        let imp = self.imp();
+        let voice_rows = imp.voice_list.get_downloaded_rows();
+        imp.text_reader.populate_voice_selector(voice_rows);
+
+        let gesture_click = gtk::GestureClick::new();
+        gesture_click.connect_pressed(clone!(
+            #[weak]
+            imp,
+            move |_, _, _, _| {
+                let voice_rows = imp.voice_list.get_downloaded_rows();
+                imp.text_reader.populate_voice_selector(voice_rows);
+            }
+        ));
+        imp.text_reader
+            .get_voice_selector()
+            .add_controller(gesture_click);
     }
 
     fn setup_stack_switching(&self) {
