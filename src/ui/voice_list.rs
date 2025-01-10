@@ -1,4 +1,3 @@
-use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::core::voice_manager::Voice;
 use crate::core::{runtime::runtime, voice_manager::VoiceManager};
 use adw::subclass::prelude::*;
@@ -9,7 +8,6 @@ use gtk::{
 use std::collections::HashSet;
 use std::{cell::RefCell, collections::BTreeMap};
 
-use super::dialogs;
 use super::voice_row::VoiceRow;
 mod imp {
     use super::*;
@@ -86,13 +84,6 @@ impl VoiceList {
         self.imp()
             .filter_criteria
             .replace(FilterCriteria::default());
-        if let Err(e) = SpeechDispatcher::init_config() {
-            let err_msg = format!(
-                "Error initializing speech dispatcher config. \nDetails: {}",
-                e
-            );
-            dialogs::show_error_dialog(&err_msg, self);
-        }
         let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
         if let Ok(voices) = voice_list {
             self.set_voice_row_model(voices);

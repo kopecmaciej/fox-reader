@@ -68,10 +68,9 @@ impl PiperInstaller {
         window
     }
 
-    pub fn is_paper_available() -> Result<bool, Box<dyn Error>> {
+    pub fn check_piper() -> Result<bool, Box<dyn Error>> {
         let is_piper_added = SpeechDispatcher::check_if_piper_already_added()?;
-
-        Ok(is_piper_added || which::which("piper").is_ok() || which::which("piper-tts").is_ok())
+        Ok(is_piper_added)
     }
 
     fn setup_buttons(&self) {

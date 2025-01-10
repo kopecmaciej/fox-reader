@@ -7,6 +7,9 @@ use gtk::{
     StringList,
 };
 
+use crate::core::speech_dispatcher::SpeechDispatcher;
+use crate::ui::dialogs;
+
 mod imp {
     use crate::ui::{text_reader::TextReader, voice_list::VoiceList};
 
@@ -69,18 +72,25 @@ impl FoxReaderAppWindow {
         let window: Self = Object::builder().property("application", app).build();
         window.setup_actions();
 
+        if let Err(e) = SpeechDispatcher::init() {
+            let err_msg = format!(
+                "Error initializing speech dispatcher config. \nDetails: {}",
+                e
+            );
+            dialogs::show_error_dialog(&err_msg, &window);
+        }
+
         window.imp().voice_list.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.setup_text_reader();
         window.setup_search();
+        window.imp().text_reader.read_text_by_selected_voice();
 
-        match PiperInstaller::is_paper_available() {
-            Ok(ok) => {
-                if !ok {
-                    let piper_window = PiperInstaller::new();
-                    piper_window.present(Some(&window));
-                }
+        match PiperInstaller::check_piper() {
+            Ok(false) => {
+                let piper_window = PiperInstaller::new();
+                piper_window.present(Some(&window));
             }
             Err(e) => {
                 super::dialogs::show_error_dialog(
@@ -88,6 +98,7 @@ impl FoxReaderAppWindow {
                     &window,
                 );
             }
+            _ => {}
         }
 
         window

@@ -10,20 +10,37 @@ const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
 pub struct SpeechDispatcher {}
 
 impl SpeechDispatcher {
-    pub fn init_config() -> Result<(), Box<dyn Error>> {
-        let config_file = &dispatcher_config::get_config_file_path();
-        // TODO: Check if speechd.conf is default or already adjusted
-        let vec_bytes = config_template("en-GB").trim().as_bytes().to_vec();
-        let config_exists = FileHandler::does_file_exist(config_file);
-        if !config_exists {
-            FileHandler::ensure_all_dirs_exists(config_file)?;
-            FileHandler::save_bytes(config_file, &vec_bytes)?;
-        }
+    pub fn init() -> Result<(), Box<dyn Error>> {
+        Self::init_speechd_config()?;
+        Self::init_module_config()?;
+        Self::init_script()?;
+        Ok(())
+    }
 
+    fn init_speechd_config() -> Result<(), Box<dyn Error>> {
+        let config_file = &dispatcher_config::get_config_file_path();
+        if !FileHandler::does_file_exist(config_file) {
+            FileHandler::ensure_all_dirs_exists(config_file)?;
+            FileHandler::save_bytes(config_file, config_template("en-GB").trim().as_bytes())?;
+        }
+        Ok(())
+    }
+
+    fn init_module_config() -> Result<(), Box<dyn Error>> {
+        let mut piper_path = "$PIPER_PATH";
+        for binary in ["piper", "piper-tts"] {
+            if which::which(binary).is_ok() {
+                piper_path = binary;
+            }
+        }
         let module_path = &dispatcher_config::get_module_config_path();
         if !FileHandler::does_file_exist(module_path) {
-            FileHandler::save_bytes(module_path, module_template_v2().trim().as_bytes())?;
+            FileHandler::save_bytes(module_path, module_template(piper_path).trim().as_bytes())?;
         }
+        Ok(())
+    }
+
+    pub fn init_script() -> Result<(), Box<dyn Error>> {
         let script_path = &dispatcher_config::get_script_path();
         if !FileHandler::does_file_exist(script_path) {
             FileHandler::save_bytes(script_path, FOX_READER_SCRIPT)?;
@@ -36,7 +53,6 @@ impl SpeechDispatcher {
                 std::fs::set_permissions(script_path, perms)?;
             }
         }
-
         Ok(())
     }
 
@@ -124,10 +140,11 @@ DefaultModule "fox-reader""#,
     )
 }
 
-fn module_template_v2() -> String {
+fn module_template(piper_path: &str) -> String {
     format!(
         r#"
-GenericExecuteSynth "export DATA='$DATA'; export RATE='$RATE'; export VOICE='$VOICE';export PIPER_PATH='$PIPER_PATH'; export VOICE_PATH='{}';{}""#,
+GenericExecuteSynth "export DATA='$DATA'; export RATE='$RATE'; export VOICE='$VOICE';export PIPER_PATH='{}'; export VOICE_PATH='{}';{}""#,
+        piper_path,
         huggingface_config::get_download_path(),
         dispatcher_config::get_script_path()
     )

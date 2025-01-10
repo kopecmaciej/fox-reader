@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 use rodio::{Decoder, OutputStream, Sink};
@@ -118,6 +119,19 @@ impl VoiceManager {
                 .ok_or("Failed to properly extract file name from path")?;
 
             FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn play_text_using_piper(text: &str, voice: &str) -> Result<(), Box<dyn Error>> {
+        let piper_path =
+            FileHandler::get_env_value(&dispatcher_config::get_module_config_path(), "PIPER_PATH")?;
+
+        if let Some(piper_path) = piper_path {
+            let command = format!("export RATE='1';  export DATA=\"{}\"; export PIPER_PATH='{}'; export VOICE_PATH='/home/cieju/.local/share/fox-reader/voices'; export VOICE='{}' ;/home/cieju/.config/speech-dispatcher/fox-reader.sh", text, piper_path, voice);
+
+            Command::new("sh").arg("-c").arg(&command).output()?;
         }
 
         Ok(())

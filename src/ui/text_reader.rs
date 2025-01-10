@@ -1,9 +1,10 @@
 use adw::subclass::prelude::*;
 use gtk::{
-    glib::{self},
+    glib::{self, clone},
     prelude::*,
-    StringList,
 };
+
+use crate::core::voice_manager::VoiceManager;
 
 use super::voice_row::VoiceRow;
 
@@ -18,6 +19,8 @@ mod imp {
         pub text_input: TemplateChild<gtk::TextView>,
         #[template_child]
         pub voice_selector: TemplateChild<gtk::DropDown>,
+        #[template_child]
+        pub play_button: TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -53,22 +56,61 @@ impl Default for TextReader {
 
 impl TextReader {
     pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
-        let string_list = StringList::new(&[]);
-        for v in downloaded_rows {
-            let item = format!("{} ({}) - {}", v.name(), v.quality(), v.language());
-            string_list.append(&item);
-        }
+        let model = gio::ListStore::new::<VoiceRow>();
+        model.extend_from_slice(&downloaded_rows);
+        let factory = gtk::SignalListItemFactory::new();
+        factory.connect_setup(move |_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::builder().xalign(0.0).build();
+                list_item.set_child(Some(&label));
+            }
+        });
+        factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(v) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
+                        let text = format!("{} ({}) - {}", v.name(), v.quality(), v.language());
+                        label.set_text(&text);
+                    }
+                }
+            }
+        });
 
         let voice_selector = &self.imp().voice_selector;
-        voice_selector.set_model(Some(&string_list));
-        voice_selector.set_expression(Some(&gtk::PropertyExpression::new(
-            gtk::StringObject::static_type(),
-            None::<&gtk::Expression>,
-            "string",
-        )));
+        voice_selector.set_factory(Some(&factory));
+        voice_selector.set_model(Some(&model));
     }
 
     pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
         &self.imp().voice_selector
+    }
+
+    pub fn read_text_by_selected_voice(&self) {
+        let imp = self.imp();
+
+        self.imp().play_button.connect_clicked(clone!(
+            #[weak]
+            imp,
+            move |button| {
+                let buffer = imp.text_input.buffer();
+                let (start, end) = buffer.bounds();
+                let text = buffer
+                    .text(&start, &end, false)
+                    .to_string()
+                    .replace("\"", "'");
+                if let Some(item) = imp.voice_selector.selected_item() {
+                    if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
+                        let voice = voice_row.key();
+
+                        if let Err(e) = VoiceManager::play_text_using_piper(&text, &voice) {
+                            super::dialogs::show_error_dialog(
+                                &format!("Failed to play text with voice {}: {}", voice, e),
+                                button,
+                            );
+                        }
+                    }
+                }
+            }
+        ));
     }
 }
