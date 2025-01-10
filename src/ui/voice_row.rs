@@ -87,18 +87,22 @@ impl VoiceRow {
     pub fn setup_action_buttons() -> (Button, Button, Button, Button) {
         let play_button = Button::builder()
             .icon_name(PLAY_ICON)
+            .tooltip_text("Play Sample")
             .css_name("play-button")
             .build();
         let download_button = Button::builder()
             .icon_name(DOWNLOAD_VOICE_ICON)
+            .tooltip_text("Download")
             .css_name("download-button")
             .build();
         let set_default_button = Button::builder()
             .icon_name(SET_AS_DEFAULT_ICON)
+            .tooltip_text("Set as default")
             .css_name("default-button")
             .build();
         let delete_button = Button::builder()
             .icon_name(DELETE_VOICE_ICON)
+            .tooltip_text("Delete")
             .css_name("delete-button")
             .build();
 
