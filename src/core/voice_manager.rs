@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use tokio::process::{Child, Command};
+use tokio::process::Command;
 
 use rodio::{Decoder, OutputStream, Sink};
 use std::io::Cursor;

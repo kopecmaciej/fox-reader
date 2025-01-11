@@ -97,7 +97,7 @@ impl SpeechDispatcher {
     }
 
     pub fn update_piper_path(piper_path: &str) -> Result<(), Box<dyn Error>> {
-        PIPER_PATH.set(piper_path.to_string());
+        let _ = PIPER_PATH.set(piper_path.to_string());
         FileHandler::update_env(
             &dispatcher_config::get_module_config_path(),
             "PIPER_PATH",
@@ -110,7 +110,7 @@ impl SpeechDispatcher {
             FileHandler::get_env_value(&dispatcher_config::get_module_config_path(), "PIPER_PATH")?;
         if let Some(piper_path) = value {
             if piper_path != "$PIPER_PATH" {
-                PIPER_PATH.set(piper_path.to_string());
+                let _ = PIPER_PATH.set(piper_path.to_string());
                 return Ok(true);
             }
         }
