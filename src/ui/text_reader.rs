@@ -4,7 +4,7 @@ use gtk::{
     prelude::*,
 };
 
-use crate::core::voice_manager::VoiceManager;
+use crate::core::{runtime::runtime, voice_manager::VoiceManager};
 
 use super::voice_row::VoiceRow;
 
@@ -55,6 +55,10 @@ impl Default for TextReader {
 }
 
 impl TextReader {
+    pub fn init(&self) {
+        self.read_text_by_selected_voice();
+    }
+
     pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
         let model = gio::ListStore::new::<VoiceRow>();
         model.extend_from_slice(&downloaded_rows);
@@ -87,27 +91,62 @@ impl TextReader {
 
     pub fn read_text_by_selected_voice(&self) {
         let imp = self.imp();
+        let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
+        let kill_tx = std::sync::Arc::new(kill_tx);
+        let kill_rx = std::sync::Arc::new(tokio::sync::Mutex::new(kill_rx));
 
         self.imp().play_button.connect_clicked(clone!(
             #[weak]
             imp,
             move |button| {
+                let kill_tx = kill_tx.clone();
+
+                if button.label() == Some("Stop".into()) {
+                    runtime().block_on(async {
+                        let _ = kill_tx.send(()).await;
+                    });
+                    button.set_label("Play");
+                    return;
+                }
+
                 let buffer = imp.text_input.buffer();
                 let (start, end) = buffer.bounds();
                 let text = buffer
                     .text(&start, &end, false)
                     .to_string()
                     .replace("\"", "'");
+
                 if let Some(item) = imp.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
                         let voice = voice_row.key();
+                        button.set_label("Stop");
 
-                        if let Err(e) = VoiceManager::play_text_using_piper(&text, &voice) {
-                            super::dialogs::show_error_dialog(
-                                &format!("Failed to play text with voice {}: {}", voice, e),
-                                button,
-                            );
-                        }
+                        glib::spawn_future_local(clone!(
+                            #[weak]
+                            button,
+                            #[strong]
+                            kill_rx,
+                            async move {
+                                if let Ok(mut process) = runtime()
+                                    .block_on(VoiceManager::play_text_using_piper(&text, &voice))
+                                {
+                                    let kill_rx = kill_rx.clone();
+                                    let _ = runtime()
+                                        .spawn(async move {
+                                            let mut guard = kill_rx.lock().await;
+                                            tokio::select! {
+                                                _ = process.wait() => { }
+                                                _ = guard.recv() => {
+                                                    process.terminate().await;
+                                                }
+                                            }
+                                        })
+                                        .await;
+
+                                    button.set_label("Play");
+                                }
+                            }
+                        ));
                     }
                 }
             }

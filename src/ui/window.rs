@@ -81,11 +81,11 @@ impl FoxReaderAppWindow {
         }
 
         window.imp().voice_list.init();
+        window.imp().text_reader.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
-        window.setup_text_reader();
+        window.update_voice_selector_on_click();
         window.setup_search();
-        window.imp().text_reader.read_text_by_selected_voice();
 
         match PiperInstaller::check_piper() {
             Ok(false) => {
@@ -116,7 +116,7 @@ impl FoxReaderAppWindow {
         });
     }
 
-    fn setup_text_reader(&self) {
+    fn update_voice_selector_on_click(&self) {
         let imp = self.imp();
         let voice_rows = imp.voice_list.get_downloaded_rows();
         imp.text_reader.populate_voice_selector(voice_rows);

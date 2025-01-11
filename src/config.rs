@@ -1,5 +1,7 @@
 use dirs::home_dir;
 
+use std::sync::OnceLock;
+
 const FOX_READER_BASE_PATH: &str = "$HOME/.local/share/fox-reader";
 
 const HF_BASE_URL: &str = "https://huggingface.co/rhasspy/piper-voices";
@@ -12,6 +14,8 @@ const DISPATCHER_MODULE_FILE: &str = "modules/fox-reader.conf";
 const DISPATCHER_SCRIPT_FILE: &str = "fox-reader.sh";
 
 const PIPER_RELEASES_URL: &str = "https://github.com/rhasspy/piper/releases/latest/download";
+
+pub static PIPER_PATH: OnceLock<String> = OnceLock::new();
 
 fn resolve_home(path: &str) -> String {
     let home = home_dir().expect("Failed to get home directory");

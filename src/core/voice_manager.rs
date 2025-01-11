@@ -1,15 +1,17 @@
-use crate::config::{dispatcher_config, huggingface_config};
+use crate::config::{dispatcher_config, huggingface_config, PIPER_PATH};
 use crate::core::file_handler::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
-use std::process::Command;
 use std::sync::{Arc, Mutex};
+use tokio::process::{Child, Command};
 
 use rodio::{Decoder, OutputStream, Sink};
 use std::io::Cursor;
+
+use super::process_manager::ProcessManager;
 
 pub struct VoiceManager {}
 
@@ -124,17 +126,25 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub fn play_text_using_piper(text: &str, voice: &str) -> Result<(), Box<dyn Error>> {
-        let piper_path =
-            FileHandler::get_env_value(&dispatcher_config::get_module_config_path(), "PIPER_PATH")?;
+    pub async fn play_text_using_piper(
+        text: &str,
+        voice: &str,
+    ) -> Result<ProcessManager, Box<dyn Error>> {
+        let script_path = dispatcher_config::get_script_path();
+        let voice_path = huggingface_config::get_download_path();
+        let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
 
-        if let Some(piper_path) = piper_path {
-            let command = format!("export RATE='1';  export DATA=\"{}\"; export PIPER_PATH='{}'; export VOICE_PATH='/home/cieju/.local/share/fox-reader/voices'; export VOICE='{}' ;/home/cieju/.config/speech-dispatcher/fox-reader.sh", text, piper_path, voice);
+        let child = Command::new("bash")
+            .arg(script_path)
+            .env("RATE", "1")
+            .env("DATA", text)
+            .env("PIPER_PATH", piper_path)
+            .env("VOICE_PATH", voice_path)
+            .env("VOICE", voice)
+            .process_group(0)
+            .spawn()?;
 
-            Command::new("sh").arg("-c").arg(&command).output()?;
-        }
-
-        Ok(())
+        Ok(ProcessManager::new(child))
     }
 
     pub fn play_audio_data(

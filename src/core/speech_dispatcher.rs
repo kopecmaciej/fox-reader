@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use crate::{
-    config::{dispatcher_config, huggingface_config},
+    config::{dispatcher_config, huggingface_config, PIPER_PATH},
     core::file_handler::FileHandler,
 };
 
@@ -97,6 +97,7 @@ impl SpeechDispatcher {
     }
 
     pub fn update_piper_path(piper_path: &str) -> Result<(), Box<dyn Error>> {
+        PIPER_PATH.set(piper_path.to_string());
         FileHandler::update_env(
             &dispatcher_config::get_module_config_path(),
             "PIPER_PATH",
@@ -107,8 +108,9 @@ impl SpeechDispatcher {
     pub fn check_if_piper_already_added() -> Result<bool, Box<dyn Error>> {
         let value =
             FileHandler::get_env_value(&dispatcher_config::get_module_config_path(), "PIPER_PATH")?;
-        if let Some(v) = value {
-            if v != "$PIPER_PATH" {
+        if let Some(piper_path) = value {
+            if piper_path != "$PIPER_PATH" {
+                PIPER_PATH.set(piper_path.to_string());
                 return Ok(true);
             }
         }
