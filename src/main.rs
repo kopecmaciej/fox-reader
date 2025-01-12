@@ -5,6 +5,7 @@ use gtk::{prelude::*, CssProvider};
 mod config;
 mod core;
 mod ui;
+mod utils;
 
 const APP_ID: &str = "org.fox-reader";
 
@@ -28,7 +29,7 @@ fn build_ui(app: &adw::Application) {
 fn load_css() {
     // Load the CSS file and add it to the provider
     let provider = CssProvider::new();
-    provider.load_from_string(include_str!("../resources/style.css"));
+    provider.load_from_string(include_str!("../resources/styles/style.css"));
 
     // Add the provider to the default screen
     gtk::style_context_add_provider_for_display(

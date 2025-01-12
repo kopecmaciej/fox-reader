@@ -3,11 +3,11 @@ use nix::unistd::Pid;
 use std::error::Error;
 use tokio::process::Child;
 
-pub struct ProcessManager {
+pub struct ProcessHandle {
     child: Child,
 }
 
-impl ProcessManager {
+impl ProcessHandle {
     pub fn new(child: Child) -> Self {
         Self { child }
     }

@@ -17,7 +17,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/window.ui")]
+    #[template(resource = "/org/fox-reader/ui/window.ui")]
     pub struct FoxReaderAppWindow {
         #[template_child]
         pub theme_button: TemplateChild<gtk::Button>,

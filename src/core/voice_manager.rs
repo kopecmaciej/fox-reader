@@ -1,5 +1,6 @@
 use crate::config::{dispatcher_config, huggingface_config, PIPER_PATH};
 use crate::core::file_handler::FileHandler;
+use crate::utils::process::ProcessHandle;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -10,8 +11,6 @@ use tokio::process::Command;
 
 use rodio::{Decoder, OutputStream, Sink};
 use std::io::Cursor;
-
-use super::process_manager::ProcessManager;
 
 pub struct VoiceManager {}
 
@@ -129,7 +128,7 @@ impl VoiceManager {
     pub async fn play_text_using_piper(
         text: &str,
         voice: &str,
-    ) -> Result<ProcessManager, Box<dyn Error>> {
+    ) -> Result<ProcessHandle, Box<dyn Error>> {
         let script_path = dispatcher_config::get_script_path();
         let voice_path = huggingface_config::get_download_path();
         let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
@@ -144,7 +143,7 @@ impl VoiceManager {
             .process_group(0)
             .spawn()?;
 
-        Ok(ProcessManager::new(child))
+        Ok(ProcessHandle::new(child))
     }
 
     pub fn play_audio_data(

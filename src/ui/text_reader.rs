@@ -13,7 +13,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/text_reader.ui")]
+    #[template(resource = "/org/fox-reader/ui/text_reader.ui")]
     pub struct TextReader {
         #[template_child]
         pub text_input: TemplateChild<gtk::TextView>,

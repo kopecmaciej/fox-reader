@@ -16,7 +16,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/piper_window.ui")]
+    #[template(resource = "/org/fox-reader/ui/piper_window.ui")]
     pub struct PiperInstallerler {
         #[template_child]
         pub path_entry: TemplateChild<gtk::Entry>,
