@@ -3,12 +3,19 @@ use gtk::{
     glib::{self, clone},
     prelude::*,
 };
+use std::cell::RefCell;
 
-use crate::core::{runtime::runtime, voice_manager::VoiceManager};
+use crate::{
+    core::{runtime::runtime, voice_manager::VoiceManager},
+    utils::text_highlighter::TextHighlighter,
+};
 
 use super::voice_row::VoiceRow;
 
 mod imp {
+
+    use crate::utils::text_highlighter::TextHighlighter;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -21,6 +28,7 @@ mod imp {
         pub voice_selector: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub play_button: TemplateChild<gtk::Button>,
+        pub text_highlighter: RefCell<TextHighlighter>,
     }
 
     #[glib::object_subclass]
@@ -55,10 +63,11 @@ impl Default for TextReader {
 }
 
 impl TextReader {
-    const HIGHLIGH_TAG: &str = "highlight";
-
     pub fn init(&self) {
+        let imp = self.imp();
         self.read_text_by_selected_voice();
+        imp.text_highlighter
+            .replace(TextHighlighter::new(imp.text_input.buffer()));
     }
 
     pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
@@ -91,32 +100,6 @@ impl TextReader {
         &self.imp().voice_selector
     }
 
-    fn highlight_text(&self, start_offset: i32, end_offset: i32) {
-        let buffer = self.imp().text_input.buffer();
-
-        let tag = if let Some(tag) = buffer.tag_table().lookup(Self::HIGHLIGH_TAG) {
-            tag
-        } else {
-            buffer
-                .create_tag(Some(Self::HIGHLIGH_TAG), &[("background", &"yellow")])
-                .expect("Failed to create tag")
-        };
-
-        buffer.remove_tag(&tag, &buffer.start_iter(), &buffer.end_iter());
-
-        buffer.apply_tag(
-            &tag,
-            &buffer.iter_at_offset(start_offset),
-            &buffer.iter_at_offset(end_offset),
-        );
-    }
-
-    fn remove_tag(&self, buffer: gtk::TextBuffer) {
-        if let Some(tag) = buffer.tag_table().lookup(Self::HIGHLIGH_TAG) {
-            buffer.remove_tag(&tag, &buffer.start_iter(), &buffer.end_iter());
-        };
-    }
-
     pub fn read_text_by_selected_voice(&self) {
         let imp = self.imp();
         let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -126,8 +109,6 @@ impl TextReader {
         self.imp().play_button.connect_clicked(clone!(
             #[weak]
             imp,
-            #[weak(rename_to=this)]
-            self,
             move |button| {
                 let kill_tx = kill_tx.clone();
 
@@ -153,8 +134,6 @@ impl TextReader {
                         glib::spawn_future_local(clone!(
                             #[weak]
                             button,
-                            #[weak]
-                            this,
                             #[strong]
                             kill_rx,
                             async move {
@@ -165,12 +144,14 @@ impl TextReader {
                                 let mut current_offset = 0;
                                 for sentence in sentences {
                                     if !should_continue {
-                                        this.remove_tag(buffer);
+                                        imp.text_highlighter.borrow().clear();
                                         break;
                                     }
                                     let end_offset = current_offset + sentence.len() as i32;
 
-                                    this.highlight_text(current_offset, end_offset);
+                                    imp.text_highlighter
+                                        .borrow()
+                                        .highlight(current_offset, end_offset);
 
                                     if let Ok(mut process) =
                                         runtime().block_on(VoiceManager::play_text_using_piper(
