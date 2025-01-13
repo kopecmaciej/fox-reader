@@ -166,7 +166,7 @@ impl TextReader {
                                                 tokio::select! {
                                                     _ = process.wait() => false,
                                                     _ = guard.recv() => {
-                                                        let _ = process.terminate().await;
+                                                        let _ = process.terminate_group().await;
                                                         true
                                                     }
                                                 }

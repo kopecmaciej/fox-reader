@@ -12,7 +12,7 @@ impl ProcessHandle {
         Self { child }
     }
 
-    pub async fn terminate(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn terminate_group(&mut self) -> Result<(), Box<dyn Error>> {
         let pid = self.child.id().ok_or("Failed to get process ID")?;
 
         signal::kill(Pid::from_raw(-(pid as i32)), Signal::SIGTERM)?;
