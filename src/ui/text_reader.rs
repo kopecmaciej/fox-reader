@@ -6,11 +6,14 @@ use gtk::{
 use std::cell::RefCell;
 
 use crate::{
-    core::{runtime::runtime, voice_manager::VoiceManager},
+    core::{
+        runtime::runtime,
+        tts::{TTSEvent, Tts},
+    },
     utils::text_highlighter::TextHighlighter,
 };
 
-use super::voice_row::VoiceRow;
+use super::{dialogs, voice_row::VoiceRow};
 
 mod imp {
 
@@ -102,20 +105,17 @@ impl TextReader {
 
     pub fn read_text_by_selected_voice(&self) {
         let imp = self.imp();
-        let (kill_tx, kill_rx) = tokio::sync::mpsc::channel::<()>(1);
-        let kill_tx = std::sync::Arc::new(kill_tx);
-        let kill_rx = std::sync::Arc::new(tokio::sync::Mutex::new(kill_rx));
+        let tts = Tts::new();
 
         self.imp().play_button.connect_clicked(clone!(
             #[weak]
             imp,
             move |button| {
-                let kill_tx = kill_tx.clone();
-
-                if button.label() == Some("Stop".into()) {
+                if tts.is_running() {
                     runtime().block_on(async {
-                        let _ = kill_tx.send(()).await;
+                        tts.stop().await;
                     });
+                    imp.text_highlighter.borrow().clear();
                     button.set_label("Play");
                     return;
                 }
@@ -132,52 +132,40 @@ impl TextReader {
                         button.set_label("Stop");
 
                         glib::spawn_future_local(clone!(
+                            #[strong]
+                            tts,
+                            async move {
+                                while let Ok(event) = tts.receiver.lock().await.recv().await {
+                                    match event {
+                                        TTSEvent::Progress {
+                                            offset_start,
+                                            offset_end,
+                                        } => {
+                                            println!("{offset_start}, {offset_end}");
+                                            imp.text_highlighter
+                                                .borrow()
+                                                .highlight(offset_start, offset_end);
+                                        }
+                                        TTSEvent::Terminate | TTSEvent::Done => {
+                                            imp.text_highlighter.borrow().clear();
+                                            break;
+                                        }
+                                        _ => (),
+                                    }
+                                }
+                            }
+                        ));
+
+                        glib::spawn_future_local(clone!(
                             #[weak]
                             button,
                             #[strong]
-                            kill_rx,
+                            tts,
                             async move {
-                                let sentences: Vec<_> =
-                                    text.split(['.']).filter(|s| !s.trim().is_empty()).collect();
-
-                                let mut should_continue = true;
-                                let mut current_offset = 0;
-                                for sentence in sentences {
-                                    if !should_continue {
-                                        imp.text_highlighter.borrow().clear();
-                                        break;
-                                    }
-                                    let end_offset = current_offset + sentence.len() as i32;
-
-                                    imp.text_highlighter
-                                        .borrow()
-                                        .highlight(current_offset, end_offset);
-
-                                    if let Ok(mut process) =
-                                        runtime().block_on(VoiceManager::play_text_using_piper(
-                                            &(sentence.to_owned() + "."),
-                                            &voice,
-                                        ))
-                                    {
-                                        let kill_rx = kill_rx.clone();
-                                        if let Ok(true) = runtime()
-                                            .spawn(async move {
-                                                let mut guard = kill_rx.lock().await;
-                                                tokio::select! {
-                                                    _ = process.wait() => false,
-                                                    _ = guard.recv() => {
-                                                        let _ = process.terminate_group().await;
-                                                        true
-                                                    }
-                                                }
-                                            })
-                                            .await
-                                        {
-                                            should_continue = false
-                                        }
-                                    }
-
-                                    current_offset = end_offset;
+                                if let Err(e) = tts.read_text_by_voice(&voice, &text).await {
+                                    let err_msg =
+                                        format!("Erro while reading text by given voice, {}", e);
+                                    dialogs::show_error_dialog(&err_msg, &button);
                                 }
 
                                 button.set_label("Play");
