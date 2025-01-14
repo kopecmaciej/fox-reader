@@ -36,20 +36,23 @@ impl Tts {
         }
     }
 
-    pub async fn read_text_by_voice(&self, voice: &str, text: &str) -> Result<(), Box<dyn Error>> {
-        let sentences = Self::split_text_to_sentences(text);
+    pub async fn read_block_by_voice(
+        &self,
+        voice: &str,
+        reading_block: Vec<String>,
+    ) -> Result<(), Box<dyn Error>> {
         let mut current_offset = 0;
-        for sentence in sentences {
+        for reading_block in reading_block {
             println!("{current_offset}");
             let offset_start = current_offset;
-            let offset_end = offset_start + sentence.len() as i32;
+            let offset_end = offset_start + reading_block.len() as i32;
 
-            let _ = self.sender.send(TTSEvent::Progress {
+            self.sender.send(TTSEvent::Progress {
                 offset_start,
                 offset_end,
-            });
+            })?;
 
-            let event = self.read_sentence(sentence, voice).await;
+            let event = self.read_block_of_text(&reading_block, voice).await;
             {
                 match event {
                     Ok(TTSEvent::Terminate) => break,
@@ -68,13 +71,13 @@ impl Tts {
         Ok(())
     }
 
-    pub async fn read_sentence(
+    pub async fn read_block_of_text(
         &self,
-        sentence: &str,
+        reading_block: &str,
         voice: &str,
     ) -> Result<TTSEvent, Box<dyn Error>> {
         let mut process =
-            runtime().block_on(VoiceManager::play_text_using_piper(sentence, voice))?;
+            runtime().block_on(VoiceManager::play_text_using_piper(reading_block, voice))?;
 
         let mut reciever = self.sender.subscribe();
         let in_progress = self.in_progress.clone();
@@ -107,9 +110,5 @@ impl Tts {
 
     pub fn is_running(&self) -> bool {
         self.in_progress.load(Ordering::Relaxed)
-    }
-
-    fn split_text_to_sentences(text: &str) -> Vec<&str> {
-        text.split(['.']).filter(|s| !s.trim().is_empty()).collect()
     }
 }

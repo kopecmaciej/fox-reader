@@ -120,11 +120,10 @@ impl TextReader {
                     return;
                 }
 
-                let buffer = imp.text_input.buffer();
-                let text = buffer
-                    .text(&buffer.start_iter(), &buffer.end_iter(), false)
-                    .to_string()
-                    .replace("\"", "'");
+                let reading_block = imp
+                    .text_highlighter
+                    .borrow()
+                    .split_text_into_reading_block();
 
                 if let Some(item) = imp.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
@@ -132,6 +131,8 @@ impl TextReader {
                         button.set_label("Stop");
 
                         glib::spawn_future_local(clone!(
+                            #[weak]
+                            button,
                             #[strong]
                             tts,
                             async move {
@@ -146,11 +147,15 @@ impl TextReader {
                                                 .borrow()
                                                 .highlight(offset_start, offset_end);
                                         }
+                                        TTSEvent::Error(e) => {
+                                            dialogs::show_error_dialog(&e, &button);
+                                            imp.text_highlighter.borrow().clear();
+                                            break;
+                                        }
                                         TTSEvent::Terminate | TTSEvent::Done => {
                                             imp.text_highlighter.borrow().clear();
                                             break;
                                         }
-                                        _ => (),
                                     }
                                 }
                             }
@@ -162,7 +167,8 @@ impl TextReader {
                             #[strong]
                             tts,
                             async move {
-                                if let Err(e) = tts.read_text_by_voice(&voice, &text).await {
+                                if let Err(e) = tts.read_block_by_voice(&voice, reading_block).await
+                                {
                                     let err_msg =
                                         format!("Erro while reading text by given voice, {}", e);
                                     dialogs::show_error_dialog(&err_msg, &button);
