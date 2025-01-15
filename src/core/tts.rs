@@ -1,3 +1,5 @@
+use crate::utils::text_highlighter::ReadBlock;
+
 use super::{runtime::runtime, voice_manager::VoiceManager};
 use std::{
     error::Error,
@@ -39,27 +41,21 @@ impl Tts {
     pub async fn read_block_by_voice(
         &self,
         voice: &str,
-        reading_block: Vec<String>,
+        reading_block: Vec<ReadBlock>,
     ) -> Result<(), Box<dyn Error>> {
-        let mut current_offset = 0;
         for reading_block in reading_block {
-            println!("{current_offset}");
-            let offset_start = current_offset;
-            let offset_end = offset_start + reading_block.len() as i32;
-
             self.sender.send(TTSEvent::Progress {
-                offset_start,
-                offset_end,
+                offset_start: reading_block.start_offset,
+                offset_end: reading_block.end_offset,
             })?;
 
-            let event = self.read_block_of_text(&reading_block, voice).await;
+            let event = self.read_block_of_text(&reading_block.block, voice).await;
             {
                 match event {
                     Ok(TTSEvent::Terminate) => break,
                     Ok(TTSEvent::Error(e)) => return Err(e.into()),
                     Err(e) => e,
                     _ => {
-                        current_offset = offset_end;
                         continue;
                     }
                 };

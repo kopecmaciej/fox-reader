@@ -70,7 +70,7 @@ impl TextReader {
         let imp = self.imp();
         self.read_text_by_selected_voice();
         imp.text_highlighter
-            .replace(TextHighlighter::new(imp.text_input.buffer()));
+            .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
     }
 
     pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
@@ -120,10 +120,10 @@ impl TextReader {
                     return;
                 }
 
-                let reading_block = imp
+                let readings_blocks = imp
                     .text_highlighter
                     .borrow()
-                    .split_text_into_reading_block();
+                    .convert_blocks_into_reading_block();
 
                 if let Some(item) = imp.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
@@ -142,7 +142,6 @@ impl TextReader {
                                             offset_start,
                                             offset_end,
                                         } => {
-                                            println!("{offset_start}, {offset_end}");
                                             imp.text_highlighter
                                                 .borrow()
                                                 .highlight(offset_start, offset_end);
@@ -167,7 +166,8 @@ impl TextReader {
                             #[strong]
                             tts,
                             async move {
-                                if let Err(e) = tts.read_block_by_voice(&voice, reading_block).await
+                                if let Err(e) =
+                                    tts.read_block_by_voice(&voice, readings_blocks).await
                                 {
                                     let err_msg =
                                         format!("Erro while reading text by given voice, {}", e);
