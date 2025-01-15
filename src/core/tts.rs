@@ -23,9 +23,15 @@ pub struct Tts {
 #[derive(Debug, Clone)]
 pub enum TTSEvent {
     Progress { offset_start: i32, offset_end: i32 },
-    Terminate,
+    Stop,
     Done,
     Error(String),
+}
+
+impl Default for Tts {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Tts {
@@ -52,7 +58,7 @@ impl Tts {
             let event = self.read_block_of_text(&reading_block.block, voice).await;
             {
                 match event {
-                    Ok(TTSEvent::Terminate) => break,
+                    Ok(TTSEvent::Stop) => break,
                     Ok(TTSEvent::Error(e)) => return Err(e.into()),
                     Err(e) => e,
                     _ => {
@@ -83,11 +89,11 @@ impl Tts {
                 tokio::select! {
                     _res = process.wait() => TTSEvent::Done,
                     event = reciever.recv() => {
-                        if let Ok(TTSEvent::Terminate) = event {
+                        if let Ok(TTSEvent::Stop) = event {
                             if let Err(e) = process.terminate_group().await {
                                 TTSEvent::Error(format!("{e}"))
                             } else {
-                                TTSEvent::Terminate
+                                TTSEvent::Stop
                             }
                         } else {
                             TTSEvent::Done
@@ -101,7 +107,7 @@ impl Tts {
     }
 
     pub async fn stop(&self) {
-        let _ = self.sender.send(TTSEvent::Terminate);
+        let _ = self.sender.send(TTSEvent::Stop);
     }
 
     pub fn is_running(&self) -> bool {

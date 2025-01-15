@@ -29,6 +29,13 @@ impl TextHighlighter {
         }
     }
 
+    pub fn is_buffer_empty(&self) -> bool {
+        let buffer = self.buffer.clone();
+        let (start, end) = buffer.bounds();
+        let text = buffer.text(&start, &end, false);
+        text.trim().is_empty()
+    }
+
     pub fn get_text(&self) -> String {
         let buffer = self.buffer.clone();
         buffer

@@ -21,12 +21,90 @@
             </child>
           </object>
         </child>
+        <!-- Playback controls -->
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">8</property>
+            <property name="halign">center</property>
+            <style>
+              <class name="linked" />
+            </style>
+
+            <child>
+              <object class="GtkButton" id="prev_button">
+                <property name="icon-name">media-skip-backward-symbolic</property>
+                <property name="tooltip-text">Previous</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="play_button">
+                <property name="icon-name">media-playback-start-symbolic</property>
+                <property name="tooltip-text">Play</property>
+                <property name="sensitive">true</property>
+                <property name="sensitive" bind-source="stop_button"
+                  bind-property="sensitive"
+                  bind-flags="invert-boolean" />
+                <style>
+                  <class name="suggested-action" />
+                </style>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="pause_button">
+                <property name="icon-name">media-playback-pause-symbolic</property>
+                <property name="tooltip-text">Pause</property>
+                <property name="sensitive">false</property>
+                <property name="sensitive" bind-source="play_button"
+                  bind-property="sensitive"
+                  bind-flags="invert-boolean" />
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="stop_button">
+                <property name="icon-name">media-playback-stop-symbolic</property>
+                <property name="tooltip-text">Stop</property>
+                <property name="sensitive">false</property>
+                <property name="sensitive" bind-source="play_button"
+                  bind-property="sensitive"
+                  bind-flags="invert-boolean" />
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="next_button">
+                <property name="icon-name">media-skip-forward-symbolic</property>
+                <property name="tooltip-text">Next</property>
+              </object>
+            </child>
+
+            <!-- volume control -->
+            <child>
+              <object class="GtkScale" id="volume_scale">
+                <property name="width-request">100</property>
+                <property name="adjustment">
+                  <object class="GtkAdjustment">
+                    <property name="lower">0</property>
+                    <property name="upper">100</property>
+                    <property name="value">100</property>
+                    <property name="step-increment">1</property>
+                    <property name="page-increment">10</property>
+                  </object>
+                </property>
+              </object>
+            </child>
+
+          </object>
+        </child>
 
         <child>
           <object class="GtkBox">
             <property name="spacing">8</property>
             <property name="halign">0</property>
 
+            <!-- voice selector -->
             <child>
               <object class="GtkDropDown" id="voice_selector">
                 <property name="enable-search">true</property>
@@ -37,14 +115,6 @@
               </object>
             </child>
 
-            <child>
-              <object class="GtkButton" id="play_button">
-                <property name="label">Play</property>
-                <style>
-                  <class name="suggested-action" />
-                </style>
-              </object>
-            </child>
           </object>
         </child>
       </object>
