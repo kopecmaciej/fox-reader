@@ -129,6 +129,7 @@ impl VoiceManager {
         text: &str,
         voice: &str,
     ) -> Result<ProcessHandle, Box<dyn Error>> {
+        let cleaned_text = text.replace("\"", "'");
         let script_path = dispatcher_config::get_script_path();
         let voice_path = huggingface_config::get_download_path();
         let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
@@ -136,7 +137,7 @@ impl VoiceManager {
         let child = Command::new("bash")
             .arg(script_path)
             .env("RATE", "1")
-            .env("DATA", text)
+            .env("DATA", cleaned_text)
             .env("PIPER_PATH", piper_path)
             .env("VOICE_PATH", voice_path)
             .env("VOICE", voice)

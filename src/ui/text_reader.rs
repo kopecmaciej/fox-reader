@@ -120,10 +120,13 @@ impl TextReader {
                     return;
                 }
 
+                let cleaned = imp.text_highlighter.borrow().clean_text();
+                imp.text_input.buffer().set_text(&cleaned);
+
                 let readings_blocks = imp
                     .text_highlighter
                     .borrow()
-                    .convert_blocks_into_reading_block();
+                    .convert_text_blocks_into_reading_block();
 
                 if let Some(item) = imp.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
