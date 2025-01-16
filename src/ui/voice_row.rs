@@ -162,7 +162,7 @@ impl VoiceRow {
                                 match VoiceManager::download_voice_samples(file_paths).await {
                                     Ok(audio_data) => {
                                         if let Err(e) =
-                                            VoiceManager::play_audio_data(audio_data, sink_clone)
+                                            VoiceManager::play_mp3_raw_audio(audio_data, sink_clone)
                                         {
                                             eprintln!(
                                                 "Failed to play voice sample. \nDetails: {}",

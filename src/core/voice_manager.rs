@@ -1,11 +1,11 @@
 use crate::config::{dispatcher_config, huggingface_config, PIPER_PATH};
 use crate::core::file_handler::FileHandler;
-use crate::utils::process::ProcessHandle;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
+use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use tokio::process::Command;
 
@@ -125,29 +125,66 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub async fn play_text_using_piper(
+    pub async fn generate_piper_raw_speech(
         text: &str,
         voice: &str,
-    ) -> Result<ProcessHandle, Box<dyn Error>> {
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
         let cleaned_text = text.replace("\"", "'");
-        let script_path = dispatcher_config::get_script_path();
-        let voice_path = huggingface_config::get_download_path();
+        let voice_path = format!("{}/{}", huggingface_config::get_download_path(), voice);
         let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
 
-        let child = Command::new("bash")
-            .arg(script_path)
-            .env("RATE", "1")
-            .env("DATA", cleaned_text)
-            .env("PIPER_PATH", piper_path)
-            .env("VOICE_PATH", voice_path)
-            .env("VOICE", voice)
-            .process_group(0)
+        let mut child = Command::new(piper_path)
+            .arg("--model")
+            .arg(voice_path)
+            .arg("--output_raw")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()?;
 
-        Ok(ProcessHandle::new(child))
+        if let Some(mut stdin) = child.stdin.take() {
+            tokio::io::AsyncWriteExt::write_all(&mut stdin, cleaned_text.as_bytes()).await?;
+        }
+
+        let output = child.wait_with_output().await?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("Piper TTS generation failed: {}", stderr).into());
+        }
+
+        Ok(output.stdout)
     }
 
-    pub fn play_audio_data(
+    pub fn play_mkv_raw_audio(
+        audio_data: Vec<u8>,
+        sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,
+    ) -> Result<(), String> {
+        let (_stream, stream_handle) = OutputStream::try_default()
+            .map_err(|e| format!("Failed to setup audio output: {}", e))?;
+
+        let sink = Sink::try_new(&stream_handle)
+            .map_err(|e| format!("Failed to create audio sink: {}", e))?;
+
+        let sink = Arc::new(sink);
+        *sink_ref.lock().unwrap() = Some(Arc::clone(&sink));
+
+        let source = rodio::buffer::SamplesBuffer::new(1, 22050, {
+            let mut samples = Vec::with_capacity(audio_data.len() / 2);
+            for chunks in audio_data.chunks_exact(2) {
+                let sample = i16::from_le_bytes([chunks[0], chunks[1]]) as f32 / 32768.0;
+                samples.push(sample);
+            }
+            samples
+        });
+
+        sink.append(source);
+        sink.sleep_until_end();
+
+        Ok(())
+    }
+
+    pub fn play_mp3_raw_audio(
         audio_data: Vec<u8>,
         sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,
     ) -> Result<(), String> {

@@ -1,8 +1,10 @@
 use crate::utils::text_highlighter::ReadBlock;
 
 use super::{runtime::runtime, voice_manager::VoiceManager};
+use rodio::Sink;
 use std::{
     error::Error,
+    fmt,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -12,12 +14,12 @@ use tokio::sync::{
     broadcast::{self, Receiver, Sender},
     Mutex,
 };
-
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
     pub receiver: Arc<Mutex<Receiver<TTSEvent>>>,
     pub in_progress: Arc<AtomicBool>,
+    pub sink: Arc<std::sync::Mutex<Option<Arc<Sink>>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -26,6 +28,17 @@ pub enum TTSEvent {
     Stop,
     Done,
     Error(String),
+}
+
+impl fmt::Debug for Tts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tts")
+            .field("sender", &self.sender)
+            .field("receiver", &self.receiver)
+            .field("in_progress", &self.in_progress)
+            .field("sink", &"<sink>")
+            .finish()
+    }
 }
 
 impl Default for Tts {
@@ -41,6 +54,7 @@ impl Tts {
             sender: Arc::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
             in_progress: Arc::new(AtomicBool::new(false)),
+            sink: Arc::new(std::sync::Mutex::new(None::<Arc<Sink>>)),
         }
     }
 
@@ -55,8 +69,11 @@ impl Tts {
                 offset_end: reading_block.end_offset,
             })?;
 
-            let event = self.read_block_of_text(&reading_block.block, voice).await;
+            let event = self
+                .read_block_of_text(reading_block.block, voice.to_string())
+                .await;
             {
+                println!("{:?}", event);
                 match event {
                     Ok(TTSEvent::Stop) => break,
                     Ok(TTSEvent::Error(e)) => return Err(e.into()),
@@ -75,30 +92,39 @@ impl Tts {
 
     pub async fn read_block_of_text(
         &self,
-        reading_block: &str,
-        voice: &str,
+        reading_block: String,
+        voice: String,
     ) -> Result<TTSEvent, Box<dyn Error>> {
-        let mut process =
-            runtime().block_on(VoiceManager::play_text_using_piper(reading_block, voice))?;
-
-        let mut reciever = self.sender.subscribe();
         let in_progress = self.in_progress.clone();
+        let sink = self.sink.clone();
+        let mut receiver = self.sender.subscribe();
+
+        let raw_audio = runtime().block_on(VoiceManager::generate_piper_raw_speech(
+            &reading_block,
+            &voice,
+        ))?;
+
         let result = runtime()
             .spawn(async move {
                 in_progress.store(true, Ordering::Relaxed);
+
+                let play_handle =
+                    tokio::spawn(async move { VoiceManager::play_mkv_raw_audio(raw_audio, sink) });
+
                 tokio::select! {
-                    _res = process.wait() => TTSEvent::Done,
-                    event = reciever.recv() => {
-                        if let Ok(TTSEvent::Stop) = event {
-                            if let Err(e) = process.terminate_group().await {
-                                TTSEvent::Error(format!("{e}"))
-                            } else {
-                                TTSEvent::Stop
-                            }
-                        } else {
-                            TTSEvent::Done
+                    play_result = play_handle => {
+                        match play_result {
+                            Ok(Ok(_)) => TTSEvent::Done,
+                            Ok(Err(e)) => TTSEvent::Error(e),
+                            Err(e) => TTSEvent::Error(e.to_string()),
                         }
-                    },
+                    }
+                    Ok(event) = receiver.recv() => {
+                        match event {
+                            TTSEvent::Stop => TTSEvent::Stop,
+                            _ => TTSEvent::Done,
+                        }
+                    }
                 }
             })
             .await?;
@@ -107,7 +133,10 @@ impl Tts {
     }
 
     pub async fn stop(&self) {
-        let _ = self.sender.send(TTSEvent::Stop);
+        if let Some(sink) = self.sink.lock().unwrap().as_ref() {
+            let _ = self.sender.send(TTSEvent::Stop);
+            sink.stop();
+        }
     }
 
     pub fn is_running(&self) -> bool {

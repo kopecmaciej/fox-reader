@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use gtk::prelude::*;
 
 const HIGHLIGHTED_TAG: &str = "highlighted";
@@ -124,12 +126,13 @@ impl TextHighlighter {
         all_blocks
     }
 
-    pub fn split_text_into_sentences(&self, text: String) -> Vec<String> {
+    pub fn split_text_into_sentences<T: Borrow<str>>(&self, text: T) -> Vec<String> {
         let re = regex::Regex::new(r"([.!?])(\s+[A-Z])").unwrap();
         let mut raw_blocks = Vec::new();
         let mut start = 0;
+        let text = text.borrow();
 
-        for matches in re.find_iter(&text) {
+        for matches in re.find_iter(text) {
             let end = matches.start() + 1;
             let block = &text[start..end];
             if !block.is_empty() {
@@ -223,7 +226,7 @@ mod tests {
         let text = "First sentence. Second sentence! Third sentence? Fourth sentence.";
         let highlighter = create_test_highlighter("");
 
-        let sentences = highlighter.split_text_into_sentences(text.to_string());
+        let sentences = highlighter.split_text_into_sentences(text);
         assert!(!sentences.is_empty());
         assert!(sentences.len() == 1);
     }
@@ -233,7 +236,7 @@ mod tests {
         let text = "First sentence. Second sentence! Third sentence? Fourth sentence.";
         let mut highlighter = create_test_highlighter("");
         highlighter.min_block_len = 7;
-        let sentences = highlighter.split_text_into_sentences(text.to_string());
+        let sentences = highlighter.split_text_into_sentences(text);
 
         assert_eq!(sentences.len(), 4);
         assert!(sentences[0].contains("First sentence"));
@@ -247,10 +250,10 @@ mod tests {
         let highlighter = create_test_highlighter("");
 
         assert!(highlighter
-            .split_text_into_sentences("".to_string())
+            .split_text_into_sentences("")
             .is_empty());
 
-        let single = highlighter.split_text_into_sentences("Just one sentence.".to_string());
+        let single = highlighter.split_text_into_sentences("Just one sentence.");
         assert_eq!(single.len(), 1);
 
         let text = "Hello!! What?! Really...".to_string();
