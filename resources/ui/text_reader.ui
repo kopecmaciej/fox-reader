@@ -42,9 +42,6 @@
                 <property name="icon-name">media-playback-start-symbolic</property>
                 <property name="tooltip-text">Play</property>
                 <property name="sensitive">true</property>
-                <property name="sensitive" bind-source="stop_button"
-                  bind-property="sensitive"
-                  bind-flags="invert-boolean" />
                 <style>
                   <class name="suggested-action" />
                 </style>
@@ -56,9 +53,6 @@
                 <property name="icon-name">media-playback-pause-symbolic</property>
                 <property name="tooltip-text">Pause</property>
                 <property name="sensitive">false</property>
-                <property name="sensitive" bind-source="play_button"
-                  bind-property="sensitive"
-                  bind-flags="invert-boolean" />
               </object>
             </child>
 
@@ -67,9 +61,6 @@
                 <property name="icon-name">media-playback-stop-symbolic</property>
                 <property name="tooltip-text">Stop</property>
                 <property name="sensitive">false</property>
-                <property name="sensitive" bind-source="play_button"
-                  bind-property="sensitive"
-                  bind-flags="invert-boolean" />
               </object>
             </child>
 

@@ -139,6 +139,22 @@ impl Tts {
         }
     }
 
+    pub async fn pause(&self) {
+        if let Some(sink) = self.sink.lock().unwrap().as_ref() {
+            sink.pause();
+        }
+    }
+
+    pub fn resume(&self) -> bool {
+        if let Some(sink) = self.sink.lock().unwrap().as_ref() {
+            if sink.is_paused() {
+                sink.play();
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn is_running(&self) -> bool {
         self.in_progress.load(Ordering::Relaxed)
     }
