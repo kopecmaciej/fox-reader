@@ -83,6 +83,8 @@ impl TextReader {
         self.init_audio_control_buttons();
         imp.text_highlighter
             .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
+
+        self.imp().text_input.add_css_class("text-input");
     }
 
     pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
@@ -99,7 +101,7 @@ impl TextReader {
         let font_size = font_desc.size() / gtk::pango::SCALE;
 
         let css = format!(
-            "textview#custom-text-view {{ font-family: {}; font-size: {}pt; }}",
+            "textview.text-input {{ font-family: {}; font-size: {}pt; }}",
             font_family, font_size
         );
 

@@ -15,7 +15,6 @@
                 <property name="wrap-mode">word</property>
                 <property name="height-request">120</property>
                 <property name="hexpand">true</property>
-                <property name="css-name">custom-text-view</property>
                 <style>
                   <class name="card" />
                 </style>
