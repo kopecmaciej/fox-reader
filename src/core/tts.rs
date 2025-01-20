@@ -157,15 +157,19 @@ impl Tts {
         self.idx.store(0, Ordering::Relaxed);
     }
 
-    pub fn pause(&self) {
-        if let Some(sink) = self.sink.lock().unwrap().as_ref() {
-            if !sink.is_paused() {
-                sink.pause();
+    pub fn pause_if_playing(&self) -> bool {
+        if self.is_running() {
+            if let Some(sink) = self.sink.lock().unwrap().as_ref() {
+                if !sink.is_paused() {
+                    sink.pause();
+                    return true;
+                }
             }
         }
+        false
     }
 
-    pub fn resume(&self) -> bool {
+    pub fn resume_if_paused(&self) -> bool {
         if let Some(sink) = self.sink.lock().unwrap().as_ref() {
             if sink.is_paused() {
                 sink.play();

@@ -26,15 +26,34 @@
         <child>
           <object class="GtkBox">
             <property name="spacing">8</property>
-            <property name="halign">center</property>
+            <property name="halign">fill</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <property name="hexpand">true</property>
             <style>
+              <class name="playback-controls" />
               <class name="linked" />
             </style>
+
+            <child>
+              <object class="GtkDropDown" id="voice_selector">
+                <property name="enable-search">true</property>
+                <property name="hexpand">true</property>
+                <property name="width-request">400</property>
+                <property name="model">
+                  <object class="GtkStringList" />
+                </property>
+              </object>
+            </child>
 
             <child>
               <object class="GtkButton" id="prev_button">
                 <property name="icon-name">media-skip-backward-symbolic</property>
                 <property name="tooltip-text">Previous</property>
+                <style>
+                  <class name="circular" />
+                  <class name="flat" />
+                </style>
               </object>
             </child>
 
@@ -44,16 +63,10 @@
                 <property name="tooltip-text">Play</property>
                 <property name="sensitive">true</property>
                 <style>
+                  <class name="circular" />
                   <class name="suggested-action" />
+                  <class name="large" />
                 </style>
-              </object>
-            </child>
-
-            <child>
-              <object class="GtkButton" id="pause_button">
-                <property name="icon-name">media-playback-pause-symbolic</property>
-                <property name="tooltip-text">Pause</property>
-                <property name="sensitive">false</property>
               </object>
             </child>
 
@@ -62,6 +75,10 @@
                 <property name="icon-name">media-playback-stop-symbolic</property>
                 <property name="tooltip-text">Stop</property>
                 <property name="sensitive">false</property>
+                <style>
+                  <class name="circular" />
+                  <class name="flat" />
+                </style>
               </object>
             </child>
 
@@ -69,48 +86,37 @@
               <object class="GtkButton" id="next_button">
                 <property name="icon-name">media-skip-forward-symbolic</property>
                 <property name="tooltip-text">Next</property>
+                <style>
+                  <class name="circular" />
+                  <class name="flat" />
+                </style>
               </object>
             </child>
 
-            <!-- volume control -->
+
+            <!-- Enhanced volume slider -->
             <child>
               <object class="GtkScale" id="volume_scale">
                 <property name="width-request">100</property>
+                <property name="draw-value">false</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">
                     <property name="lower">0</property>
                     <property name="upper">100</property>
                     <property name="value">100</property>
                     <property name="step-increment">1</property>
-                    <property name="page-increment">10</property>
+                    <property name="page-increment">5</property>
                   </object>
                 </property>
+                <style>
+                  <class name="volume-slider" />
+                </style>
               </object>
             </child>
-
           </object>
         </child>
 
-        <child>
-          <object class="GtkBox">
-            <property name="spacing">8</property>
-            <property name="halign">0</property>
-
-            <!-- voice selector -->
-            <child>
-              <object class="GtkDropDown" id="voice_selector">
-                <property name="enable-search">true</property>
-                <property name="hexpand">true</property>
-                <property name="model">
-                  <object class="GtkStringList" />
-                </property>
-              </object>
-            </child>
-
-          </object>
-        </child>
       </object>
-
 
     </property>
   </template>

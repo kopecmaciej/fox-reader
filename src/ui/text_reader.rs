@@ -35,8 +35,6 @@ mod imp {
         #[template_child]
         pub stop_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub pause_button: TemplateChild<gtk::Button>,
-        #[template_child]
         pub next_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub prev_button: TemplateChild<gtk::Button>,
@@ -175,22 +173,6 @@ impl TextReader {
             }
         ));
 
-        self.imp().pause_button.connect_clicked(clone!(
-            #[weak]
-            imp,
-            #[weak]
-            tts,
-            move |button| {
-                if tts.is_running() {
-                    runtime().block_on(async {
-                        tts.pause();
-                    });
-                    button.set_sensitive(false);
-                    imp.play_button.set_sensitive(true);
-                }
-            }
-        ));
-
         self.imp().stop_button.connect_clicked(clone!(
             #[weak]
             imp,
@@ -219,10 +201,15 @@ impl TextReader {
                 if imp.text_highlighter.borrow().is_buffer_empty() {
                     return;
                 }
-                imp.pause_button.set_sensitive(true);
-                if tts.resume() {
+                if tts.pause_if_playing() {
+                    button.set_icon_name("media-playback-start-symbolic");
                     return;
                 }
+                if tts.resume_if_paused() {
+                    button.set_icon_name("media-playback-pause-symbolic");
+                    return;
+                }
+                button.set_icon_name("media-playback-pause-symbolic");
                 imp.stop_button.set_sensitive(true);
                 let cleaned = imp.text_highlighter.borrow().clean_text();
                 imp.text_input.buffer().set_text(&cleaned);
@@ -237,7 +224,6 @@ impl TextReader {
                 if let Some(item) = imp.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
                         let voice = voice_row.key();
-                        button.set_sensitive(false);
 
                         glib::spawn_future_local(clone!(
                             #[weak]
@@ -288,7 +274,7 @@ impl TextReader {
                                     dialogs::show_error_dialog(&err_msg, &button);
                                 }
 
-                                button.set_sensitive(true);
+                                button.set_icon_name("media-playback-start-symbolic");
                             }
                         ));
                     }

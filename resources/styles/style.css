@@ -39,7 +39,6 @@ download-button:disabled {
 
 default-button {
   color: rgb(70, 130, 180);
-  /* Steel Blue */
   border: 1px solid rgba(70, 130, 180, 0.6);
   border-radius: 6px;
   padding: 8px;
@@ -58,7 +57,6 @@ default-button:disabled {
 
 delete-button {
   color: rgb(220, 20, 60);
-  /* Crimson Red */
   border: 1px solid rgba(220, 20, 60, 0.6);
   border-radius: 6px;
   padding: 8px;
@@ -73,4 +71,68 @@ delete-button:hover {
 delete-button:disabled {
   color: rgba(220, 20, 60, 0.3);
   border-color: rgba(220, 20, 60, 0.2);
+}
+
+dropdown.voice-selector {
+  margin: 6px;
+}
+
+dropdown.voice-selector button {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.playback-controls {
+  padding: 8px;
+  border-radius: 12px;
+  background: alpha(currentColor, 0.05);
+  border: black;
+}
+
+.playback-controls button.circular {
+  border-radius: 99px;
+  padding: 8px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.playback-controls button.large {
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.playback-controls button.flat:hover {
+  background-color: alpha(currentColor, 0.1);
+}
+
+.volume-control {
+  padding: 4px;
+  border-radius: 99px;
+}
+
+.volume-control button {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px;
+}
+
+.volume-slider {
+  margin: 0 6px;
+}
+
+.volume-slider trough {
+  min-height: 4px;
+  border-radius: 2px;
+}
+
+.volume-slider highlight {
+  border-radius: 2px;
+}
+
+.volume-slider slider {
+  min-width: 14px;
+  min-height: 14px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: -6px;
 }
