@@ -20,15 +20,22 @@ pub struct TextHighlighter {
 
 impl TextHighlighter {
     pub fn new(buffer: gtk::TextBuffer, min_block_len: i32) -> Self {
+        let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
         let highlight_tag = buffer
-            .create_tag(Some(HIGHLIGHTED_TAG), &[("background", &"yellow")])
+            .create_tag(Some(HIGHLIGHTED_TAG), &[])
             .expect("Failed to create tag");
+
+        highlight_tag.set_background_rgba(Some(&initial_rgba));
 
         Self {
             buffer,
             highlight_tag,
             min_block_len,
         }
+    }
+
+    pub fn set_highlight_color(&mut self, rgba: gtk::gdk::RGBA) {
+        self.highlight_tag.set_background_rgba(Some(&rgba));
     }
 
     pub fn is_buffer_empty(&self) -> bool {
@@ -249,9 +256,7 @@ mod tests {
     fn test_split_text_into_sentences_edge_cases() {
         let highlighter = create_test_highlighter("");
 
-        assert!(highlighter
-            .split_text_into_sentences("")
-            .is_empty());
+        assert!(highlighter.split_text_into_sentences("").is_empty());
 
         let single = highlighter.split_text_into_sentences("Just one sentence.");
         assert_eq!(single.len(), 1);

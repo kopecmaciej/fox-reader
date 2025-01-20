@@ -10,6 +10,8 @@ use gtk::{
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::ui::dialogs;
 
+use super::settings::Settings;
+
 mod imp {
     use crate::ui::{text_reader::TextReader, voice_list::VoiceList};
 
@@ -21,6 +23,8 @@ mod imp {
     pub struct FoxReaderAppWindow {
         #[template_child]
         pub theme_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub settings_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub text_reader: TemplateChild<TextReader>,
         #[template_child]
@@ -105,6 +109,16 @@ impl FoxReaderAppWindow {
     }
 
     fn setup_actions(&self) {
+        self.imp().settings_button.connect_clicked(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |_| {
+                let settings = Settings::new();
+                settings.setup_signals(&this.imp().text_reader);
+                settings.present(Some(&this));
+            }
+        ));
+
         self.imp().theme_button.connect_clicked(|_| {
             let style_manager = adw::StyleManager::default();
             let is_dark = style_manager.is_dark();

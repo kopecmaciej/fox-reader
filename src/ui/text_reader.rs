@@ -93,6 +93,32 @@ impl TextReader {
         self.imp().volume_scale.value() / 100.0
     }
 
+    pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
+        let css_provider = gtk::CssProvider::new();
+        let font_family = font_desc.family().unwrap_or("Sans".to_string().into());
+        let font_size = font_desc.size() / gtk::pango::SCALE;
+
+        let css = format!(
+            "textview#custom-text-view {{ font-family: {}; font-size: {}pt; }}",
+            font_family, font_size
+        );
+
+        css_provider.load_from_string(&css);
+
+        gtk::style_context_add_provider_for_display(
+            &gtk::gdk::Display::default().expect("Could not get default display"),
+            &css_provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
+
+    pub fn set_highlight_color(&self, rgba: gtk::gdk::RGBA) {
+        self.imp()
+            .text_highlighter
+            .borrow_mut()
+            .set_highlight_color(rgba);
+    }
+
     pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
         let model = gio::ListStore::new::<VoiceRow>();
         model.extend_from_slice(&downloaded_rows);

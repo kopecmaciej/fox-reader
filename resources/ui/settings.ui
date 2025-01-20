@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template parent="AdwPreferencesDialog" class="Settings">
+    <property name="title">Settings</property>
+    <property name="width-request">500</property>
+    <property name="height-request">400</property>
+
+    <child>
+      <object class="AdwPreferencesPage">
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Text Reader</property>
+
+            <!-- Font settings -->
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Font</property>
+                <child>
+                  <object class="GtkFontDialogButton" id="font_button">
+                    <property name="valign">center</property>
+                    <property name="dialog">
+                      <object class="GtkFontDialog">
+                        <property name="title">Select Font</property>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <!-- Highlight color -->
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Highlight Color</property>
+                <child>
+                  <object class="GtkColorDialogButton" id="highlight_color_button">
+                    <property name="valign">center</property>
+                    <property name="dialog">
+                      <object class="GtkColorDialog">
+                        <property name="title">Select Highlight Color</property>
+                        <property name="with-alpha">true</property>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

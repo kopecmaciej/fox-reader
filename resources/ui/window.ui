@@ -18,6 +18,12 @@
               </object>
             </property>
             <child type="end">
+              <object class="GtkButton" id="settings_button">
+                <property name="icon-name">emblem-system-symbolic</property>
+                <property name="tooltip-text">Settings</property>
+              </object>
+            </child>
+            <child type="end">
               <object class="GtkButton" id="theme_button">
                 <property name="icon-name">weather-clear-night-symbolic</property>
                 <property name="tooltip-text">Toggle dark mode</property>
@@ -133,4 +139,5 @@
       </object>
     </child>
   </template>
+
 </interface>

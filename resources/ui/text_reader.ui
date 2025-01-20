@@ -9,11 +9,13 @@
         <child>
           <object class="AdwPreferencesGroup">
             <property name="title">Text to Speech Reader</property>
+
             <child>
               <object class="GtkTextView" id="text_input">
                 <property name="wrap-mode">word</property>
                 <property name="height-request">120</property>
                 <property name="hexpand">true</property>
+                <property name="css-name">custom-text-view</property>
                 <style>
                   <class name="card" />
                 </style>
