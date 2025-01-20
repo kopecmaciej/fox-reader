@@ -81,16 +81,14 @@ impl TextReader {
         self.init_audio_control_buttons();
         imp.text_highlighter
             .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
-
-        self.imp().text_input.add_css_class("text-input");
     }
 
     pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
         &self.imp().voice_selector
     }
 
-    pub fn get_volume(&self) -> f64 {
-        self.imp().volume_scale.value() / 100.0
+    pub fn get_volume(&self) -> f32 {
+        (self.imp().volume_scale.value() / 100.0) as f32
     }
 
     pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
@@ -210,6 +208,7 @@ impl TextReader {
                     return;
                 }
                 button.set_icon_name("media-playback-pause-symbolic");
+                let volume = (imp.volume_scale.value() / 100.0) as f32;
                 imp.stop_button.set_sensitive(true);
                 let cleaned = imp.text_highlighter.borrow().clean_text();
                 imp.text_input.buffer().set_text(&cleaned);
@@ -266,8 +265,9 @@ impl TextReader {
                             #[weak]
                             tts,
                             async move {
-                                if let Err(e) =
-                                    tts.read_block_by_voice(&voice, readings_blocks).await
+                                if let Err(e) = tts
+                                    .read_block_by_voice(&voice, volume, readings_blocks)
+                                    .await
                                 {
                                     let err_msg =
                                         format!("Erro while reading text by given voice, {}", e);

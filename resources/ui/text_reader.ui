@@ -17,6 +17,7 @@
                 <property name="hexpand">true</property>
                 <style>
                   <class name="card" />
+                  <class name="text-input" />
                 </style>
               </object>
             </child>
@@ -38,8 +39,7 @@
             <child>
               <object class="GtkDropDown" id="voice_selector">
                 <property name="enable-search">true</property>
-                <property name="hexpand">true</property>
-                <property name="width-request">400</property>
+                <property name="width-request">380</property>
                 <property name="model">
                   <object class="GtkStringList" />
                 </property>
@@ -97,7 +97,7 @@
             <!-- Enhanced volume slider -->
             <child>
               <object class="GtkScale" id="volume_scale">
-                <property name="width-request">100</property>
+                <property name="hexpand">true</property>
                 <property name="draw-value">false</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">

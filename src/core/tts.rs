@@ -63,6 +63,7 @@ impl Tts {
     pub async fn read_block_by_voice(
         &self,
         voice: &str,
+        volume: f32,
         reading_blocks: Vec<ReadBlock>,
     ) -> Result<(), Box<dyn Error>> {
         while self.idx.load(Ordering::Relaxed) < reading_blocks.len() {
@@ -74,7 +75,7 @@ impl Tts {
             })?;
 
             let event = self
-                .read_block_of_text(reading_block.block.clone(), voice.to_string())
+                .read_block_of_text(reading_block.block.clone(), volume, voice.to_string())
                 .await;
             {
                 match event {
@@ -109,6 +110,7 @@ impl Tts {
     pub async fn read_block_of_text(
         &self,
         reading_block: String,
+        volume: f32,
         voice: String,
     ) -> Result<TTSEvent, Box<dyn Error>> {
         let sink = self.sink.clone();
@@ -121,8 +123,9 @@ impl Tts {
 
         let result = runtime()
             .spawn(async move {
-                let play_handle =
-                    tokio::spawn(async move { VoiceManager::play_mkv_raw_audio(raw_audio, sink) });
+                let play_handle = tokio::spawn(async move {
+                    VoiceManager::play_mkv_raw_audio(raw_audio, volume, sink)
+                });
 
                 tokio::select! {
                     play_result = play_handle => {
