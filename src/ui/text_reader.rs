@@ -37,6 +37,10 @@ mod imp {
         #[template_child]
         pub pause_button: TemplateChild<gtk::Button>,
         #[template_child]
+        pub next_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub prev_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub volume_scale: TemplateChild<gtk::Scale>,
         pub text_highlighter: RefCell<TextHighlighter>,
         pub tts: Arc<Tts>,
@@ -119,6 +123,30 @@ impl TextReader {
         let imp = self.imp();
         let tts = imp.tts.clone();
 
+        self.imp().next_button.connect_clicked(clone!(
+            #[weak]
+            tts,
+            move |_| {
+                if tts.is_running() {
+                    runtime().block_on(async {
+                        tts.next().await;
+                    });
+                }
+            }
+        ));
+
+        self.imp().prev_button.connect_clicked(clone!(
+            #[weak]
+            tts,
+            move |_| {
+                if tts.is_running() {
+                    runtime().block_on(async {
+                        tts.prev().await;
+                    });
+                }
+            }
+        ));
+
         self.imp().pause_button.connect_clicked(clone!(
             #[weak]
             imp,
@@ -127,11 +155,10 @@ impl TextReader {
             move |button| {
                 if tts.is_running() {
                     runtime().block_on(async {
-                        tts.pause().await;
+                        tts.pause();
                     });
                     button.set_sensitive(false);
                     imp.play_button.set_sensitive(true);
-                    return;
                 }
             }
         ));
@@ -144,7 +171,7 @@ impl TextReader {
             move |button| {
                 if tts.is_running() {
                     runtime().block_on(async {
-                        tts.stop().await;
+                        tts.stop(true).await;
                     });
                     imp.text_highlighter.borrow().clear();
                     button.set_sensitive(false);
@@ -205,6 +232,9 @@ impl TextReader {
                                             imp.text_highlighter.borrow().clear();
                                             imp.text_input.set_editable(true);
                                             break;
+                                        }
+                                        TTSEvent::Next | TTSEvent::Prev => {
+                                            imp.text_highlighter.borrow().clear();
                                         }
                                         TTSEvent::Stop | TTSEvent::Done => {
                                             imp.text_highlighter.borrow().clear();

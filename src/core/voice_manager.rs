@@ -167,6 +167,7 @@ impl VoiceManager {
             .map_err(|e| format!("Failed to create audio sink: {}", e))?;
 
         let sink = Arc::new(sink);
+
         *sink_ref.lock().unwrap() = Some(Arc::clone(&sink));
 
         let source = rodio::buffer::SamplesBuffer::new(1, 22050, {

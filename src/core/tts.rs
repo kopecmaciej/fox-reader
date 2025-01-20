@@ -6,7 +6,7 @@ use std::{
     error::Error,
     fmt,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -14,18 +14,21 @@ use tokio::sync::{
     broadcast::{self, Receiver, Sender},
     Mutex,
 };
+
 #[derive(Clone)]
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
     pub receiver: Arc<Mutex<Receiver<TTSEvent>>>,
-    pub in_progress: Arc<AtomicBool>,
     pub sink: Arc<std::sync::Mutex<Option<Arc<Sink>>>>,
+    pub idx: Arc<AtomicUsize>,
 }
 
 #[derive(Debug, Clone)]
 pub enum TTSEvent {
     Progress { offset_start: i32, offset_end: i32 },
     Stop,
+    Next,
+    Prev,
     Done,
     Error(String),
 }
@@ -35,7 +38,6 @@ impl fmt::Debug for Tts {
         f.debug_struct("Tts")
             .field("sender", &self.sender)
             .field("receiver", &self.receiver)
-            .field("in_progress", &self.in_progress)
             .field("sink", &"<sink>")
             .finish()
     }
@@ -53,39 +55,53 @@ impl Tts {
         Self {
             sender: Arc::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
-            in_progress: Arc::new(AtomicBool::new(false)),
             sink: Arc::new(std::sync::Mutex::new(None::<Arc<Sink>>)),
+            idx: Arc::new(AtomicUsize::new(0)),
         }
     }
 
     pub async fn read_block_by_voice(
         &self,
         voice: &str,
-        reading_block: Vec<ReadBlock>,
+        reading_blocks: Vec<ReadBlock>,
     ) -> Result<(), Box<dyn Error>> {
-        for reading_block in reading_block {
+        while self.idx.load(Ordering::Relaxed) < reading_blocks.len() {
+            let current_idx = self.idx.load(Ordering::Relaxed);
+            let reading_block = &reading_blocks[current_idx];
             self.sender.send(TTSEvent::Progress {
                 offset_start: reading_block.start_offset,
                 offset_end: reading_block.end_offset,
             })?;
 
             let event = self
-                .read_block_of_text(reading_block.block, voice.to_string())
+                .read_block_of_text(reading_block.block.clone(), voice.to_string())
                 .await;
             {
-                println!("{:?}", event);
                 match event {
                     Ok(TTSEvent::Stop) => break,
+                    Ok(TTSEvent::Next) => {
+                        if current_idx + 1 < reading_blocks.len() {
+                            self.idx.store(current_idx + 1, Ordering::Relaxed);
+                        }
+                        continue;
+                    }
+                    Ok(TTSEvent::Prev) => {
+                        if current_idx > 0 {
+                            self.idx.store(current_idx - 1, Ordering::Relaxed);
+                        }
+                        continue;
+                    }
                     Ok(TTSEvent::Error(e)) => return Err(e.into()),
                     Err(e) => e,
                     _ => {
+                        self.idx.fetch_add(1, Ordering::Relaxed);
                         continue;
                     }
                 };
             }
         }
 
-        self.in_progress.store(false, Ordering::Relaxed);
+        self.idx.store(0, Ordering::Relaxed);
 
         Ok(())
     }
@@ -95,7 +111,6 @@ impl Tts {
         reading_block: String,
         voice: String,
     ) -> Result<TTSEvent, Box<dyn Error>> {
-        let in_progress = self.in_progress.clone();
         let sink = self.sink.clone();
         let mut receiver = self.sender.subscribe();
 
@@ -106,8 +121,6 @@ impl Tts {
 
         let result = runtime()
             .spawn(async move {
-                in_progress.store(true, Ordering::Relaxed);
-
                 let play_handle =
                     tokio::spawn(async move { VoiceManager::play_mkv_raw_audio(raw_audio, sink) });
 
@@ -122,6 +135,8 @@ impl Tts {
                     Ok(event) = receiver.recv() => {
                         match event {
                             TTSEvent::Stop => TTSEvent::Stop,
+                            TTSEvent::Next => TTSEvent::Next,
+                            TTSEvent::Prev => TTSEvent::Prev,
                             _ => TTSEvent::Done,
                         }
                     }
@@ -132,16 +147,21 @@ impl Tts {
         Ok(result)
     }
 
-    pub async fn stop(&self) {
+    pub async fn stop(&self, send_event: bool) {
         if let Some(sink) = self.sink.lock().unwrap().as_ref() {
-            let _ = self.sender.send(TTSEvent::Stop);
+            if send_event {
+                let _ = self.sender.send(TTSEvent::Stop);
+            }
             sink.stop();
         }
+        self.idx.store(0, Ordering::Relaxed);
     }
 
-    pub async fn pause(&self) {
+    pub fn pause(&self) {
         if let Some(sink) = self.sink.lock().unwrap().as_ref() {
-            sink.pause();
+            if !sink.is_paused() {
+                sink.pause();
+            }
         }
     }
 
@@ -155,7 +175,20 @@ impl Tts {
         false
     }
 
+    pub async fn prev(&self) {
+        let _ = self.sender.send(TTSEvent::Prev);
+        self.stop(false).await;
+    }
+
+    pub async fn next(&self) {
+        let _ = self.sender.send(TTSEvent::Next);
+        self.stop(false).await;
+    }
+
     pub fn is_running(&self) -> bool {
-        self.in_progress.load(Ordering::Relaxed)
+        match self.sink.lock() {
+            Ok(sink) => sink.as_ref().map_or(false, |s| !s.empty()),
+            Err(_) => false,
+        }
     }
 }
