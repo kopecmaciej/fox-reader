@@ -52,8 +52,8 @@ impl TextHighlighter {
             .to_string()
     }
 
-    pub fn clean_text(&self) -> String {
-        let buffer = self.buffer.clone();
+    pub fn clean_text(&mut self) -> String {
+        let buffer = &self.buffer;
 
         let text = buffer
             .text(&buffer.start_iter(), &buffer.end_iter(), false)

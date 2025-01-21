@@ -105,31 +105,20 @@ dropdown.voice-selector button {
   background-color: alpha(currentColor, 0.1);
 }
 
-.volume-control {
-  padding: 4px;
-  border-radius: 99px;
-}
-
-.volume-control button {
-  min-width: 32px;
-  min-height: 32px;
-  padding: 4px;
-}
-
-.volume-slider {
+.speed-slider {
   margin: 0 6px;
 }
 
-.volume-slider trough {
+.speed-slider trough {
   min-height: 4px;
   border-radius: 2px;
 }
 
-.volume-slider highlight {
+.speed-slider highlight {
   border-radius: 2px;
 }
 
-.volume-slider slider {
+.speed-slider slider {
   min-width: 14px;
   min-height: 14px;
   border-radius: 50%;

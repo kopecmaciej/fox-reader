@@ -158,7 +158,7 @@ impl VoiceManager {
 
     pub fn play_mkv_raw_audio(
         audio_data: Vec<u8>,
-        volume: f32,
+        speed: f32,
         sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,
     ) -> Result<(), String> {
         let (_stream, stream_handle) = OutputStream::try_default()
@@ -171,7 +171,8 @@ impl VoiceManager {
 
         *sink_ref.lock().unwrap() = Some(Arc::clone(&sink));
 
-        sink.set_volume(volume);
+        println!("{speed}");
+        sink.set_speed(speed);
         let source = rodio::buffer::SamplesBuffer::new(1, 22050, {
             let mut samples = Vec::with_capacity(audio_data.len() / 2);
             for chunks in audio_data.chunks_exact(2) {

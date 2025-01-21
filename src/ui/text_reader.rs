@@ -39,7 +39,7 @@ mod imp {
         #[template_child]
         pub prev_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub volume_scale: TemplateChild<gtk::Scale>,
+        pub speed_scale: TemplateChild<gtk::Scale>,
         pub text_highlighter: RefCell<TextHighlighter>,
         pub tts: Arc<Tts>,
     }
@@ -88,7 +88,7 @@ impl TextReader {
     }
 
     pub fn get_volume(&self) -> f32 {
-        (self.imp().volume_scale.value() / 100.0) as f32
+        (self.imp().speed_scale.value() / 100.0) as f32
     }
 
     pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
@@ -208,9 +208,10 @@ impl TextReader {
                     return;
                 }
                 button.set_icon_name("media-playback-pause-symbolic");
-                let volume = (imp.volume_scale.value() / 100.0) as f32;
+                println!("{}", imp.speed_scale.value());
+                let speed = (imp.speed_scale.value() / 100.0) as f32;
                 imp.stop_button.set_sensitive(true);
-                let cleaned = imp.text_highlighter.borrow().clean_text();
+                let cleaned = imp.text_highlighter.borrow_mut().clean_text();
                 imp.text_input.buffer().set_text(&cleaned);
 
                 imp.text_input.set_editable(false);
@@ -266,7 +267,7 @@ impl TextReader {
                             tts,
                             async move {
                                 if let Err(e) = tts
-                                    .read_block_by_voice(&voice, volume, readings_blocks)
+                                    .read_block_by_voice(&voice, speed, readings_blocks)
                                     .await
                                 {
                                     let err_msg =

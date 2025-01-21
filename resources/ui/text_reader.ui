@@ -93,23 +93,22 @@
               </object>
             </child>
 
-
-            <!-- Enhanced volume slider -->
+            <!-- Enhanced speed slider -->
             <child>
-              <object class="GtkScale" id="volume_scale">
+              <object class="GtkScale" id="speed_scale">
                 <property name="hexpand">true</property>
                 <property name="draw-value">false</property>
                 <property name="adjustment">
                   <object class="GtkAdjustment">
-                    <property name="lower">0</property>
-                    <property name="upper">100</property>
+                    <property name="lower">50</property>
+                    <property name="upper">200</property>
                     <property name="value">100</property>
-                    <property name="step-increment">1</property>
-                    <property name="page-increment">5</property>
+                    <property name="step-increment">10</property>
+                    <property name="page-increment">50</property>
                   </object>
                 </property>
                 <style>
-                  <class name="volume-slider" />
+                  <class name="speed_scale" />
                 </style>
               </object>
             </child>
