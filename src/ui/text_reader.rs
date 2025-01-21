@@ -199,14 +199,22 @@ impl TextReader {
                 if imp.text_highlighter.borrow().is_buffer_empty() {
                     return;
                 }
-                if tts.pause_if_playing() {
-                    button.set_icon_name("media-playback-start-symbolic");
-                    return;
-                }
-                if tts.resume_if_paused() {
-                    button.set_icon_name("media-playback-pause-symbolic");
-                    return;
-                }
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    button,
+                    #[weak]
+                    tts,
+                    async move {
+                        if tts.pause_if_playing().await {
+                            button.set_icon_name("media-playback-start-symbolic");
+                            return;
+                        }
+                        if tts.resume_if_paused().await {
+                            button.set_icon_name("media-playback-pause-symbolic");
+                            return;
+                        }
+                    }
+                ));
                 button.set_icon_name("media-playback-pause-symbolic");
                 println!("{}", imp.speed_scale.value());
                 let speed = (imp.speed_scale.value() / 100.0) as f32;

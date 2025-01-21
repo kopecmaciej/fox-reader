@@ -136,7 +136,7 @@ impl VoiceManager {
         let mut child = Command::new(piper_path)
             .arg("--model")
             .arg(voice_path)
-            .arg("--output_raw")
+            .args(["-f", "-"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

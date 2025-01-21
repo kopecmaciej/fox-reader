@@ -1,4 +1,4 @@
-use crate::utils::text_highlighter::ReadBlock;
+use crate::utils::{audio_player::AudioPlayer, text_highlighter::ReadBlock};
 
 use super::{runtime::runtime, voice_manager::VoiceManager};
 use rodio::Sink;
@@ -21,6 +21,7 @@ pub struct Tts {
     pub receiver: Arc<Mutex<Receiver<TTSEvent>>>,
     pub sink: Arc<std::sync::Mutex<Option<Arc<Sink>>>>,
     pub idx: Arc<AtomicUsize>,
+    pub player: Arc<Mutex<AudioPlayer>>,
 }
 
 #[derive(Debug, Clone)]
@@ -57,6 +58,7 @@ impl Tts {
             receiver: Arc::new(Mutex::new(receiver)),
             sink: Arc::new(std::sync::Mutex::new(None::<Arc<Sink>>)),
             idx: Arc::new(AtomicUsize::new(0)),
+            player: Arc::new(Mutex::new(AudioPlayer::new())),
         }
     }
 
@@ -113,7 +115,6 @@ impl Tts {
         speed: f32,
         voice: String,
     ) -> Result<TTSEvent, Box<dyn Error>> {
-        let sink = self.sink.clone();
         let mut receiver = self.sender.subscribe();
 
         let raw_audio = runtime().block_on(VoiceManager::generate_piper_raw_speech(
@@ -121,17 +122,16 @@ impl Tts {
             &voice,
         ))?;
 
+        let player = self.player.clone();
         let result = runtime()
             .spawn(async move {
-                let play_handle = tokio::spawn(async move {
-                    VoiceManager::play_mkv_raw_audio(raw_audio, speed, sink)
-                });
+                let mut player = player.lock().await;
+                let play_handle = { player.play_audio(raw_audio, speed) };
 
                 tokio::select! {
                     play_result = play_handle => {
                         match play_result {
-                            Ok(Ok(_)) => TTSEvent::Done,
-                            Ok(Err(e)) => TTSEvent::Error(e),
+                            Ok(()) => TTSEvent::Done,
                             Err(e) => TTSEvent::Error(e.to_string()),
                         }
                     }
@@ -151,35 +151,25 @@ impl Tts {
     }
 
     pub async fn stop(&self, send_event: bool) {
-        if let Some(sink) = self.sink.lock().unwrap().as_ref() {
-            if send_event {
-                let _ = self.sender.send(TTSEvent::Stop);
-            }
-            sink.stop();
+        if send_event {
+            let _ = self.sender.send(TTSEvent::Stop);
         }
+        if let Err(e) = self.player.lock().await.stop().await {}
         self.idx.store(0, Ordering::Relaxed);
     }
 
-    pub fn pause_if_playing(&self) -> bool {
-        if self.is_running() {
-            if let Some(sink) = self.sink.lock().unwrap().as_ref() {
-                if !sink.is_paused() {
-                    sink.pause();
-                    return true;
-                }
-            }
+    pub async fn pause_if_playing(&self) -> bool {
+        if let Err(e) = self.player.lock().await.pause().await {
+            return false;
         }
         false
     }
 
-    pub fn resume_if_paused(&self) -> bool {
-        if let Some(sink) = self.sink.lock().unwrap().as_ref() {
-            if sink.is_paused() {
-                sink.play();
-                return true;
-            }
+    pub async fn resume_if_paused(&self) -> bool {
+        if let Err(e) = self.player.lock().await.pause().await {
+            return false;
         }
-        false
+        true
     }
 
     pub async fn prev(&self) {
@@ -193,9 +183,8 @@ impl Tts {
     }
 
     pub fn is_running(&self) -> bool {
-        match self.sink.lock() {
-            Ok(sink) => sink.as_ref().map_or(false, |s| !s.empty()),
-            Err(_) => false,
-        }
+        // Since MPV handles the playback state internally,
+        // we can approximate this based on the current index
+        self.idx.load(Ordering::Relaxed) > 0
     }
 }
