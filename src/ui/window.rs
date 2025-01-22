@@ -13,7 +13,7 @@ use crate::ui::dialogs;
 use super::settings::Settings;
 
 mod imp {
-    use crate::ui::{text_reader::TextReader, voice_list::VoiceList};
+    use crate::ui::{pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList};
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -27,6 +27,8 @@ mod imp {
         pub settings_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub text_reader: TemplateChild<TextReader>,
+        #[template_child]
+        pub pdf_reader: TemplateChild<PdfReader>,
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]

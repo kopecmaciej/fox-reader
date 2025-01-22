@@ -110,6 +110,7 @@ impl Tts {
         }
 
         self.idx.store(0, Ordering::Relaxed);
+        self.sender.send(TTSEvent::Stop)?;
 
         Ok(())
     }
@@ -159,15 +160,15 @@ impl Tts {
         Ok(result)
     }
 
-    pub async fn stop(&self, send_event: bool) {
+    pub async fn stop(&self, send_event: bool) -> Result<(), Box<dyn Error>> {
         if let Err(e) = AudioPlayer::stop().await {
-            let _ = self.sender.send(TTSEvent::Error(e.to_string()));
-            return;
+            self.sender.send(TTSEvent::Error(e.to_string()))?;
         }
         if send_event {
-            let _ = self.sender.send(TTSEvent::Stop);
+            self.sender.send(TTSEvent::Stop)?;
         }
         *self.audio_state.lock().await = State::Idle;
+        Ok(())
     }
 
     pub async fn pause_if_playing(&self) -> bool {
@@ -194,14 +195,14 @@ impl Tts {
         false
     }
 
-    pub async fn prev(&self) {
-        let _ = self.sender.send(TTSEvent::Prev);
-        self.stop(false).await;
+    pub async fn prev(&self) -> Result<(), Box<dyn Error>> {
+        self.sender.send(TTSEvent::Prev)?;
+        self.stop(false).await
     }
 
-    pub async fn next(&self) {
-        let _ = self.sender.send(TTSEvent::Next);
-        self.stop(false).await;
+    pub async fn next(&self) -> Result<(), Box<dyn Error>> {
+        self.sender.send(TTSEvent::Next)?;
+        self.stop(false).await
     }
 
     pub async fn is_paused(&self) -> bool {

@@ -150,24 +150,32 @@ impl TextReader {
         self.imp().next_button.connect_clicked(clone!(
             #[weak]
             tts,
-            move |_| {
-                runtime().block_on(async {
+            move |button| {
+                if let Err(e) = runtime().block_on(async {
                     if tts.is_playing().await {
-                        tts.next().await;
+                        tts.next().await
+                    } else {
+                        Ok(())
                     }
-                });
+                }) {
+                    dialogs::show_error_dialog(&e.to_string(), button)
+                }
             }
         ));
 
         self.imp().prev_button.connect_clicked(clone!(
             #[weak]
             tts,
-            move |_| {
-                runtime().block_on(async {
+            move |button| {
+                if let Err(e) = runtime().block_on(async {
                     if tts.is_playing().await {
-                        tts.prev().await;
+                        tts.prev().await
+                    } else {
+                        Ok(())
                     }
-                });
+                }) {
+                    dialogs::show_error_dialog(&e.to_string(), button)
+                }
             }
         ));
 
@@ -179,7 +187,9 @@ impl TextReader {
             move |button| {
                 let stoped = runtime().block_on(async {
                     if tts.is_playing().await {
-                        tts.stop(true).await;
+                        if (tts.stop(true).await).is_err() {
+                            return false;
+                        }
                         return true;
                     }
                     false

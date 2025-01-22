@@ -13,10 +13,22 @@
         <child>
           <object class="AdwHeaderBar">
             <property name="title-widget">
-              <object class="AdwWindowTitle">
-                <property name="title">Fox Reader</property>
+              <object class="AdwViewSwitcher" id="reader_view_switcher">
+                <property name="policy">wide</property>
+                <property name="stack">reader_stack</property>
               </object>
             </property>
+
+            <child type="start">
+              <object class="GtkLabel" id="header_title_label">
+                <property name="margin-start">10</property>
+                <property name="label">Fox Reader</property>
+                <attributes>
+                  <attribute name="weight" value="bold" />
+                </attributes>
+              </object>
+            </child>
+
             <child type="end">
               <object class="GtkButton" id="settings_button">
                 <property name="icon-name">emblem-system-symbolic</property>
@@ -31,107 +43,125 @@
             </child>
           </object>
         </child>
+
+        <!-- Reader View Switcher -->
         <!-- Main Content -->
         <child>
-          <object class="AdwClamp">
-            <property name="maximum-size">800</property>
-            <property name="tightening-threshold">600</property>
+          <object class="AdwViewStack" id="reader_stack">
+            <!-- Text Reader Page -->
             <child>
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="margin-start">16</property>
-                <property name="margin-end">16</property>
-                <property name="margin-top">16</property>
-                <property name="margin-bottom">16</property>
-                <property name="spacing">16</property>
-                <!-- Text Input Area -->
-
-                <child>
-                  <object class="TextReader" id="text_reader" />
-                </child>
-
-
-                <!-- Search and Filter Controls -->
-                <child>
-                  <object class="GtkBox">
-                    <property name="spacing">12</property>
-                    <property name="halign">0</property>
-                    <!-- View Switcher -->
+              <object class="AdwViewStackPage">
+                <property name="name">text_reader</property>
+                <property name="title">Text Reader</property>
+                <property name="icon-name">text-x-generic-symbolic</property>
+                <property name="child">
+                  <object class="AdwClamp">
+                    <property name="maximum-size">800</property>
+                    <property name="tightening-threshold">600</property>
                     <child>
-                      <object class="AdwViewSwitcher" id="view_switcher">
-                        <property name="policy">wide</property>
-                        <property name="stack">voice_stack</property>
-                      </object>
-                    </child>
-                    <!-- Search Voice -->
-                    <child>
-                      <object class="GtkSearchEntry" id="search_entry">
-                        <!--<property
-                        name="width-request">260</property>-->
-                        <property name="hexpand">true</property>
-                        <property name="placeholder-text">Search voices...</property>
-                      </object>
-                    </child>
-                    <!-- Filter By language -->
-                    <child>
-                      <object class="GtkDropDown" id="language_filter">
-                        <property name="width-request">120</property>
-                        <property name="enable-search">true</property>
-                        <property name="model">
-                          <object class="GtkStringList"></object>
-                        </property>
-                      </object>
-                    </child>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="margin-start">16</property>
+                        <property name="margin-end">16</property>
+                        <property name="margin-top">16</property>
+                        <property name="margin-bottom">16</property>
+                        <property name="spacing">16</property>
 
-                  </object>
-                </child>
+                        <child>
+                          <object class="TextReader" id="text_reader" />
+                        </child>
 
-
-                <child>
-                  <object class="AdwViewStack" id="voice_stack">
-                    <child>
-                      <object class="AdwViewStackPage">
-                        <property name="name">all_voices</property>
-                        <property name="title">All Voices</property>
-                        <property name="icon-name">view-list-symbolic</property>
-                        <property name="child">
-                          <object class="AdwPreferencesGroup">
+                        <!-- Search and Filter Controls -->
+                        <child>
+                          <object class="GtkBox">
+                            <property name="spacing">12</property>
+                            <property name="halign">0</property>
+                            <!-- Voice View Switcher -->
                             <child>
-                              <!-- Initial container with the VoiceList -->
-                              <object class="GtkBox" id="all_voices_container">
-                                <property name="vexpand">true</property>
-                                <child>
-                                  <object class="VoiceList" id="voice_list">
-                                    <property name="vexpand">true</property>
+                              <object class="AdwViewSwitcher" id="voice_view_switcher">
+                                <property name="policy">wide</property>
+                                <property name="stack">voice_stack</property>
+                              </object>
+                            </child>
+                            <!-- Search Voice -->
+                            <child>
+                              <object class="GtkSearchEntry" id="search_entry">
+                                <property name="hexpand">true</property>
+                                <property name="placeholder-text">Search voices...</property>
+                              </object>
+                            </child>
+                            <!-- Filter By language -->
+                            <child>
+                              <object class="GtkDropDown" id="language_filter">
+                                <property name="width-request">120</property>
+                                <property name="enable-search">true</property>
+                                <property name="model">
+                                  <object class="GtkStringList"></object>
+                                </property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+
+                        <child>
+                          <object class="AdwViewStack" id="voice_stack">
+                            <child>
+                              <object class="AdwViewStackPage">
+                                <property name="name">all_voices</property>
+                                <property name="title">All Voices</property>
+                                <property name="icon-name">view-list-symbolic</property>
+                                <property name="child">
+                                  <object class="AdwPreferencesGroup">
+                                    <child>
+                                      <object class="GtkBox" id="all_voices_container">
+                                        <property name="vexpand">true</property>
+                                        <child>
+                                          <object class="VoiceList" id="voice_list">
+                                            <property name="vexpand">true</property>
+                                          </object>
+                                        </child>
+                                      </object>
+                                    </child>
                                   </object>
-                                </child>
+                                </property>
                               </object>
                             </child>
-                          </object>
-                        </property>
-                      </object>
-                    </child>
 
-                    <!-- Downloaded Voices Page -->
-                    <child>
-                      <object class="AdwViewStackPage">
-                        <property name="name">downloaded_voices</property>
-                        <property name="title">Downloaded</property>
-                        <property name="icon-name">folder-download-symbolic</property>
-                        <property name="child">
-                          <object class="AdwPreferencesGroup">
+                            <!-- Downloaded Voices Page -->
                             <child>
-                              <object class="GtkBox" id="downloaded_container">
-                                <property name="vexpand">true</property>
+                              <object class="AdwViewStackPage">
+                                <property name="name">downloaded_voices</property>
+                                <property name="title">Downloaded</property>
+                                <property name="icon-name">folder-download-symbolic</property>
+                                <property name="child">
+                                  <object class="AdwPreferencesGroup">
+                                    <child>
+                                      <object class="GtkBox" id="downloaded_container">
+                                        <property name="vexpand">true</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </property>
                               </object>
                             </child>
                           </object>
-                        </property>
+                        </child>
                       </object>
                     </child>
-
                   </object>
-                </child>
+                </property>
+              </object>
+            </child>
+
+            <!-- PDF Reader Page -->
+            <child>
+              <object class="AdwViewStackPage">
+                <property name="name">pdf_reader</property>
+                <property name="title">PDF Reader</property>
+                <property name="icon-name">application-pdf-symbolic</property>
+                <property name="child">
+                  <object class="PdfReader" id="pdf_reader" />
+                </property>
               </object>
             </child>
           </object>
@@ -139,5 +169,4 @@
       </object>
     </child>
   </template>
-
 </interface>

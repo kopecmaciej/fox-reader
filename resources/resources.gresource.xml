@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/org/fox-reader">
-    <file compressed="true" preprocess="xml-stripblanks">ui/voice_list.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/window.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">ui/pdf_reader.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">ui/voice_list.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/piper_installer.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/text_reader.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/settings.ui</file>

@@ -126,7 +126,7 @@ impl VoiceManager {
         voice: &str,
     ) -> Result<Vec<u8>, Box<dyn Error>> {
         let cleaned_text = text.replace("\"", "'");
-        let cleaned_text = cleaned_text.replace("\n", ", ");
+        let cleaned_text = cleaned_text.replace("\n", " ... ");
         let voice_path = format!("{}/{}", huggingface_config::get_download_path(), voice);
         let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
 
