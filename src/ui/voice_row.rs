@@ -1,16 +1,15 @@
 use std::cell::RefCell;
-use std::sync::{Arc, Mutex};
 
 use crate::core::runtime::runtime;
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::core::voice_manager::{Voice, VoiceManager};
 use crate::ui::dialogs;
+use crate::utils::audio_player::AudioPlayer;
 use adw::subclass::prelude::*;
 use adw::Spinner;
 use glib::Properties;
 use gtk::glib::{self, clone};
 use gtk::{prelude::*, Button};
-use rodio::Sink;
 
 pub const PLAY_ICON: &str = "media-playback-start-symbolic";
 pub const STOP_ICON: &str = "media-playback-stop-symbolic";
@@ -137,45 +136,39 @@ impl VoiceRow {
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
-        let sink = Arc::new(Mutex::new(None::<Arc<Sink>>));
         play_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
             move |button| {
                 let is_playing = button.icon_name().map_or(false, |icon| icon == STOP_ICON);
                 if is_playing {
-                    if let Some(sink) = sink.lock().unwrap().take() {
-                        sink.stop();
-                    }
+                    let _ = runtime().block_on(async { AudioPlayer::stop().await });
                     button.set_icon_name(PLAY_ICON);
                     return;
                 }
-                let sink_clone = Arc::clone(&sink);
                 button.set_icon_name(STOP_ICON);
                 glib::spawn_future_local(clone!(
                     #[weak]
                     button,
                     async move {
                         let file_paths = this.imp().files.borrow().clone().into_keys().collect();
-                        let _ = runtime()
-                            .spawn(clone!(async move {
-                                match VoiceManager::download_voice_samples(file_paths).await {
-                                    Ok(audio_data) => {
+                        match runtime().block_on(VoiceManager::download_voice_samples(file_paths)) {
+                            Ok(audio_data) => {
+                                let _ = runtime()
+                                    .spawn(clone!(async move {
                                         if let Err(e) =
-                                            VoiceManager::play_mp3_raw_audio(audio_data, sink_clone)
+                                            AudioPlayer::play_audio(audio_data, 1.0).await
                                         {
                                             eprintln!(
                                                 "Failed to play voice sample. \nDetails: {}",
                                                 e
                                             );
                                         };
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to play voice sample. \nDetails: {}", e);
-                                    }
-                                };
-                            }))
-                            .await;
+                                    }))
+                                    .await;
+                            }
+                            Err(e) => dialogs::show_error_dialog(&e.to_string(), &button),
+                        }
 
                         button.set_icon_name(PLAY_ICON);
                     }

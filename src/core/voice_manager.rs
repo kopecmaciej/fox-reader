@@ -6,11 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 use std::process::Stdio;
-use std::sync::{Arc, Mutex};
 use tokio::process::Command;
-
-use rodio::{Decoder, OutputStream, Sink};
-use std::io::Cursor;
 
 pub struct VoiceManager {}
 
@@ -130,6 +126,7 @@ impl VoiceManager {
         voice: &str,
     ) -> Result<Vec<u8>, Box<dyn Error>> {
         let cleaned_text = text.replace("\"", "'");
+        let cleaned_text = cleaned_text.replace("\n", ", ");
         let voice_path = format!("{}/{}", huggingface_config::get_download_path(), voice);
         let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
 
@@ -154,29 +151,5 @@ impl VoiceManager {
         }
 
         Ok(output.stdout)
-    }
-
-    pub fn play_mp3_raw_audio(
-        audio_data: Vec<u8>,
-        sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,
-    ) -> Result<(), String> {
-        let cursor = Cursor::new(audio_data);
-
-        let (_stream, stream_handle) = OutputStream::try_default()
-            .map_err(|e| format!("Failed to setup audio output: {}", e))?;
-
-        let sink = Sink::try_new(&stream_handle)
-            .map_err(|e| format!("Failed to create audio sink: {}", e))?;
-
-        let sink = Arc::new(sink);
-
-        *sink_ref.lock().unwrap() = Some(Arc::clone(&sink));
-
-        let source = Decoder::new(cursor).map_err(|e| format!("Failed to decode audio: {}", e))?;
-
-        sink.append(source);
-        sink.sleep_until_end();
-
-        Ok(())
     }
 }

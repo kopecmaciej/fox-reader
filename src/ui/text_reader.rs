@@ -205,13 +205,11 @@ impl TextReader {
 
                 let was_paused = runtime().block_on(tts.pause_if_playing());
                 if was_paused {
-                    println!("PAUSED");
                     button.set_icon_name("media-playback-start-symbolic");
                     return;
                 }
                 let was_resumed = runtime().block_on(tts.resume_if_paused());
                 if was_resumed {
-                    println!("RESUMED");
                     button.set_icon_name("media-playback-pause-symbolic");
                     return;
                 }
@@ -278,7 +276,7 @@ impl TextReader {
                                     .await
                                 {
                                     let err_msg =
-                                        format!("Erro while reading text by given voice, {}", e);
+                                        format!("Error while reading text by given voice, {}", e);
                                     dialogs::show_error_dialog(&err_msg, &button);
                                 }
 

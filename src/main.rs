@@ -18,6 +18,10 @@ fn main() -> glib::ExitCode {
     app.connect_startup(|_| load_css());
     app.connect_activate(build_ui);
 
+    app.connect_shutdown(|_| {
+        utils::audio_player::AudioPlayer::cleanup();
+    });
+
     app.run()
 }
 
