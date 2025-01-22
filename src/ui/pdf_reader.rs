@@ -30,6 +30,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.set_layout_manager_type::<gtk::BinLayout>();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -42,6 +43,9 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
+
+            self.content_stack.set_vexpand(true);
+            self.content_stack.set_hexpand(true);
 
             let drop_target =
                 gtk::DropTarget::new(gio::File::static_type(), gtk::gdk::DragAction::COPY);
@@ -63,9 +67,21 @@ mod imp {
 
             obj.add_controller(drop_target);
         }
+
+        fn dispose(&self) {
+            self.content_stack.unparent();
+        }
     }
 
-    impl WidgetImpl for PdfReader {}
+    impl WidgetImpl for PdfReader {
+        fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
+            self.parent_size_allocate(width, height, baseline);
+
+            if let Some(layout_manager) = self.obj().layout_manager() {
+                layout_manager.allocate(self.obj().as_ref(), width, height, baseline);
+            }
+        }
+    }
 }
 
 glib::wrapper! {
