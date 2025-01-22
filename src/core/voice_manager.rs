@@ -156,38 +156,6 @@ impl VoiceManager {
         Ok(output.stdout)
     }
 
-    pub fn play_mkv_raw_audio(
-        audio_data: Vec<u8>,
-        speed: f32,
-        sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,
-    ) -> Result<(), String> {
-        let (_stream, stream_handle) = OutputStream::try_default()
-            .map_err(|e| format!("Failed to setup audio output: {}", e))?;
-
-        let sink = Sink::try_new(&stream_handle)
-            .map_err(|e| format!("Failed to create audio sink: {}", e))?;
-
-        let sink = Arc::new(sink);
-
-        *sink_ref.lock().unwrap() = Some(Arc::clone(&sink));
-
-        println!("{speed}");
-        sink.set_speed(speed);
-        let source = rodio::buffer::SamplesBuffer::new(1, 22050, {
-            let mut samples = Vec::with_capacity(audio_data.len() / 2);
-            for chunks in audio_data.chunks_exact(2) {
-                let sample = i16::from_le_bytes([chunks[0], chunks[1]]) as f32 / 32768.0;
-                samples.push(sample);
-            }
-            samples
-        });
-
-        sink.append(source);
-        sink.sleep_until_end();
-
-        Ok(())
-    }
-
     pub fn play_mp3_raw_audio(
         audio_data: Vec<u8>,
         sink_ref: Arc<Mutex<Option<Arc<Sink>>>>,

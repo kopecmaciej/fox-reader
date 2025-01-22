@@ -151,11 +151,11 @@ impl TextReader {
             #[weak]
             tts,
             move |_| {
-                if tts.is_running() {
-                    runtime().block_on(async {
+                runtime().block_on(async {
+                    if tts.is_playing().await {
                         tts.next().await;
-                    });
-                }
+                    }
+                });
             }
         ));
 
@@ -163,11 +163,11 @@ impl TextReader {
             #[weak]
             tts,
             move |_| {
-                if tts.is_running() {
-                    runtime().block_on(async {
+                runtime().block_on(async {
+                    if tts.is_playing().await {
                         tts.prev().await;
-                    });
-                }
+                    }
+                });
             }
         ));
 
@@ -177,15 +177,18 @@ impl TextReader {
             #[weak]
             tts,
             move |button| {
-                if tts.is_running() {
-                    runtime().block_on(async {
+                let stoped = runtime().block_on(async {
+                    if tts.is_playing().await {
                         tts.stop(true).await;
-                    });
+                        return true;
+                    }
+                    false
+                });
+                if stoped {
                     imp.text_highlighter.borrow().clear();
                     button.set_sensitive(false);
                     imp.play_button.set_sensitive(true);
                     imp.text_input.set_editable(true);
-                    return;
                 }
             }
         ));
@@ -199,24 +202,20 @@ impl TextReader {
                 if imp.text_highlighter.borrow().is_buffer_empty() {
                     return;
                 }
-                glib::spawn_future_local(clone!(
-                    #[weak]
-                    button,
-                    #[weak]
-                    tts,
-                    async move {
-                        if tts.pause_if_playing().await {
-                            button.set_icon_name("media-playback-start-symbolic");
-                            return;
-                        }
-                        if tts.resume_if_paused().await {
-                            button.set_icon_name("media-playback-pause-symbolic");
-                            return;
-                        }
-                    }
-                ));
+
+                let was_paused = runtime().block_on(tts.pause_if_playing());
+                if was_paused {
+                    println!("PAUSED");
+                    button.set_icon_name("media-playback-start-symbolic");
+                    return;
+                }
+                let was_resumed = runtime().block_on(tts.resume_if_paused());
+                if was_resumed {
+                    println!("RESUMED");
+                    button.set_icon_name("media-playback-pause-symbolic");
+                    return;
+                }
                 button.set_icon_name("media-playback-pause-symbolic");
-                println!("{}", imp.speed_scale.value());
                 let speed = (imp.speed_scale.value() / 100.0) as f32;
                 imp.stop_button.set_sensitive(true);
                 let cleaned = imp.text_highlighter.borrow_mut().clean_text();
