@@ -18,47 +18,57 @@
                 <property name="stack">reader_stack</property>
               </object>
             </property>
-
             <child type="start">
               <object class="GtkLabel" id="header_title_label">
                 <property name="margin-start">10</property>
                 <property name="label">Fox Reader</property>
                 <attributes>
-                  <attribute name="weight" value="bold" />
+                  <attribute name="weight" value="bold"></attribute>
                 </attributes>
               </object>
             </child>
-
             <child type="end">
-              <object class="GtkButton" id="settings_button">
+              <object class="GtkButton">
                 <property name="icon-name">emblem-system-symbolic</property>
                 <property name="tooltip-text">Settings</property>
+                <signal handler="on_settings_button_clicked" name="clicked" swapped="true"></signal>
               </object>
             </child>
             <child type="end">
-              <object class="GtkButton" id="theme_button">
+              <object class="GtkButton">
                 <property name="icon-name">weather-clear-night-symbolic</property>
                 <property name="tooltip-text">Toggle dark mode</property>
+                <signal handler="on_theme_button_clicked" name="clicked" swapped="true"></signal>
               </object>
             </child>
           </object>
         </child>
-
         <!-- Reader View Switcher -->
         <!-- Main Content -->
         <child>
-          <object class="AdwViewStack" id="reader_stack">
-            <!-- Text Reader Page -->
+          <object class="AdwClamp">
+            <property name="maximum-size">800</property>
+            <property name="tightening-threshold">600</property>
             <child>
-              <object class="AdwViewStackPage">
-                <property name="name">text_reader</property>
-                <property name="title">Text Reader</property>
-                <property name="icon-name">text-x-generic-symbolic</property>
-                <property name="child">
-                  <object class="AdwClamp">
-                    <property name="maximum-size">800</property>
-                    <property name="tightening-threshold">600</property>
-                    <child>
+              <object class="AdwViewStack" id="reader_stack">
+                <!-- Reader Page -->
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">text_reader</property>
+                    <property name="title">Text Reader</property>
+                    <property name="icon-name">emblem-documents-symbolic</property>
+                    <property name="child">
+                      <object class="TextReader" id="text_reader"></object>
+                    </property>
+                  </object>
+                </child>
+                <!-- Voice List Page -->
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">voice_list</property>
+                    <property name="title">Voice List</property>
+                    <property name="icon-name">view-list-symbolic</property>
+                    <property name="child">
                       <object class="GtkBox">
                         <property name="orientation">vertical</property>
                         <property name="margin-start">16</property>
@@ -66,11 +76,6 @@
                         <property name="margin-top">16</property>
                         <property name="margin-bottom">16</property>
                         <property name="spacing">16</property>
-
-                        <child>
-                          <object class="TextReader" id="text_reader" />
-                        </child>
-
                         <!-- Search and Filter Controls -->
                         <child>
                           <object class="GtkBox">
@@ -102,7 +107,6 @@
                             </child>
                           </object>
                         </child>
-
                         <child>
                           <object class="AdwViewStack" id="voice_stack">
                             <child>
@@ -126,7 +130,6 @@
                                 </property>
                               </object>
                             </child>
-
                             <!-- Downloaded Voices Page -->
                             <child>
                               <object class="AdwViewStackPage">
@@ -147,21 +150,9 @@
                           </object>
                         </child>
                       </object>
-                    </child>
+                    </property>
                   </object>
-                </property>
-              </object>
-            </child>
-
-            <!-- PDF Reader Page -->
-            <child>
-              <object class="AdwViewStackPage">
-                <property name="name">pdf_reader</property>
-                <property name="title">PDF Reader</property>
-                <property name="icon-name">application-pdf-symbolic</property>
-                <property name="child">
-                  <object class="PdfReader" id="pdf_reader" />
-                </property>
+                </child>
               </object>
             </child>
           </object>

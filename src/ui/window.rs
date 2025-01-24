@@ -13,7 +13,7 @@ use crate::ui::dialogs;
 use super::settings::Settings;
 
 mod imp {
-    use crate::ui::{pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList};
+    use crate::ui::{text_reader::TextReader, voice_list::VoiceList};
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -22,13 +22,7 @@ mod imp {
     #[template(resource = "/org/fox-reader/ui/window.ui")]
     pub struct FoxReaderAppWindow {
         #[template_child]
-        pub theme_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub settings_button: TemplateChild<gtk::Button>,
-        #[template_child]
         pub text_reader: TemplateChild<TextReader>,
-        #[template_child]
-        pub pdf_reader: TemplateChild<PdfReader>,
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
@@ -51,10 +45,30 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
             obj.init_template();
+        }
+    }
+
+    #[gtk::template_callbacks]
+    impl FoxReaderAppWindow {
+        #[template_callback]
+        fn on_theme_button_clicked(&self, _button: &gtk::Button) {
+            let style_manager = adw::StyleManager::default();
+            style_manager.set_color_scheme(match style_manager.is_dark() {
+                true => adw::ColorScheme::ForceLight,
+                false => adw::ColorScheme::ForceDark,
+            });
+        }
+
+        #[template_callback]
+        fn on_settings_button_clicked(&self, button: &gtk::Button) {
+            let settings = Settings::new();
+            settings.setup_signals(&self.text_reader);
+            settings.present(Some(button));
         }
     }
 
@@ -76,7 +90,6 @@ impl FoxReaderAppWindow {
         use crate::ui::piper_installer::PiperInstaller;
 
         let window: Self = Object::builder().property("application", app).build();
-        window.setup_actions();
 
         if let Err(e) = SpeechDispatcher::init() {
             let err_msg = format!(
@@ -108,28 +121,6 @@ impl FoxReaderAppWindow {
         }
 
         window
-    }
-
-    fn setup_actions(&self) {
-        self.imp().settings_button.connect_clicked(clone!(
-            #[weak(rename_to=this)]
-            self,
-            move |_| {
-                let settings = Settings::new();
-                settings.setup_signals(&this.imp().text_reader);
-                settings.present(Some(&this));
-            }
-        ));
-
-        self.imp().theme_button.connect_clicked(|_| {
-            let style_manager = adw::StyleManager::default();
-            let is_dark = style_manager.is_dark();
-            style_manager.set_color_scheme(if is_dark {
-                adw::ColorScheme::ForceLight
-            } else {
-                adw::ColorScheme::ForceDark
-            });
-        });
     }
 
     fn update_voice_selector_on_click(&self) {
@@ -182,41 +173,31 @@ impl FoxReaderAppWindow {
 
     fn setup_search(&self) {
         self.imp().search_entry.connect_search_changed(clone!(
-            #[weak(rename_to=this)]
-            self,
+            #[weak(rename_to=voice_list)]
+            self.imp().voice_list,
             move |entry| {
-                let search_text = entry.text();
-                this.imp().voice_list.filter_by_search(search_text);
+                voice_list.filter_by_search(entry.text());
             }
         ));
     }
 
     fn filter_out_by_language(&self) {
-        let language_list = self.imp().voice_list.get_language_list();
-        let string_list = StringList::new(&["All"]);
-        for c in language_list {
-            string_list.append(&c);
-        }
+        let imp = self.imp();
+        let model = StringList::new(&["All"]);
+        imp.voice_list
+            .get_language_list()
+            .iter()
+            .for_each(|lang| model.append(lang));
 
-        let language_filter = &self.imp().language_filter;
-        language_filter.set_model(Some(&string_list));
-        language_filter.set_expression(Some(&gtk::PropertyExpression::new(
-            gtk::StringObject::static_type(),
-            None::<&gtk::Expression>,
-            "string",
-        )));
-
-        language_filter.connect_selected_item_notify(clone!(
-            #[weak(rename_to=this)]
-            self,
-            move |f| {
-                if let Some(selected_item) = f.selected_item() {
-                    if let Some(string_obj) = selected_item.downcast_ref::<gtk::StringObject>() {
-                        let language = string_obj.string();
-                        this.imp().voice_list.filter_by_language(language);
-                    };
+        imp.language_filter.set_model(Some(&model));
+        imp.language_filter.connect_selected_item_notify(clone!(
+            #[weak(rename_to=voice_list)]
+            self.imp().voice_list,
+            move |dropdown| {
+                if let Some(lang) = dropdown.selected_item().and_downcast::<gtk::StringObject>() {
+                    voice_list.filter_by_language(lang.string());
                 }
-            },
+            }
         ));
     }
 }

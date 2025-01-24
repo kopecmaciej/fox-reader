@@ -5,19 +5,18 @@
       <object class="GtkBox">
         <property name="orientation">vertical</property>
         <property name="spacing">12</property>
-
         <child>
           <object class="AdwPreferencesGroup">
             <property name="title">Text to Speech Reader</property>
-
             <child>
               <object class="GtkTextView" id="text_input">
                 <property name="wrap-mode">word</property>
-                <property name="height-request">120</property>
+                <property name="height-request">420</property>
                 <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
                 <style>
-                  <class name="card" />
-                  <class name="text-input" />
+                  <class name="card"></class>
+                  <class name="text-input"></class>
                 </style>
               </object>
             </child>
@@ -32,67 +31,61 @@
             <property name="margin-bottom">12</property>
             <property name="hexpand">true</property>
             <style>
-              <class name="playback-controls" />
-              <class name="linked" />
+              <class name="playback-controls"></class>
+              <class name="linked"></class>
             </style>
-
             <child>
               <object class="GtkDropDown" id="voice_selector">
                 <property name="enable-search">true</property>
                 <property name="width-request">380</property>
                 <property name="model">
-                  <object class="GtkStringList" />
+                  <object class="GtkStringList"></object>
                 </property>
               </object>
             </child>
-
             <child>
               <object class="GtkButton" id="prev_button">
                 <property name="icon-name">media-skip-backward-symbolic</property>
                 <property name="tooltip-text">Previous</property>
                 <style>
-                  <class name="circular" />
-                  <class name="flat" />
+                  <class name="circular"></class>
+                  <class name="flat"></class>
                 </style>
               </object>
             </child>
-
             <child>
               <object class="GtkButton" id="play_button">
                 <property name="icon-name">media-playback-start-symbolic</property>
                 <property name="tooltip-text">Play</property>
                 <property name="sensitive">true</property>
                 <style>
-                  <class name="circular" />
-                  <class name="suggested-action" />
-                  <class name="large" />
+                  <class name="circular"></class>
+                  <class name="suggested-action"></class>
+                  <class name="large"></class>
                 </style>
               </object>
             </child>
-
             <child>
               <object class="GtkButton" id="stop_button">
                 <property name="icon-name">media-playback-stop-symbolic</property>
                 <property name="tooltip-text">Stop</property>
                 <property name="sensitive">false</property>
                 <style>
-                  <class name="circular" />
-                  <class name="flat" />
+                  <class name="circular"></class>
+                  <class name="flat"></class>
                 </style>
               </object>
             </child>
-
             <child>
               <object class="GtkButton" id="next_button">
                 <property name="icon-name">media-skip-forward-symbolic</property>
                 <property name="tooltip-text">Next</property>
                 <style>
-                  <class name="circular" />
-                  <class name="flat" />
+                  <class name="circular"></class>
+                  <class name="flat"></class>
                 </style>
               </object>
             </child>
-
             <!-- Enhanced speed slider -->
             <child>
               <object class="GtkScale" id="speed_scale">
@@ -108,15 +101,13 @@
                   </object>
                 </property>
                 <style>
-                  <class name="speed_scale" />
+                  <class name="speed_scale"></class>
                 </style>
               </object>
             </child>
           </object>
         </child>
-
       </object>
-
     </property>
   </template>
 </interface>
