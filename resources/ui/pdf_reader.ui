@@ -6,7 +6,7 @@
     <child>
       <object class="GtkDropTarget" id="drop_area">
         <property name="actions">copy</property>
-        <property name="formats">text/uri-list</property>
+        <property name="formats">GFile text/uri-list</property>
       </object>
     </child>
 
@@ -50,7 +50,7 @@
                   </object>
                 </child>
                 <child>
-                  <object class="GtkButton">
+                  <object class="GtkButton" id="open_pdf">
                     <property name="label">Open PDF</property>
                     <property name="halign">center</property>
                     <style>

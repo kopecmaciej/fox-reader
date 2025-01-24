@@ -6,12 +6,9 @@ use gtk::{
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use crate::{
-    core::{
-        runtime::runtime,
-        tts::{TTSEvent, Tts},
-    },
-    utils::text_highlighter::TextHighlighter,
+use crate::core::{
+    runtime::runtime,
+    tts::{TTSEvent, Tts},
 };
 
 use super::{dialogs, voice_row::VoiceRow};
@@ -59,7 +56,15 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for TextReader {}
+    impl ObjectImpl for TextReader {
+        fn constructed(&self) {
+            let obj = self.obj();
+            obj.init_audio_control_buttons();
+            obj.imp()
+                .text_highlighter
+                .replace(TextHighlighter::new(obj.imp().text_input.buffer(), 100));
+        }
+    }
     impl WidgetImpl for TextReader {}
     impl BinImpl for TextReader {}
 }
@@ -76,13 +81,6 @@ impl Default for TextReader {
 }
 
 impl TextReader {
-    pub fn init(&self) {
-        let imp = self.imp();
-        self.init_audio_control_buttons();
-        imp.text_highlighter
-            .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
-    }
-
     pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
         &self.imp().voice_selector
     }
