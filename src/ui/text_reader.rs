@@ -246,7 +246,9 @@ impl TextReader {
                             #[weak]
                             tts,
                             async move {
-                                while let Ok(event) = tts.receiver.lock().await.recv().await {
+                                while let Ok(event) =
+                                    tts.receiver.lock().await.resubscribe().recv().await
+                                {
                                     match event {
                                         TTSEvent::Progress {
                                             offset_start,
