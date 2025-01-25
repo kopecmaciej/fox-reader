@@ -125,3 +125,11 @@ dropdown.voice-selector button {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   margin: -6px;
 }
+
+.speed-control-box {
+  margin: 0 12px;
+}
+
+.speed-spin {
+  min-width: 64px;
+}

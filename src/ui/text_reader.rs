@@ -39,7 +39,7 @@ mod imp {
         #[template_child]
         pub prev_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub speed_scale: TemplateChild<gtk::Scale>,
+        pub speed_spin: TemplateChild<gtk::SpinButton>,
         pub text_highlighter: RefCell<TextHighlighter>,
         pub tts: Arc<Tts>,
     }
@@ -88,7 +88,7 @@ impl TextReader {
     }
 
     pub fn get_volume(&self) -> f32 {
-        (self.imp().speed_scale.value() / 100.0) as f32
+        (self.imp().speed_spin.value() / 100.0) as f32
     }
 
     pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
@@ -147,7 +147,17 @@ impl TextReader {
         let imp = self.imp();
         let tts = imp.tts.clone();
 
-        self.imp().next_button.connect_clicked(clone!(
+        imp.speed_spin.connect_value_changed(clone!(
+            #[weak]
+            tts,
+            move |spin| {
+                let speed = (spin.value() / 100.0) as f32;
+                tts.set_speed(speed);
+                let _ = runtime().block_on(tts.repeat_block());
+            }
+        ));
+
+        imp.next_button.connect_clicked(clone!(
             #[weak]
             tts,
             move |button| {
@@ -163,7 +173,7 @@ impl TextReader {
             }
         ));
 
-        self.imp().prev_button.connect_clicked(clone!(
+        imp.prev_button.connect_clicked(clone!(
             #[weak]
             tts,
             move |button| {
@@ -179,7 +189,7 @@ impl TextReader {
             }
         ));
 
-        self.imp().stop_button.connect_clicked(clone!(
+        imp.stop_button.connect_clicked(clone!(
             #[weak]
             imp,
             #[weak]
@@ -224,7 +234,7 @@ impl TextReader {
                     return;
                 }
                 button.set_icon_name("media-playback-pause-symbolic");
-                let speed = (imp.speed_scale.value() / 100.0) as f32;
+
                 imp.stop_button.set_sensitive(true);
                 let cleaned = imp.text_highlighter.borrow_mut().clean_text();
                 imp.text_input.buffer().set_text(&cleaned);
@@ -244,11 +254,9 @@ impl TextReader {
                             #[weak]
                             button,
                             #[weak]
-                            tts,
+                            imp,
                             async move {
-                                while let Ok(event) =
-                                    tts.receiver.lock().await.resubscribe().recv().await
-                                {
+                                while let Ok(event) = tts.sender.subscribe().recv().await {
                                     match event {
                                         TTSEvent::Progress {
                                             offset_start,
@@ -267,9 +275,7 @@ impl TextReader {
                                         TTSEvent::Next | TTSEvent::Prev => {
                                             imp.text_highlighter.borrow().clear();
                                         }
-                                        TTSEvent::Stop | TTSEvent::Done => {
-                                            imp.text_highlighter.borrow().clear();
-                                            imp.text_input.set_editable(true);
+                                        TTSEvent::Stop => {
                                             break;
                                         }
                                     }
@@ -281,11 +287,10 @@ impl TextReader {
                             #[weak]
                             button,
                             #[weak]
-                            tts,
+                            imp,
                             async move {
-                                if let Err(e) = tts
-                                    .read_block_by_voice(&voice, speed, readings_blocks)
-                                    .await
+                                if let Err(e) =
+                                    imp.tts.read_block_by_voice(&voice, readings_blocks).await
                                 {
                                     let err_msg =
                                         format!("Error while reading text by given voice, {}", e);
@@ -293,6 +298,8 @@ impl TextReader {
                                 }
 
                                 button.set_icon_name("media-playback-start-symbolic");
+                                imp.text_highlighter.borrow().clear();
+                                imp.text_input.set_editable(true);
                             }
                         ));
                     }

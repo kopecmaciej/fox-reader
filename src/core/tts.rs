@@ -2,6 +2,7 @@ use crate::utils::{audio_player::AudioPlayer, text_highlighter::ReadBlock};
 
 use super::{runtime::runtime, voice_manager::VoiceManager};
 use std::{
+    cell::RefCell,
     error::Error,
     fmt,
     sync::{
@@ -10,7 +11,7 @@ use std::{
     },
 };
 use tokio::sync::{
-    broadcast::{self, Receiver, Sender},
+    broadcast::{self, Sender},
     Mutex,
 };
 
@@ -23,9 +24,9 @@ pub enum State {
 #[derive(Clone)]
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
-    pub receiver: Arc<Mutex<Receiver<TTSEvent>>>,
     pub idx: Arc<AtomicUsize>,
     pub audio_state: Arc<Mutex<State>>,
+    pub reading_speed: RefCell<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,16 +35,12 @@ pub enum TTSEvent {
     Stop,
     Next,
     Prev,
-    Done,
     Error(String),
 }
 
 impl fmt::Debug for Tts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Tts")
-            .field("sender", &self.sender)
-            .field("receiver", &self.receiver)
-            .finish()
+        f.debug_struct("Tts").field("sender", &self.sender).finish()
     }
 }
 
@@ -55,19 +52,18 @@ impl Default for Tts {
 
 impl Tts {
     pub fn new() -> Self {
-        let (sender, receiver) = broadcast::channel(4);
+        let (sender, _) = broadcast::channel(4);
         Self {
             sender: Arc::new(sender),
-            receiver: Arc::new(Mutex::new(receiver)),
             idx: Arc::new(AtomicUsize::new(0)),
             audio_state: Arc::new(Mutex::new(State::Idle)),
+            reading_speed: RefCell::new(1.0),
         }
     }
 
     pub async fn read_block_by_voice(
         &self,
         voice: &str,
-        speed: f32,
         reading_blocks: Vec<ReadBlock>,
     ) -> Result<(), Box<dyn Error>> {
         while self.idx.load(Ordering::Relaxed) < reading_blocks.len() {
@@ -79,27 +75,27 @@ impl Tts {
             })?;
 
             let event = self
-                .read_block_of_text(reading_block.block.clone(), speed, voice.to_string())
+                .read_block_of_text(reading_block.block.clone(), voice.to_string())
                 .await;
             {
                 match event {
-                    Ok(TTSEvent::Stop) => {
+                    Ok(Some(TTSEvent::Stop)) => {
                         self.idx.store(0, Ordering::Relaxed);
                         break;
                     }
-                    Ok(TTSEvent::Next) => {
+                    Ok(Some(TTSEvent::Next)) => {
                         if current_idx + 1 < reading_blocks.len() {
                             self.idx.store(current_idx + 1, Ordering::Relaxed);
                         }
                         continue;
                     }
-                    Ok(TTSEvent::Prev) => {
+                    Ok(Some(TTSEvent::Prev)) => {
                         if current_idx > 0 {
                             self.idx.store(current_idx - 1, Ordering::Relaxed);
                         }
                         continue;
                     }
-                    Ok(TTSEvent::Error(e)) => return Err(e.into()),
+                    Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
                     Err(e) => e,
                     _ => {
                         self.idx.fetch_add(1, Ordering::Relaxed);
@@ -110,7 +106,6 @@ impl Tts {
         }
 
         self.idx.store(0, Ordering::Relaxed);
-        self.sender.send(TTSEvent::Stop)?;
 
         Ok(())
     }
@@ -118,9 +113,8 @@ impl Tts {
     pub async fn read_block_of_text(
         &self,
         reading_block: String,
-        speed: f32,
         voice: String,
-    ) -> Result<TTSEvent, Box<dyn Error>> {
+    ) -> Result<Option<TTSEvent>, Box<dyn Error>> {
         let mut receiver = self.sender.subscribe();
 
         let raw_audio = runtime().block_on(VoiceManager::generate_piper_raw_speech(
@@ -129,28 +123,31 @@ impl Tts {
         ))?;
 
         let audio_state = self.audio_state.clone();
+        let reading_speed = *self.reading_speed.borrow();
         let result = runtime()
             .spawn(async move {
                 let play_handle =
-                    tokio::spawn(async move { AudioPlayer::play_audio(raw_audio, speed).await });
+                    tokio::spawn(
+                        async move { AudioPlayer::play_audio(raw_audio, reading_speed).await },
+                    );
                 *audio_state.lock().await = State::Playing;
 
                 tokio::select! {
                     play_result = play_handle => {
                         match play_result {
-                            Ok(Ok(_)) => TTSEvent::Done,
-                            Ok(Err(e)) => TTSEvent::Error(e.to_string()),
-                            Err(e) => TTSEvent::Error(e.to_string()),
+                            Ok(Ok(_)) => None,
+                            Ok(Err(e)) => Some(TTSEvent::Error(e.to_string())),
+                            Err(e) => Some(TTSEvent::Error(e.to_string())),
                         }
                     }
                     Ok(event) = receiver.recv() => {
-                        match event {
-                            TTSEvent::Stop => TTSEvent::Stop,
-                            TTSEvent::Next => TTSEvent::Next,
-                            TTSEvent::Prev => TTSEvent::Prev,
-                            _ => TTSEvent::Done,
-                        }
-                    }
+                      match event {
+                          TTSEvent::Stop => Some(TTSEvent::Stop),
+                          TTSEvent::Next => Some(TTSEvent::Next),
+                          TTSEvent::Prev => Some(TTSEvent::Prev),
+                          _ => None,
+                      }
+                }
                 }
             })
             .await?;
@@ -205,6 +202,12 @@ impl Tts {
         self.stop(false).await
     }
 
+    pub async fn repeat_block(&self) -> Result<(), Box<dyn Error>> {
+        self.idx.fetch_sub(1, Ordering::Relaxed);
+        self.stop(false).await?;
+        Ok(())
+    }
+
     pub async fn is_paused(&self) -> bool {
         if matches!(*self.audio_state.lock().await, State::Paused) {
             return true;
@@ -217,5 +220,9 @@ impl Tts {
             return true;
         }
         false
+    }
+
+    pub fn set_speed(&self, speed: f32) {
+        self.reading_speed.replace(speed);
     }
 }
