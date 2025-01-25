@@ -146,6 +146,8 @@ impl TextReader {
     pub fn init_audio_control_buttons(&self) {
         let imp = self.imp();
         let tts = imp.tts.clone();
+        let debounce_duration = std::time::Duration::from_millis(300);
+        let timeout_handle = RefCell::new(None::<glib::SourceId>);
 
         imp.speed_spin.connect_value_changed(clone!(
             #[weak]
@@ -153,7 +155,29 @@ impl TextReader {
             move |spin| {
                 let speed = (spin.value() / 100.0) as f32;
                 tts.set_speed(speed);
-                let _ = runtime().block_on(tts.repeat_block());
+
+                if let Some(handle) = timeout_handle.borrow_mut().take() {
+                    if glib::MainContext::default()
+                        .find_source_by_id(&handle)
+                        .is_some()
+                    {
+                        handle.remove();
+                    }
+                }
+
+                *timeout_handle.borrow_mut() = Some(glib::timeout_add_local(
+                    debounce_duration,
+                    clone!(
+                        #[weak]
+                        tts,
+                        #[upgrade_or]
+                        glib::ControlFlow::Break,
+                        move || {
+                            let _ = runtime().block_on(tts.repeat_block());
+                            glib::ControlFlow::Break
+                        }
+                    ),
+                ));
             }
         ));
 
