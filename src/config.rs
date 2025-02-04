@@ -1,4 +1,5 @@
 use dirs::home_dir;
+use serde::{Deserialize, Serialize};
 
 use std::sync::OnceLock;
 
@@ -24,6 +25,18 @@ fn resolve_home(path: &str) -> String {
 
 fn build_path(base_path: &str, relative_path: &str) -> String {
     resolve_home(base_path).to_string() + "/" + relative_path
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct UserConfig {
+    pub font: Option<String>,
+    pub highlight_color: Option<String>,
+}
+
+impl UserConfig {
+    pub fn get_config_path() -> String {
+        resolve_home(&format!("{}/config.json", FOX_READER_BASE_PATH))
+    }
 }
 
 pub mod huggingface_config {

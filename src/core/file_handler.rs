@@ -1,8 +1,11 @@
 use reqwest::get as get_async;
+use serde::Serialize;
 use std::error::Error;
 use std::fs::{self, remove_file, File};
 use std::io::prelude::*;
 use std::path::Path;
+
+use crate::ui::settings::UserSettings;
 
 pub struct FileHandler {}
 
@@ -119,7 +122,7 @@ impl FileHandler {
         Ok(())
     }
 
-    pub fn upsert_value_in_config(
+    pub fn upsert_value_in_module_config(
         path: &str,
         key: &str,
         new_value: &str,
@@ -144,5 +147,26 @@ impl FileHandler {
                 .join("\n");
             fs::write(path, content).map_err(|e| e.into())
         }
+    }
+
+    pub fn update_json<T>(path: &str, to_update: &T) -> Result<(), Box<dyn Error>>
+    where
+        T: Serialize,
+    {
+        let json = serde_json::to_string_pretty(to_update)?;
+        let mut file = File::create(path)?;
+        file.write_all(json.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn load_settings_from_json(path: &str) -> Result<UserSettings, Box<dyn Error>> {
+        if !Self::does_file_exist(path) {
+            return Ok(UserSettings::default());
+        }
+
+        let content = fs::read_to_string(path)?;
+        let settings: UserSettings = serde_json::from_str(&content)?;
+
+        Ok(settings)
     }
 }

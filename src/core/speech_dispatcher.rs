@@ -89,7 +89,7 @@ impl SpeechDispatcher {
     }
 
     pub fn set_default_voice(default_voice: &str) -> Result<(), Box<dyn Error>> {
-        FileHandler::upsert_value_in_config(
+        FileHandler::upsert_value_in_module_config(
             &dispatcher_config::get_module_config_path(),
             "DefaultVoice",
             default_voice,
