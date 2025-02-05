@@ -21,6 +21,9 @@ jobs:
           override: true
           override-file: Cargo.toml
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgirepository1.0-dev
+
       - name: Build the application
         run: cargo build --release
 
