@@ -1,0 +1,44 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          override-file: Cargo.toml
+
+      - name: Build the application
+        run: cargo build --release
+
+      - name: Package the binary
+        run: |
+          mkdir -p release
+          cp target/release/fox-reader release/
+          tar -czf release/fox-reader-${{ github.ref }}.tar.gz -C release fox-reader
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## Changes in this release
+            - Automatically generated release for tag ${{ github.ref }}.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FILES: release/fox-reader-${{ github.ref }}.tar.gz
