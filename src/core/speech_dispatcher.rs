@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use crate::{
-    config::{dispatcher_config, huggingface_config, PIPER_PATH},
+    paths::{dispatcher_config, huggingface_config, PIPER_PATH},
     core::file_handler::FileHandler,
 };
 
@@ -20,7 +20,7 @@ impl SpeechDispatcher {
     fn init_speechd_config() -> Result<(), Box<dyn Error>> {
         let config_file = &dispatcher_config::get_config_file_path();
         if !FileHandler::does_file_exist(config_file) {
-            FileHandler::ensure_all_dirs_exists(config_file)?;
+            FileHandler::ensure_all_paths_exists(config_file)?;
             FileHandler::save_bytes(config_file, config_template("en-GB").trim().as_bytes())?;
         }
         Ok(())

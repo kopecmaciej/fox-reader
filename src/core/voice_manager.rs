@@ -1,4 +1,4 @@
-use crate::config::{dispatcher_config, huggingface_config, PIPER_PATH};
+use crate::paths::{dispatcher_config, huggingface_config, PIPER_PATH};
 use crate::core::file_handler::FileHandler;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

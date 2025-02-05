@@ -4,6 +4,7 @@ use gtk::{prelude::*, CssProvider};
 
 mod config;
 mod core;
+mod paths;
 mod ui;
 mod utils;
 

@@ -5,7 +5,7 @@ use std::fs::{self, remove_file, File};
 use std::io::prelude::*;
 use std::path::Path;
 
-use crate::ui::settings::UserSettings;
+use crate::config::UserConfig;
 
 pub struct FileHandler {}
 
@@ -14,7 +14,7 @@ impl FileHandler {
         Path::new(file_path).exists()
     }
 
-    pub fn ensure_all_dirs_exists(path: &str) -> Result<(), std::io::Error> {
+    pub fn ensure_all_paths_exists(path: &str) -> Result<(), std::io::Error> {
         let path = Path::new(path);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -30,7 +30,7 @@ impl FileHandler {
     }
 
     pub fn save_bytes(path: &str, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
-        Self::ensure_all_dirs_exists(path)?;
+        Self::ensure_all_paths_exists(path)?;
         let mut file = File::create(path)?;
         file.write_all(bytes)?;
         Ok(())
@@ -159,13 +159,13 @@ impl FileHandler {
         Ok(())
     }
 
-    pub fn load_settings_from_json(path: &str) -> Result<UserSettings, Box<dyn Error>> {
+    pub fn load_settings_from_json(path: &str) -> Result<UserConfig, Box<dyn Error>> {
         if !Self::does_file_exist(path) {
-            return Ok(UserSettings::default());
+            return Ok(UserConfig::default());
         }
 
         let content = fs::read_to_string(path)?;
-        let settings: UserSettings = serde_json::from_str(&content)?;
+        let settings: UserConfig = serde_json::from_str(&content)?;
 
         Ok(settings)
     }

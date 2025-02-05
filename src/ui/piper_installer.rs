@@ -149,7 +149,7 @@ impl PiperInstaller {
 }
 
 async fn download_piper() -> Result<String, Box<dyn Error>> {
-    use crate::config::piper_config;
+    use crate::paths::piper_config;
     use flate2::read::GzDecoder;
     use tar::Archive;
 

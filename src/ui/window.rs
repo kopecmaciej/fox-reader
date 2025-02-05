@@ -6,14 +6,20 @@ use gtk::{
     glib::{self, clone},
     StringList,
 };
+use std::{cell::RefCell, rc::Rc};
 
+use crate::config::UserConfig;
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::ui::dialogs;
 
 use super::settings::Settings;
 
 mod imp {
-    use crate::ui::{text_reader::TextReader, voice_list::VoiceList};
+
+    use crate::{
+        config::UserConfig,
+        ui::{text_reader::TextReader, voice_list::VoiceList},
+    };
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -35,6 +41,7 @@ mod imp {
         pub all_voices_container: TemplateChild<gtk::Box>,
         #[template_child]
         pub downloaded_container: TemplateChild<gtk::Box>,
+        pub user_config: Rc<RefCell<UserConfig>>,
     }
 
     #[glib::object_subclass]
@@ -58,15 +65,20 @@ mod imp {
         #[template_callback]
         fn on_theme_button_clicked(&self, _button: &gtk::Button) {
             let style_manager = adw::StyleManager::default();
-            style_manager.set_color_scheme(match style_manager.is_dark() {
-                true => adw::ColorScheme::ForceLight,
-                false => adw::ColorScheme::ForceDark,
+            let is_dark = !style_manager.is_dark();
+
+            style_manager.set_color_scheme(if is_dark {
+                adw::ColorScheme::ForceDark
+            } else {
+                adw::ColorScheme::ForceLight
             });
+
+            self.user_config.borrow_mut().set_theme(is_dark)
         }
 
         #[template_callback]
         fn on_settings_button_clicked(&self, button: &gtk::Button) {
-            let settings = Settings::new();
+            let settings = Settings::new(Rc::clone(&self.user_config));
             settings.setup_signals(&self.text_reader);
             settings.present(Some(button));
         }
@@ -99,6 +111,9 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, &window);
         }
 
+        window.imp().user_config.replace(UserConfig::new());
+        let style_manager = adw::StyleManager::default();
+        style_manager.set_color_scheme(window.imp().user_config.borrow().get_color_scheme());
         window.imp().voice_list.init();
         window.imp().text_reader.init();
         window.setup_stack_switching();
