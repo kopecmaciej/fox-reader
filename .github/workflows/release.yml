@@ -9,6 +9,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
     steps:
       - name: Checkout code
@@ -24,8 +26,20 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libgirepository1.0-dev libpango1.0-dev libdbus-1-dev libgtk-4-dev libadwaita-1-dev
-          export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:$PKG_CONFIG_PATH"
+          sudo apt-get install -y pkg-config libgirepository1.0-dev libpango1.0-dev libdbus-1-dev libadwaita-1-dev \
+            build-essential meson ninja-build libwayland-dev libxkbcommon-dev wayland-protocols libglib2.0-dev \
+            libcairo2-dev libepoxy-dev libgraphene-1.0-dev libx11-dev libxext-dev libxi-dev libxrandr-dev \
+            libxfixes-dev libxdamage-dev libxcursor-dev libxcomposite-dev libxinerama-dev libxml2-dev \
+            libharfbuzz-dev libgdk-pixbuf-2.0-dev libvulkan-dev cmake
+
+      - name: Build and install GTK4
+        run: |
+          git clone https://gitlab.gnome.org/GNOME/gtk.git
+          cd gtk
+          git checkout 4.16.0  # Use the exact tag you need
+          meson setup build --prefix=/usr/local
+          ninja -C build
+          sudo ninja -C build install
 
       - name: Build the application
         run: cargo build --release
