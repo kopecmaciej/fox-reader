@@ -1,8 +1,11 @@
 use std::error::Error;
 
+use regex::Regex;
+
 use crate::{
-    paths::{dispatcher_config, huggingface_config, PIPER_PATH},
     core::file_handler::FileHandler,
+    paths::{dispatcher_config, huggingface_config, PIPER_PATH},
+    utils::audio_backend::AudioBackend,
 };
 
 const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
@@ -42,8 +45,15 @@ impl SpeechDispatcher {
 
     pub fn init_script() -> Result<(), Box<dyn Error>> {
         let script_path = &dispatcher_config::get_script_path();
+        let backend = AudioBackend::new()?;
+
         if !FileHandler::does_file_exist(script_path) {
-            FileHandler::save_bytes(script_path, FOX_READER_SCRIPT)?;
+            let re = Regex::new(r"\$AUDIO_BACKEND")?;
+            let script_content = String::from_utf8_lossy(FOX_READER_SCRIPT);
+            let new_content = re.replace(&script_content, format!("\"{}\"", backend.get_command()));
+
+            FileHandler::save_bytes(script_path, new_content.as_bytes())?;
+
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -53,6 +63,7 @@ impl SpeechDispatcher {
                 std::fs::set_permissions(script_path, perms)?;
             }
         }
+
         Ok(())
     }
 
