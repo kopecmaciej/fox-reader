@@ -1,78 +1,105 @@
-use crate::core::runtime::runtime;
-use serde_json::json;
+use rodio::buffer::SamplesBuffer;
+use rodio::{OutputStream, Sink};
 use std::error::Error;
-use std::process::Stdio;
-use tokio::io::AsyncWriteExt;
-use tokio::net::UnixStream;
-use tokio::process::Command;
+use std::io::Cursor;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-pub struct AudioPlayer {}
+use super::audio_processing::wsola_normalized;
+
+pub struct AudioPlayer {
+    sink: Arc<Mutex<Option<Arc<Sink>>>>,
+}
 
 impl AudioPlayer {
-    const SOCKET_NAME: &'static str = "\0mpv-socket-fox-reader";
-
-    async fn socket() -> std::io::Result<UnixStream> {
-        UnixStream::connect(Self::SOCKET_NAME).await
+    pub fn new() -> Self {
+        AudioPlayer {
+            sink: Arc::new(Mutex::new(None)),
+        }
     }
 
-    pub async fn play_audio(
-        audio_data: Vec<u8>,
-        speed: f32,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        Self::stop().await?;
-        let mut mpv_process = Command::new("mpv")
-            .args([
-                &format!("--speed={}", speed),
-                "--no-terminal",
-                "--keep-open=no",
-                &format!("--input-ipc-server=@{}", &Self::SOCKET_NAME[1..]),
-                "-",
-            ])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)?;
+    pub fn play_mp3(&self, audio_data: Vec<u8>) -> Result<(), String> {
+        let cursor = Cursor::new(audio_data);
 
-        if let Some(mut stdin) = mpv_process.stdin.take() {
-            tokio::io::AsyncWriteExt::write_all(&mut stdin, &audio_data)
-                .await
-                .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)?;
-        }
+        let (_stream, stream_handle) = OutputStream::try_default()
+            .map_err(|e| format!("Failed to setup audio output: {}", e))?;
 
-        mpv_process
-            .wait()
-            .await
-            .map_err(|e| Box::new(e) as Box<dyn Error + Send + Sync>)?;
+        let sink = Sink::try_new(&stream_handle)
+            .map_err(|e| format!("Failed to create audio sink: {}", e))?;
+
+        let sink = Arc::new(sink);
+
+        *self.sink.lock().unwrap() = Some(Arc::clone(&sink));
+
+        let source =
+            rodio::Decoder::new(cursor).map_err(|e| format!("Failed to decode audio: {}", e))?;
+
+        sink.append(source);
+        sink.sleep_until_end();
 
         Ok(())
     }
 
-    pub async fn pause() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        Self::send_command(&["cycle", "pause"]).await
+    pub fn play_audio(
+        &self,
+        audio_data: Vec<u8>,
+        speed: f32,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.stop()?;
+
+        // Let's remove the wav header as we're using `SamplesBuffer`
+        let pcm_data = if audio_data.starts_with(b"RIFF") && audio_data.len() > 44 {
+            &audio_data[44..]
+        } else {
+            audio_data.as_slice()
+        };
+
+        let (_stream, stream_handle) = OutputStream::try_default()?;
+        let sink = Sink::try_new(&stream_handle)?;
+
+        let samples = Self::process_audio(pcm_data, speed);
+
+        let source = SamplesBuffer::new(1, 22050, samples);
+
+        sink.append(source);
+        sink.sleep_until_end();
+
+        Ok(())
     }
 
-    pub async fn stop() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        Self::send_command(&["quit"]).await
-    }
+    /// Process audio data for playback, applying time-stretching if needed
+    fn process_audio(audio_data: &[u8], speed: f32) -> Vec<f32> {
+        let mut samples: Vec<f32> = audio_data
+            .chunks_exact(2)
+            .map(|chunk| {
+                let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
+                sample as f32 / 32768.0
+            })
+            .collect();
 
-    async fn send_command(command: &[&str]) -> Result<(), Box<dyn Error + Send + Sync>> {
-        match Self::socket().await {
-            Ok(mut socket) => {
-                let command_json = json!({
-                    "command": command
-                });
-                let mut command_bytes = command_json.to_string().into_bytes();
-                command_bytes.push(b'\n');
-                socket.write_all(&command_bytes).await?;
-                Ok(())
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => Ok(()),
-            Err(e) => Err(Box::new(e)),
+        if (speed - 1.0).abs() > 0.01 {
+            samples = wsola_normalized(&samples, speed, 60);
         }
+
+        samples
     }
 
-    pub fn cleanup() {
-        runtime().spawn(async { Self::stop().await });
+    pub fn pause(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        if let Some(sink) = &*self.sink.lock().unwrap() {
+            if !sink.is_paused() {
+                sink.pause();
+            } else {
+                sink.play();
+            }
+        }
+        Ok(())
+    }
+
+    pub fn stop(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        if let Some(sink) = &*self.sink.lock().unwrap() {
+            sink.stop();
+        }
+        *self.sink.lock().unwrap() = None;
+        Ok(())
     }
 }

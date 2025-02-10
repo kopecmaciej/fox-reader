@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::sync::Arc;
 
 use crate::core::runtime::runtime;
 use crate::core::speech_dispatcher::SpeechDispatcher;
@@ -136,17 +137,19 @@ impl VoiceRow {
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
+        let audio_player = Arc::new(AudioPlayer::new());
         play_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,
             move |button| {
-                let is_playing = button.icon_name().map_or(false, |icon| icon == STOP_ICON);
+                let is_playing = button.icon_name().is_some_and(|icon| icon == STOP_ICON);
                 if is_playing {
-                    let _ = runtime().block_on(async { AudioPlayer::stop().await });
+                    let _ = runtime().block_on(async { audio_player.stop() });
                     button.set_icon_name(PLAY_ICON);
                     return;
                 }
                 button.set_icon_name(STOP_ICON);
+                let audio_player = audio_player.clone();
                 glib::spawn_future_local(clone!(
                     #[weak]
                     button,
@@ -156,9 +159,7 @@ impl VoiceRow {
                             Ok(audio_data) => {
                                 let _ = runtime()
                                     .spawn(clone!(async move {
-                                        if let Err(e) =
-                                            AudioPlayer::play_audio(audio_data, 1.0).await
-                                        {
+                                        if let Err(e) = audio_player.play_mp3(audio_data) {
                                             eprintln!(
                                                 "Failed to play voice sample. \nDetails: {}",
                                                 e

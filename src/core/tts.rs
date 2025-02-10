@@ -1,6 +1,5 @@
-use crate::utils::{audio_player::AudioPlayer, text_highlighter::ReadBlock};
-
 use super::{runtime::runtime, voice_manager::VoiceManager};
+use crate::utils::{audio_player::AudioPlayer, text_highlighter::ReadBlock};
 use std::{
     cell::RefCell,
     error::Error,
@@ -27,6 +26,7 @@ pub struct Tts {
     pub idx: Arc<AtomicUsize>,
     pub audio_state: Arc<Mutex<State>>,
     pub reading_speed: RefCell<f32>,
+    audio_player: Arc<AudioPlayer>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +58,7 @@ impl Tts {
             idx: Arc::new(AtomicUsize::new(0)),
             audio_state: Arc::new(Mutex::new(State::Idle)),
             reading_speed: RefCell::new(1.0),
+            audio_player: Arc::new(AudioPlayer::new()),
         }
     }
 
@@ -77,36 +78,34 @@ impl Tts {
             let event = self
                 .read_block_of_text(reading_block.block.clone(), voice.to_string())
                 .await;
-            {
-                match event {
-                    Ok(Some(TTSEvent::Stop)) => {
-                        self.idx.store(0, Ordering::Relaxed);
-                        break;
+
+            match event {
+                Ok(Some(TTSEvent::Stop)) => {
+                    self.idx.store(0, Ordering::Relaxed);
+                    break;
+                }
+                Ok(Some(TTSEvent::Next)) => {
+                    if current_idx + 1 < reading_blocks.len() {
+                        self.idx.store(current_idx + 1, Ordering::Relaxed);
                     }
-                    Ok(Some(TTSEvent::Next)) => {
-                        if current_idx + 1 < reading_blocks.len() {
-                            self.idx.store(current_idx + 1, Ordering::Relaxed);
-                        }
-                        continue;
+                    continue;
+                }
+                Ok(Some(TTSEvent::Prev)) => {
+                    if current_idx > 0 {
+                        self.idx.store(current_idx - 1, Ordering::Relaxed);
                     }
-                    Ok(Some(TTSEvent::Prev)) => {
-                        if current_idx > 0 {
-                            self.idx.store(current_idx - 1, Ordering::Relaxed);
-                        }
-                        continue;
-                    }
-                    Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
-                    Err(e) => e,
-                    _ => {
-                        self.idx.fetch_add(1, Ordering::Relaxed);
-                        continue;
-                    }
-                };
-            }
+                    continue;
+                }
+                Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
+                Err(e) => return Err(e),
+                _ => {
+                    self.idx.fetch_add(1, Ordering::Relaxed);
+                    continue;
+                }
+            };
         }
 
         self.idx.store(0, Ordering::Relaxed);
-
         Ok(())
     }
 
@@ -124,12 +123,12 @@ impl Tts {
 
         let audio_state = self.audio_state.clone();
         let reading_speed = *self.reading_speed.borrow();
+        let audio_player = self.audio_player.clone();
+
         let result = runtime()
             .spawn(async move {
                 let play_handle =
-                    tokio::spawn(
-                        async move { AudioPlayer::play_audio(raw_audio, reading_speed).await },
-                    );
+                    tokio::spawn(async move { audio_player.play_audio(raw_audio, reading_speed) });
                 *audio_state.lock().await = State::Playing;
 
                 tokio::select! {
@@ -141,24 +140,23 @@ impl Tts {
                         }
                     }
                     Ok(event) = receiver.recv() => {
-                      match event {
-                          TTSEvent::Stop => Some(TTSEvent::Stop),
-                          TTSEvent::Next => Some(TTSEvent::Next),
-                          TTSEvent::Prev => Some(TTSEvent::Prev),
-                          _ => None,
-                      }
-                }
+                        match event {
+                            TTSEvent::Stop => Some(TTSEvent::Stop),
+                            TTSEvent::Next => Some(TTSEvent::Next),
+                            TTSEvent::Prev => Some(TTSEvent::Prev),
+                            _ => None,
+                        }
+                    }
                 }
             })
             .await?;
 
         *self.audio_state.lock().await = State::Idle;
-
         Ok(result)
     }
 
     pub async fn stop(&self, send_event: bool) -> Result<(), Box<dyn Error>> {
-        if let Err(e) = AudioPlayer::stop().await {
+        if let Err(e) = self.audio_player.stop() {
             self.sender.send(TTSEvent::Error(e.to_string()))?;
         }
         if send_event {
@@ -170,7 +168,7 @@ impl Tts {
 
     pub async fn pause_if_playing(&self) -> bool {
         if self.is_playing().await {
-            if let Err(e) = AudioPlayer::pause().await {
+            if let Err(e) = self.audio_player.pause() {
                 let _ = self.sender.send(TTSEvent::Error(e.to_string()));
                 return false;
             }
@@ -182,7 +180,7 @@ impl Tts {
 
     pub async fn resume_if_paused(&self) -> bool {
         if self.is_paused().await {
-            if let Err(e) = AudioPlayer::pause().await {
+            if let Err(e) = self.audio_player.pause() {
                 let _ = self.sender.send(TTSEvent::Error(e.to_string()));
                 return false;
             }
@@ -209,17 +207,11 @@ impl Tts {
     }
 
     pub async fn is_paused(&self) -> bool {
-        if matches!(*self.audio_state.lock().await, State::Paused) {
-            return true;
-        }
-        false
+        matches!(*self.audio_state.lock().await, State::Paused)
     }
 
     pub async fn is_playing(&self) -> bool {
-        if matches!(*self.audio_state.lock().await, State::Playing) {
-            return true;
-        }
-        false
+        matches!(*self.audio_state.lock().await, State::Playing)
     }
 
     pub fn set_speed(&self, speed: f32) {
