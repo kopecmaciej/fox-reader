@@ -23,9 +23,9 @@ pub enum State {
 #[derive(Clone)]
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
-    pub idx: Arc<AtomicUsize>,
-    pub audio_state: Arc<Mutex<State>>,
-    pub reading_speed: RefCell<f32>,
+    idx: Arc<AtomicUsize>,
+    audio_state: Arc<Mutex<State>>,
+    reading_speed: RefCell<f32>,
     audio_player: Arc<AudioPlayer>,
 }
 
