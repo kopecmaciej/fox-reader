@@ -9,22 +9,12 @@ use std::{
         Arc,
     },
 };
-use tokio::sync::{
-    broadcast::{self, Sender},
-    Mutex,
-};
-
-pub enum State {
-    Playing,
-    Paused,
-    Idle,
-}
+use tokio::sync::broadcast::{self, Sender};
 
 #[derive(Clone)]
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
     idx: Arc<AtomicUsize>,
-    audio_state: Arc<Mutex<State>>,
     reading_speed: RefCell<f32>,
     audio_player: Arc<AudioPlayer>,
 }
@@ -56,7 +46,6 @@ impl Tts {
         Self {
             sender: Arc::new(sender),
             idx: Arc::new(AtomicUsize::new(0)),
-            audio_state: Arc::new(Mutex::new(State::Idle)),
             reading_speed: RefCell::new(1.0),
             audio_player: Arc::new(AudioPlayer::new()),
         }
@@ -121,15 +110,13 @@ impl Tts {
             &voice,
         ))?;
 
-        let audio_state = self.audio_state.clone();
         let reading_speed = *self.reading_speed.borrow();
         let audio_player = self.audio_player.clone();
 
         let result = runtime()
             .spawn(async move {
                 let play_handle =
-                    tokio::spawn(async move { audio_player.play_audio(raw_audio, reading_speed) });
-                *audio_state.lock().await = State::Playing;
+                    tokio::spawn(async move { audio_player.play_wav(raw_audio, reading_speed) });
 
                 tokio::select! {
                     play_result = play_handle => {
@@ -151,18 +138,14 @@ impl Tts {
             })
             .await?;
 
-        *self.audio_state.lock().await = State::Idle;
         Ok(result)
     }
 
     pub async fn stop(&self, send_event: bool) -> Result<(), Box<dyn Error>> {
-        if let Err(e) = self.audio_player.stop() {
-            self.sender.send(TTSEvent::Error(e.to_string()))?;
-        }
+        self.audio_player.stop();
         if send_event {
             self.sender.send(TTSEvent::Stop)?;
         }
-        *self.audio_state.lock().await = State::Idle;
         Ok(())
     }
 
@@ -172,19 +155,14 @@ impl Tts {
                 let _ = self.sender.send(TTSEvent::Error(e.to_string()));
                 return false;
             }
-            *self.audio_state.lock().await = State::Paused;
             return true;
         }
         false
     }
 
     pub async fn resume_if_paused(&self) -> bool {
-        if self.is_paused().await {
-            if let Err(e) = self.audio_player.pause() {
-                let _ = self.sender.send(TTSEvent::Error(e.to_string()));
-                return false;
-            }
-            *self.audio_state.lock().await = State::Playing;
+        if self.is_paused() {
+            self.audio_player.play();
             return true;
         }
         false
@@ -206,12 +184,12 @@ impl Tts {
         Ok(())
     }
 
-    pub async fn is_paused(&self) -> bool {
-        matches!(*self.audio_state.lock().await, State::Paused)
+    pub fn is_paused(&self) -> bool {
+        self.audio_player.is_paused()
     }
 
     pub async fn is_playing(&self) -> bool {
-        matches!(*self.audio_state.lock().await, State::Playing)
+        self.audio_player.is_playing()
     }
 
     pub fn set_speed(&self, speed: f32) {

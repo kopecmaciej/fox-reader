@@ -144,7 +144,7 @@ impl VoiceRow {
             move |button| {
                 let is_playing = button.icon_name().is_some_and(|icon| icon == STOP_ICON);
                 if is_playing {
-                    let _ = runtime().block_on(async { audio_player.stop() });
+                    runtime().block_on(async { audio_player.stop() });
                     button.set_icon_name(PLAY_ICON);
                     return;
                 }

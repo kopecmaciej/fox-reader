@@ -37,15 +37,17 @@ impl AudioPlayer {
         sink.append(source);
         sink.sleep_until_end();
 
+        self.clean();
+
         Ok(())
     }
 
-    pub fn play_audio(
+    pub fn play_wav(
         &self,
         audio_data: Vec<u8>,
         speed: f32,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.stop()?;
+        self.stop();
 
         // Let's remove the wav header as we're using `SamplesBuffer`
         let pcm_data = if audio_data.starts_with(b"RIFF") && audio_data.len() > 44 {
@@ -57,6 +59,9 @@ impl AudioPlayer {
         let (_stream, stream_handle) = OutputStream::try_default()?;
         let sink = Sink::try_new(&stream_handle)?;
 
+        let sink = Arc::new(sink);
+        *self.sink.lock().unwrap() = Some(Arc::clone(&sink));
+
         let samples = Self::process_audio(pcm_data, speed);
 
         let source = SamplesBuffer::new(1, 22050, samples);
@@ -64,7 +69,13 @@ impl AudioPlayer {
         sink.append(source);
         sink.sleep_until_end();
 
+        self.clean();
+
         Ok(())
+    }
+
+    fn clean(&self) {
+        *self.sink.lock().unwrap() = None;
     }
 
     /// Process audio data for playback, applying time-stretching if needed
@@ -95,11 +106,27 @@ impl AudioPlayer {
         Ok(())
     }
 
-    pub fn stop(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub fn play(&self) {
+        if let Some(sink) = &*self.sink.lock().unwrap() {
+            sink.play();
+        }
+    }
+
+    pub fn is_playing(&self) -> bool {
+        return self.sink.lock().unwrap().is_some();
+    }
+
+    pub fn is_paused(&self) -> bool {
+        if let Some(sink) = &*self.sink.lock().unwrap() {
+            return sink.is_paused();
+        }
+        false
+    }
+
+    pub fn stop(&self) {
         if let Some(sink) = &*self.sink.lock().unwrap() {
             sink.stop();
         }
-        *self.sink.lock().unwrap() = None;
-        Ok(())
+        self.clean();
     }
 }
