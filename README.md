@@ -1,43 +1,89 @@
 # Fox Reader
 
-Fox Reader is a text-to-speech application that allows users to read text aloud
-using various voices.
+Fox Reader is a powerful text-to-speech application built in Rust and GTK4 that
+converts text to speech using all voices from
+[piper voices](https://huggingface.co/rhasspy/piper-voices).
+
+## Why I've built it?
+
+There are other applications that will allow you to download piper voices for
+speech-dispatcher but I wanted a little bit more, also non of them seems to work
+with firefox `Read aloud` functionallty, so I decided to build something
+diffrent.
+
+## Key Features
+
+Easy voice installation and management Firefox Read Aloud integration Adjustable
+speech parameters Speech Dispatcher compatibility
+
+## Development Status
+
+- Audio processor improvements for better voice quality at higher speeds
+- PDF file support (experimental)
+
+## Current UI:
+
+![Text to Speech Interface](assets/test_to_speach.png)
+
+![Voice List](assets/voice_list.png)
+
+## Prerequisites
+
+- GTK4 and its development libraries
+- Speech Dispatcher (optional)
+- Rust toolchain (for building from source)
 
 ## Installation
 
-To install Fox Reader, follow these steps:
+### From Release
 
-1. **Download the latest release:** You can download the latest release asset
-   from the GitHub releases page. Use the following command to download the
-   `.tar.gz` file:
+1. Download the latest release:
 
-   ```bash
-   wget https://github.com/kopecmaciej/fox-reader/releases/download/v0.1.0/fox-reader-v0.1.0.tar.gz
-   ```
+```bash
+wget https://github.com/kopecmaciej/fox-reader/releases/download/v0.1.0/fox-reader-v0.1.0.tar.gz
+tar -xzf fox-reader-v0.1.0.tar.gz
+mv fox-reader ~/.local/bin/
+rm fox-reader-v0.1.0.tar.gz
+```
 
-2. **Extract the downloaded file:** After downloading, extract the contents of
-   the tarball:
+2. Run the application:
 
-   ```bash
-   tar -xzf fox-reader-v0.1.0.tar.gz
-   ```
+```bash
+fox-reader
+```
 
-3. **Move the binary to a directory in your PATH:** Move the extracted binary to
-   `/usr/local/bin` to make it accessible from anywhere:
+### Building from Source
 
-   ```bash
-   sudo mv fox-reader /usr/local/bin/
-   ```
+1. Clone the repository:
 
-4. **Run the application:** You can now run Fox Reader by executing the
-   following command:
+```bash
+# Clone repository
+git clone https://github.com/kopecmaciej/fox-reader.git
+cd fox-reader
 
-   ```bash
-   fox-reader
-   ```
+# Build
+cargo build --release
+
+# Run
+./target/release/fox-reader
+```
 
 ## Usage
 
-Once the application is running, you can input text and select different voices
-to read the text aloud.
+### Voice Management
 
+1. Open the voice management interface
+2. Browse available voices from the Piper voices repository
+3. Install desired voices for use with the application
+4. Set as default given voice to be used in speech-dispatcher
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Acknowledgments
+
+- [Piper Voices](https://huggingface.co/rhasspy/piper-voices) for providing the
+  TTS voices
+- [GTK4 team for the UI framework](https://www.gtk.org/)
+- [Speech Dispatcher project](https://freebsoft.org/speechd)
