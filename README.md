@@ -1,6 +1,6 @@
 # Fox Reader
 
-Fox Reader is a powerful text-to-speech application built in Rust and GTK4 that
+Fox Reader is a simple text-to-speech application built in Rust and GTK4 that
 converts text to speech using all voices from
 [piper voices](https://huggingface.co/rhasspy/piper-voices).
 
@@ -12,15 +12,9 @@ wanted a little bit more, also non of them seems to work with firefox
 
 ## Key Features
 
-Easy voice installation and management Firefox Read Aloud integration Adjustable
-speech parameters Speech Dispatcher compatibility
-
-## Development Status
-
-- Audio processor improvements for better voice quality at higher speeds
-- PDF file support (experimental)
-- Move to other GUI rust library for better support on Macos/Windows (probably
-  as separate project)
+1. Text-to-speech with highlighting system
+2. Speech Dispatcher compatibility
+3. Firefox Read Aloud integration
 
 ## Current UI:
 
@@ -73,10 +67,38 @@ cargo build --release
 
 ### Voice Management
 
-1. Open the voice management interface
+1. Open the `Voice List` tab
 2. Browse available voices from the Piper voices repository
-3. Install desired voices for use with the application
-4. Set as default given voice to be used in speech-dispatcher
+3. Download desired voices, every downloaded voice is avaliable in `Text Reader`
+   and `Speech Dispatcher`
+4. Set favorite voice as default for better `Speech Dispatcher` experience
+
+### Speech Dispatcher Integration
+
+Fox Reader integrates with Speech Dispatcher through a custom output module
+script that processes audio using various players (mpv, ffplay, sox with aplay
+or paplay). The script handles:
+
+- Dynamic audio player selection based on system availability
+- Speech rate adjustments for Firefox compatibility
+- Volume control and audio processing
+- Raw audio stream handling from Piper TTS
+
+### Audio Player Support
+
+The script automatically selects the first available player in this order:
+
+- mpv (recommended) - Supports speed control and volume adjustment
+- ffplay - Basic playback with volume control
+- sox - Advanced audio processing with tempo adjustment
+- aplay/paplay - Basic audio output
+
+## Development Status
+
+- Audio processor improvements for better voice quality at higher speeds
+- PDF file support (experimental)
+- Move to other GUI rust library for better support on Macos/Windows (probably
+  as separate project)
 
 ## Contributing
 
