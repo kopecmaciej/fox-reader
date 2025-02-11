@@ -6,10 +6,9 @@ converts text to speech using all voices from
 
 ## Why I've built it?
 
-There are other applications that will allow you to download piper voices for
-speech-dispatcher but I wanted a little bit more, also non of them seems to work
-with firefox `Read aloud` functionallty, so I decided to build something
-diffrent.
+While other applications offer Piper voice integration with Speech Dispatcher, I
+wanted a little bit more, also non of them seems to work with firefox
+`Read aloud` functionallty, so I decided to build this small GTK application.
 
 ## Key Features
 
@@ -20,6 +19,8 @@ speech parameters Speech Dispatcher compatibility
 
 - Audio processor improvements for better voice quality at higher speeds
 - PDF file support (experimental)
+- Move to other GUI rust library for better support on Macos/Windows (probably
+  as separate project)
 
 ## Current UI:
 
