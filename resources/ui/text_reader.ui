@@ -9,15 +9,23 @@
           <object class="AdwPreferencesGroup">
             <property name="title">Text to Speech Reader</property>
             <child>
-              <object class="GtkTextView" id="text_input">
-                <property name="wrap-mode">word</property>
+              <object class="GtkScrolledWindow">
                 <property name="height-request">420</property>
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
                 <style>
                   <class name="card"></class>
-                  <class name="text-input"></class>
                 </style>
+                <child>
+                  <object class="GtkTextView" id="text_input">
+                    <property name="wrap-mode">word</property>
+                    <property name="hexpand">true</property>
+                    <property name="vexpand">true</property>
+                    <style>
+                      <class name="text-input"></class>
+                    </style>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
