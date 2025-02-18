@@ -448,12 +448,14 @@ dependencies = [
 name = "fox-reader"
 version = "0.1.0"
 dependencies = [
+ "cairo-rs",
  "dirs",
  "flate2",
  "gio",
  "glib-build-tools",
  "gtk4",
  "libadwaita",
+ "poppler",
  "regex",
  "reqwest",
  "rodio",
@@ -1563,6 +1565,17 @@ name = "pkg-config"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
+
+[[package]]
+name = "poppler"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "275f6b71768d6726b1e8feb9d063c8784c4ac9c99dc8f6b8ea371eab8af6617c"
+dependencies = [
+ "cairo-rs",
+ "glib",
+ "gobject-sys",
+]
 
 [[package]]
 name = "proc-macro-crate"
