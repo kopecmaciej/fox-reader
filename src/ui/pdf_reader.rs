@@ -2,22 +2,14 @@ use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gio::glib::{self, Object};
 use gtk::{self, glib::clone};
-use std::cell::RefCell;
+use poppler::Rectangle;
+use std::{cell::RefCell, fmt::Debug};
 
-use poppler::PopplerDocument;
+use poppler::Document;
 
-#[derive(Debug, Clone)]
-struct TextSelection {
-    x1: f64,
-    y1: f64,
-    x2: f64,
-    y2: f64,
-    text: String,
-}
+use super::dialogs::show_error_dialog;
 
 mod imp {
-    use std::collections::HashSet;
-
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -33,9 +25,7 @@ mod imp {
         #[template_child]
         pub pdf_view: TemplateChild<gtk::Box>,
 
-        pub pdf_document: RefCell<Option<PopplerDocument>>,
-        pub text_selections: RefCell<HashSet<TextSelection>>,
-        pub current_selection: RefCell<Option<(f64, f64)>>, // Store mouse
+        pub pdf_document: RefCell<Option<Document>>,
     }
 
     #[glib::object_subclass]
@@ -67,17 +57,13 @@ mod imp {
                 }
             ));
 
-            // Set up drop target
             self.drop_area.connect_drop(clone!(
                 #[weak]
                 obj,
                 #[upgrade_or]
                 false,
                 move |_, value, _, _| -> bool {
-                    println!("TEST");
-                    println!("{:?}", value);
                     if let Ok(file) = value.get::<gio::File>() {
-                        println!("{:?}", file);
                         obj.load_pdf(file);
                         true
                     } else {
@@ -110,35 +96,39 @@ impl Default for PdfReader {
 impl PdfReader {
     pub fn load_pdf(&self, file: gio::File) {
         if let Some(path) = file.path() {
-            match PopplerDocument::new_from_file(&path, None) {
-                Ok(doc) => {
-                    let imp = self.imp();
-                    *imp.pdf_document.borrow_mut() = Some(doc);
+            if let Some(str_path) = path.to_str() {
+                match Document::from_file(&format!("file:///{}", str_path), None) {
+                    Ok(doc) => {
+                        let imp = self.imp();
+                        *imp.pdf_document.borrow_mut() = Some(doc);
 
-                    // Clear any existing content in the PDF view
-                    let pdf_box: &gtk::Box = imp.pdf_view.as_ref();
-                    while let Some(child) = pdf_box.first_child() {
-                        pdf_box.remove(&child);
+                        let pdf_box: &gtk::Box = imp.pdf_view.as_ref();
+                        while let Some(child) = pdf_box.first_child() {
+                            pdf_box.remove(&child);
+                        }
+
+                        self.render_current_page();
+                        imp.content_stack.set_visible_child_name("pdf_view");
                     }
-
-                    self.render_current_page();
-
-                    // Switch to the PDF view stack page
-                    imp.content_stack.set_visible_child_name("pdf_view");
+                    Err(e) => {
+                        show_error_dialog(&format!("Error loading PDF: {}", e), self);
+                    }
                 }
-                Err(err) => {
-                    eprintln!("Error loading PDF: {}", err);
-                    // Show an error dialog
-                }
+            } else {
+                show_error_dialog("Error converting file path to string", self);
             }
+        } else {
+            show_error_dialog("Error retrieving file path", self);
         }
     }
 
     fn render_current_page(&self) {
         let imp = self.imp();
         if let Some(ref doc) = *imp.pdf_document.borrow() {
-            if let Some(page) = doc.get_page(0) {
-                let (width, height) = page.get_size();
+            if let Some(page) = doc.page(0) {
+                let (width, height) = page.size();
+
+                let rec = self.get_text_positions(0).unwrap();
 
                 let drawing_area = gtk::DrawingArea::new();
                 drawing_area.set_content_width(width as i32);
@@ -146,22 +136,68 @@ impl PdfReader {
                 drawing_area.set_hexpand(true);
                 drawing_area.set_vexpand(true);
 
-                // Add ScrolledWindow to handle large PDFs
                 let scrolled_window = gtk::ScrolledWindow::new();
                 scrolled_window.set_hexpand(true);
                 scrolled_window.set_vexpand(true);
                 scrolled_window.set_child(Some(&drawing_area));
 
-                drawing_area.set_draw_func(move |_, cr, width, height| {
-                    let scale = width as f64 / page.get_size().0;
+                drawing_area.set_draw_func(move |da, cr, draw_width, _draw_height| {
+                    let (page_width, page_height) = page.size();
+                    let scale = draw_width as f64 / page_width;
                     cr.scale(scale, scale);
+
                     page.render(cr);
+
+                    let x1 = rec.x1();
+                    let x2 = rec.x2();
+                    let y1 = rec.y1();
+                    let y2 = rec.y2();
+
+                    let highlight_x = x1;
+                    let highlight_y = page_height - y2; // we have to reverse the `y` coordinate
+                    let highlight_width = x2 - x1;
+                    let highlight_height = y2 - y1;
+
+                    cr.set_source_rgba(1.0, 1.0, 0.0, 0.5);
+                    cr.rectangle(highlight_x, highlight_y, highlight_width, highlight_height);
+                    if let Err(e) = cr.fill() {
+                        show_error_dialog(&format!("Error rendering PDF: {}", e), da);
+                    }
                 });
 
                 let pdf_box: &gtk::Box = imp.pdf_view.as_ref();
                 pdf_box.append(&scrolled_window);
             }
         }
+    }
+
+    pub fn get_text_positions(&self, page_index: usize) -> Option<Rectangle> {
+        let imp = self.imp();
+        if let Some(ref doc) = *imp.pdf_document.borrow() {
+            if let Some(page) = doc.page(page_index as i32) {
+                let page_text = page.text().unwrap_or_else(|| "".into());
+                if page_text == "" {
+                    return None;
+                }
+                let mut position = Rectangle::new();
+
+                for (n, word) in page_text.split_whitespace().enumerate() {
+                    if n == 1 {
+                        break;
+                    }
+                    let rects = page.find_text(word);
+                    if let Some(rect) = rects.first() {
+                        position = *rect;
+                    }
+
+                    if word.ends_with('.') {
+                        break;
+                    }
+                }
+                return Some(position);
+            }
+        }
+        None
     }
 
     fn open_file_dialog(&self) {
