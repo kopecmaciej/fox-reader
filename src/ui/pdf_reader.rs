@@ -132,7 +132,7 @@ impl PdfReader {
 
                 let drawing_area = gtk::DrawingArea::new();
                 drawing_area.set_content_width(width as i32);
-                drawing_area.set_content_height(height as i32);
+                drawing_area.set_content_height((height + 240.0) as i32);
                 drawing_area.set_hexpand(true);
                 drawing_area.set_vexpand(true);
 
