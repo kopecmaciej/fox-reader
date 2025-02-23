@@ -72,9 +72,9 @@
               <object class="GtkBox" id="pdf_view">
                 <property name="orientation">vertical</property>
                 <property name="spacing">12</property>
-                <!-- PDF viewer content will be added here programmatically -->
+                <!-- Toolbar -->
                 <child>
-                  <object class="GtkBox">
+                  <object class="GtkBox" id="toolbar">
                     <property name="orientation">horizontal</property>
                     <property name="spacing">6</property>
                     <style>
@@ -96,15 +96,59 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkButton">
+                      <object class="GtkButton" id="prev_page">
                         <property name="icon-name">go-previous-symbolic</property>
+                        <property name="tooltip-text">Previous Page</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkButton">
-                        <property name="icon-name">go-next-symbolic</property>
+                      <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">6</property>
+                        <child>
+                          <object class="GtkEntry" id="current_page">
+                            <property name="width-chars">4</property>
+                            <property name="text">1</property>
+                            <property name="xalign">1</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label">/</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="total_pages">
+                            <property name="label">1</property>
+                          </object>
+                        </child>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkButton" id="next_page">
+                        <property name="icon-name">go-next-symbolic</property>
+                        <property name="tooltip-text">Next Page</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator">
+                        <property name="orientation">vertical</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="close_pdf">
+                        <property name="icon-name">window-close-symbolic</property>
+                        <property name="tooltip-text">Close PDF</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <!-- PDF Content Container -->
+                <child>
+                  <object class="GtkBox" id="pdf_content">
+                    <property name="orientation">vertical</property>
+                    <property name="vexpand">true</property>
+                    <property name="hexpand">true</property>
                   </object>
                 </child>
               </object>

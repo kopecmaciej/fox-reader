@@ -24,8 +24,21 @@ mod imp {
         pub open_pdf: TemplateChild<gtk::Button>,
         #[template_child]
         pub pdf_view: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub pdf_content: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub prev_page: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub next_page: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub current_page: TemplateChild<gtk::Entry>,
+        #[template_child]
+        pub total_pages: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub close_pdf: TemplateChild<gtk::Button>,
 
         pub pdf_document: RefCell<Option<Document>>,
+        pub current_page_num: RefCell<i32>,
     }
 
     #[glib::object_subclass]
@@ -71,6 +84,40 @@ mod imp {
                     }
                 }
             ));
+
+            self.prev_page.connect_clicked(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.navigate_page(-1);
+                }
+            ));
+
+            self.next_page.connect_clicked(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.navigate_page(1);
+                }
+            ));
+
+            self.current_page.connect_activate(clone!(
+                #[weak]
+                obj,
+                move |entry| {
+                    if let Ok(page) = entry.text().parse::<i32>() {
+                        obj.go_to_page(page - 1);
+                    }
+                }
+            ));
+
+            self.close_pdf.connect_clicked(clone!(
+                #[weak]
+                obj,
+                move |_| {
+                    obj.close_pdf();
+                }
+            ));
         }
 
         fn dispose(&self) {
@@ -100,11 +147,11 @@ impl PdfReader {
                 match Document::from_file(&format!("file:///{}", str_path), None) {
                     Ok(doc) => {
                         let imp = self.imp();
+                        *imp.current_page_num.borrow_mut() = 0;
                         *imp.pdf_document.borrow_mut() = Some(doc);
 
-                        let pdf_box: &gtk::Box = imp.pdf_view.as_ref();
-                        while let Some(child) = pdf_box.first_child() {
-                            pdf_box.remove(&child);
+                        if let Some(ref doc) = *imp.pdf_document.borrow() {
+                            imp.total_pages.set_text(&format!("{}", doc.n_pages()));
                         }
 
                         self.render_current_page();
@@ -124,11 +171,13 @@ impl PdfReader {
 
     fn render_current_page(&self) {
         let imp = self.imp();
+        let current_page = *imp.current_page_num.borrow();
+
         if let Some(ref doc) = *imp.pdf_document.borrow() {
-            if let Some(page) = doc.page(0) {
+            if let Some(page) = doc.page(current_page) {
                 let (width, height) = page.size();
 
-                let rec = self.get_text_positions(0).unwrap();
+                let rec = self.get_text_positions(current_page as usize).unwrap();
 
                 let drawing_area = gtk::DrawingArea::new();
                 drawing_area.set_content_width(width as i32);
@@ -154,7 +203,7 @@ impl PdfReader {
                     let y2 = rec.y2();
 
                     let highlight_x = x1;
-                    let highlight_y = page_height - y2; // we have to reverse the `y` coordinate
+                    let highlight_y = page_height - y2;
                     let highlight_width = x2 - x1;
                     let highlight_height = y2 - y1;
 
@@ -165,10 +214,56 @@ impl PdfReader {
                     }
                 });
 
-                let pdf_box: &gtk::Box = imp.pdf_view.as_ref();
-                pdf_box.append(&scrolled_window);
+                let content_box: &gtk::Box = imp.pdf_content.as_ref();
+                while let Some(child) = content_box.first_child() {
+                    content_box.remove(&child);
+                }
+                content_box.append(&scrolled_window);
+
+                imp.current_page.set_text(&format!("{}", current_page + 1));
             }
         }
+    }
+
+    fn navigate_page(&self, delta: i32) {
+        let imp = self.imp();
+        if let Some(ref doc) = *imp.pdf_document.borrow() {
+            let current = *imp.current_page_num.borrow();
+            let new_page = current + delta;
+
+            if new_page >= 0 && new_page < doc.n_pages() {
+                *imp.current_page_num.borrow_mut() = new_page;
+                self.refresh_view();
+            }
+        }
+    }
+
+    fn go_to_page(&self, page: i32) {
+        let imp = self.imp();
+        if let Some(ref doc) = *imp.pdf_document.borrow() {
+            if page >= 0 && page < doc.n_pages() {
+                *imp.current_page_num.borrow_mut() = page;
+                self.refresh_view();
+            }
+        }
+    }
+
+    fn refresh_view(&self) {
+        let imp = self.imp();
+        let content_box: &gtk::Box = imp.pdf_content.as_ref();
+        while let Some(child) = content_box.first_child() {
+            content_box.remove(&child);
+        }
+        self.render_current_page();
+    }
+
+    fn close_pdf(&self) {
+        let imp = self.imp();
+        *imp.pdf_document.borrow_mut() = None;
+        *imp.current_page_num.borrow_mut() = 0;
+        imp.current_page.set_text("1");
+        imp.total_pages.set_text("1");
+        imp.content_stack.set_visible_child_name("empty");
     }
 
     pub fn get_text_positions(&self, page_index: usize) -> Option<Rectangle> {
