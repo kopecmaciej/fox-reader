@@ -147,9 +147,21 @@
                                 </property>
                               </object>
                             </child>
+
                           </object>
                         </child>
                       </object>
+                    </property>
+                  </object>
+                </child>
+                <!-- PDF Reader Page -->
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">pdf_reader</property>
+                    <property name="title">PDF Reader</property>
+                    <property name="icon-name">application-pdf-symbolic</property>
+                    <property name="child">
+                      <object class="PdfReader" id="pdf_reader" />
                     </property>
                   </object>
                 </child>

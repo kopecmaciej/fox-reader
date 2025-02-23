@@ -18,6 +18,7 @@ flate2 = "1.0.35"
 tar = "0.4.43"
 regex = "1.11.1"
 rodio = "0.20.1"
+poppler-rs = "0.24.1"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"
