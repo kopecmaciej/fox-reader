@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt};
+use std::cell::RefCell;
 
 use crate::core::{runtime::runtime, tts::Tts};
 use gtk::{
@@ -9,24 +9,6 @@ use gtk::{
 
 use super::{dialogs, voice_row::VoiceRow};
 
-pub struct ReadHandler(Box<dyn Fn(&str) + 'static>);
-
-impl fmt::Debug for ReadHandler {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ReadHandler")
-            .field("handler", &"<function>")
-            .finish()
-    }
-}
-
-impl std::ops::Deref for ReadHandler {
-    type Target = Box<dyn Fn(&str) + 'static>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 mod imp {
 
     use std::sync::Arc;
@@ -34,7 +16,7 @@ mod imp {
     use super::*;
     use gtk::CompositeTemplate;
 
-    #[derive(Debug, Default, CompositeTemplate)]
+    #[derive(Default, CompositeTemplate)]
     #[template(resource = "/org/fox-reader/ui/audio_controls.ui")]
     pub struct AudioControls {
         #[template_child]
@@ -50,7 +32,8 @@ mod imp {
         #[template_child]
         pub speed_spin: TemplateChild<gtk::SpinButton>,
         pub tts: Arc<Tts>,
-        pub read_handler: RefCell<Option<ReadHandler>>,
+        pub play_handler: RefCell<Option<Box<dyn Fn(String, &gtk::Button)>>>,
+        pub stop_handler: RefCell<Option<Box<dyn Fn()>>>,
     }
 
     #[glib::object_subclass]
@@ -78,26 +61,23 @@ glib::wrapper! {
         @extends gtk::Widget, gtk::Box;
 }
 
-impl Default for AudioControls {
-    fn default() -> Self {
-        glib::Object::new()
-    }
-}
-
 impl AudioControls {
-    pub fn new() -> Self {
-        let controls: Self = Default::default();
-        controls.setup_signals();
-        controls
+    pub fn init(&self) {
+        self.setup_signals();
     }
 
     pub fn set_read_handler<F>(&self, handler: F)
     where
-        F: Fn(&str) + 'static,
+        F: Fn(String, &gtk::Button) + 'static,
     {
-        self.imp()
-            .read_handler
-            .replace(Some(ReadHandler(Box::new(handler))));
+        self.imp().play_handler.replace(Some(Box::new(handler)));
+    }
+
+    pub fn set_stop_handler<F>(&self, handler: F)
+    where
+        F: Fn() + 'static,
+    {
+        self.imp().stop_handler.replace(Some(Box::new(handler)));
     }
 
     fn setup_signals(&self) {
@@ -122,6 +102,9 @@ impl AudioControls {
                 if stoped {
                     button.set_sensitive(false);
                     imp.play_button.set_sensitive(true);
+                    if let Some(handler) = imp.stop_handler.borrow().as_ref() {
+                        handler();
+                    }
                 }
             }
         ));
@@ -149,25 +132,13 @@ impl AudioControls {
                 if let Some(item) = imp.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
                         let voice = voice_row.key();
+                        if let Some(handler) = imp.play_handler.borrow().as_ref() {
+                            handler(voice, button);
+                        } else {
+                            dialogs::show_error_dialog("No read handler configured", button);
+                        }
 
-                        glib::spawn_future_local(clone!(
-                            #[weak]
-                            button,
-                            #[weak]
-                            imp,
-                            async move {
-                                if let Some(handler) = imp.read_handler.borrow().as_ref() {
-                                    (handler)(&voice);
-                                } else {
-                                    dialogs::show_error_dialog(
-                                        "No read handler configured",
-                                        &button,
-                                    );
-                                }
-
-                                button.set_icon_name("media-playback-start-symbolic");
-                            }
-                        ));
+                        button.set_icon_name("media-playback-start-symbolic");
                     }
                 }
             }
