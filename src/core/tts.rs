@@ -1,5 +1,5 @@
 use super::{runtime::runtime, voice_manager::VoiceManager};
-use crate::utils::{audio_player::AudioPlayer, text_highlighter::ReadBlock};
+use crate::utils::{audio_player::AudioPlayer, highlighter::ReadingBlock};
 use std::{
     cell::RefCell,
     error::Error,
@@ -21,7 +21,7 @@ pub struct Tts {
 
 #[derive(Debug, Clone)]
 pub enum TTSEvent {
-    Progress { offset_start: i32, offset_end: i32 },
+    Progress { block_id: u32 },
     Stop,
     Next,
     Prev,
@@ -51,21 +51,23 @@ impl Tts {
         }
     }
 
-    pub async fn read_block_by_voice(
+    pub async fn read_block_by_voice<T>(
         &self,
         voice: &str,
-        reading_blocks: Vec<ReadBlock>,
-    ) -> Result<(), Box<dyn Error>> {
+        reading_blocks: Vec<T>,
+    ) -> Result<(), Box<dyn Error>>
+    where
+        T: ReadingBlock,
+    {
         while self.idx.load(Ordering::Relaxed) < reading_blocks.len() {
             let current_idx = self.idx.load(Ordering::Relaxed);
             let reading_block = &reading_blocks[current_idx];
             self.sender.send(TTSEvent::Progress {
-                offset_start: reading_block.start_offset,
-                offset_end: reading_block.end_offset,
+                block_id: reading_block.get_id(),
             })?;
 
             let event = self
-                .read_block_of_text(reading_block.block.clone(), voice.to_string())
+                .read_block_of_text(reading_block.get_text(), voice.to_string())
                 .await;
 
             match event {
@@ -150,7 +152,7 @@ impl Tts {
     }
 
     pub async fn pause_if_playing(&self) -> bool {
-        if self.is_playing().await {
+        if self.is_playing() {
             if let Err(e) = self.audio_player.pause() {
                 let _ = self.sender.send(TTSEvent::Error(e.to_string()));
                 return false;
@@ -188,7 +190,7 @@ impl Tts {
         self.audio_player.is_paused()
     }
 
-    pub async fn is_playing(&self) -> bool {
+    pub fn is_playing(&self) -> bool {
         self.audio_player.is_playing()
     }
 

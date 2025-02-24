@@ -159,7 +159,7 @@
                   <object class="AdwViewStackPage">
                     <property name="name">pdf_reader</property>
                     <property name="title">PDF Reader</property>
-                    <property name="icon-name">application-pdf-symbolic</property>
+                    <property name="icon-name">emblem-documents-symbolic</property>
                     <property name="child">
                       <object class="PdfReader" id="pdf_reader" />
                     </property>

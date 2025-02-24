@@ -1,14 +1,27 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, cell::RefCell};
 
 use gtk::prelude::*;
 
+use super::highlighter::ReadingBlock;
+
 const HIGHLIGHTED_TAG: &str = "highlighted";
 
-#[derive(Debug)]
-pub struct ReadBlock {
-    pub block: String,
+#[derive(Debug, Clone)]
+pub struct TextBlock {
+    pub id: u32,
+    pub text: String,
     pub start_offset: i32,
     pub end_offset: i32,
+}
+
+impl ReadingBlock for TextBlock {
+    fn get_text(&self) -> String {
+        self.text.clone()
+    }
+
+    fn get_id(&self) -> u32 {
+        self.id
+    }
 }
 
 #[derive(Debug, Default)]
@@ -16,6 +29,7 @@ pub struct TextHighlighter {
     buffer: gtk::TextBuffer,
     highlight_tag: gtk::TextTag,
     min_block_len: i32,
+    current_blocks: RefCell<Option<Vec<TextBlock>>>,
 }
 
 impl TextHighlighter {
@@ -31,6 +45,7 @@ impl TextHighlighter {
             buffer,
             highlight_tag,
             min_block_len,
+            current_blocks: RefCell::new(None),
         }
     }
 
@@ -70,7 +85,7 @@ impl TextHighlighter {
         cleaned_text
     }
 
-    pub fn convert_text_blocks_into_reading_block(&self) -> Vec<ReadBlock> {
+    pub fn convert_text_blocks_into_reading_block(&self) -> Vec<TextBlock> {
         let mut reading_blocks = Vec::new();
         let full_text = self.get_text();
         let blocks = self.split_text_into_blocks();
@@ -78,7 +93,7 @@ impl TextHighlighter {
         let mut current_pos = 0;
         let mut text_iter = full_text.chars().peekable();
 
-        for block in blocks {
+        for (n, block) in blocks.iter().enumerate() {
             let block_chars: Vec<char> = block.chars().collect();
             let mut block_index = 0;
             let mut block_start = None;
@@ -102,8 +117,9 @@ impl TextHighlighter {
 
                 if block_index == block_chars.len() {
                     let start = block_start.unwrap();
-                    reading_blocks.push(ReadBlock {
-                        block: block.clone(),
+                    reading_blocks.push(TextBlock {
+                        id: n as u32,
+                        text: block.clone(),
                         start_offset: start,
                         end_offset: current_pos,
                     });
@@ -173,13 +189,25 @@ impl TextHighlighter {
         result
     }
 
-    pub fn highlight(&self, start_offset: i32, end_offset: i32) {
-        self.clear();
-        self.buffer.apply_tag(
-            &self.highlight_tag,
-            &self.buffer.iter_at_offset(start_offset),
-            &self.buffer.iter_at_offset(end_offset),
-        );
+    pub fn set_text_blocks(&self, reading_block: Vec<TextBlock>) {
+        self.current_blocks.replace(Some(reading_block));
+    }
+
+    pub fn get_reading_blocks(&self) -> Option<Vec<TextBlock>> {
+        self.current_blocks.borrow().as_ref().cloned()
+    }
+
+    pub fn highlight(&self, block_id: u32) {
+        if let Some(blocks) = self.current_blocks.borrow().as_ref() {
+            if let Some(block) = blocks.iter().find(|b| b.id == block_id) {
+                self.clear();
+                self.buffer.apply_tag(
+                    &self.highlight_tag,
+                    &self.buffer.iter_at_offset(block.start_offset),
+                    &self.buffer.iter_at_offset(block.end_offset),
+                );
+            }
+        }
     }
 
     pub fn clear(&self) {
@@ -216,7 +244,7 @@ mod tests {
 
         let highlighter = TextHighlighter::new(buffer, 150);
 
-        highlighter.highlight(0, 11);
+        highlighter.highlight(0);
 
         let tag = highlighter.buffer.tag_table().lookup(HIGHLIGHTED_TAG);
         assert_eq!(tag.as_ref(), Some(&highlighter.highlight_tag));
@@ -356,8 +384,8 @@ mod tests {
 
         assert!(blocks.len() > 1);
 
-        assert!(blocks[0].block.contains("First paragraph"));
-        assert!(blocks[1].block.contains("Second paragraph"));
+        assert!(blocks[0].text.contains("First paragraph"));
+        assert!(blocks[1].text.contains("Second paragraph"));
     }
 
     #[gtk::test]

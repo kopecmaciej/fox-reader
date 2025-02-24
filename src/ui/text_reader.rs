@@ -18,7 +18,7 @@ use super::{dialogs, voice_row::VoiceRow};
 
 mod imp {
 
-    use crate::utils::text_highlighter::TextHighlighter;
+    use crate::{ui::audio_controls::AudioControls, utils::text_highlighter::TextHighlighter};
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -29,17 +29,7 @@ mod imp {
         #[template_child]
         pub text_input: TemplateChild<gtk::TextView>,
         #[template_child]
-        pub voice_selector: TemplateChild<gtk::DropDown>,
-        #[template_child]
-        pub play_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub stop_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub next_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub prev_button: TemplateChild<gtk::Button>,
-        #[template_child]
-        pub speed_spin: TemplateChild<gtk::SpinButton>,
+        pub audio_controls: TemplateChild<AudioControls>,
         pub text_highlighter: RefCell<TextHighlighter>,
         pub tts: Arc<Tts>,
     }
@@ -83,12 +73,14 @@ impl TextReader {
             .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
     }
 
-    pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
-        &self.imp().voice_selector
+    pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
+        self.imp()
+            .audio_controls
+            .populate_voice_selector(downloaded_rows);
     }
 
-    pub fn get_volume(&self) -> f32 {
-        (self.imp().speed_spin.value() / 100.0) as f32
+    pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
+        self.imp().audio_controls.get_voice_selector()
     }
 
     pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
@@ -117,110 +109,21 @@ impl TextReader {
             .set_highlight_color(rgba);
     }
 
-    pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
-        let model = gio::ListStore::new::<VoiceRow>();
-        model.extend_from_slice(&downloaded_rows);
-        let factory = gtk::SignalListItemFactory::new();
-        factory.connect_setup(move |_, list_item| {
-            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
-                let label = gtk::Label::builder().xalign(0.0).build();
-                list_item.set_child(Some(&label));
-            }
-        });
-        factory.connect_bind(|_, list_item| {
-            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
-                if let Some(v) = list_item.item().and_downcast::<VoiceRow>() {
-                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
-                        let text = format!("{} ({}) - {}", v.name(), v.quality(), v.language());
-                        label.set_text(&text);
-                    }
-                }
-            }
-        });
-
-        let voice_selector = &self.imp().voice_selector;
-        voice_selector.set_factory(Some(&factory));
-        voice_selector.set_model(Some(&model));
-    }
-
     pub fn init_audio_control_buttons(&self) {
         let imp = self.imp();
         let tts = imp.tts.clone();
-        let debounce_duration = std::time::Duration::from_millis(300);
-        let timeout_handle = RefCell::new(None::<glib::SourceId>);
+        let audio = imp.audio_controls.imp();
 
-        imp.speed_spin.connect_value_changed(clone!(
-            #[weak]
-            tts,
-            move |spin| {
-                let speed = (spin.value() / 100.0) as f32;
-                tts.set_speed(speed);
-
-                if let Some(handle) = timeout_handle.borrow_mut().take() {
-                    if glib::MainContext::default()
-                        .find_source_by_id(&handle)
-                        .is_some()
-                    {
-                        handle.remove();
-                    }
-                }
-
-                *timeout_handle.borrow_mut() = Some(glib::timeout_add_local(
-                    debounce_duration,
-                    clone!(
-                        #[weak]
-                        tts,
-                        #[upgrade_or]
-                        glib::ControlFlow::Break,
-                        move || {
-                            let _ = runtime().block_on(tts.repeat_block());
-                            glib::ControlFlow::Break
-                        }
-                    ),
-                ));
-            }
-        ));
-
-        imp.next_button.connect_clicked(clone!(
-            #[weak]
-            tts,
-            move |button| {
-                if let Err(e) = runtime().block_on(async {
-                    if tts.is_playing().await {
-                        tts.next().await
-                    } else {
-                        Ok(())
-                    }
-                }) {
-                    dialogs::show_error_dialog(&e.to_string(), button)
-                }
-            }
-        ));
-
-        imp.prev_button.connect_clicked(clone!(
-            #[weak]
-            tts,
-            move |button| {
-                if let Err(e) = runtime().block_on(async {
-                    if tts.is_playing().await {
-                        tts.prev().await
-                    } else {
-                        Ok(())
-                    }
-                }) {
-                    dialogs::show_error_dialog(&e.to_string(), button)
-                }
-            }
-        ));
-
-        imp.stop_button.connect_clicked(clone!(
+        audio.stop_button.connect_clicked(clone!(
             #[weak]
             imp,
+            #[weak]
+            audio,
             #[weak]
             tts,
             move |button| {
                 let stoped = runtime().block_on(async {
-                    if tts.is_playing().await {
+                    if tts.is_playing() {
                         if (tts.stop(true).await).is_err() {
                             return false;
                         }
@@ -231,15 +134,17 @@ impl TextReader {
                 if stoped {
                     imp.text_highlighter.borrow().clear();
                     button.set_sensitive(false);
-                    imp.play_button.set_sensitive(true);
+                    audio.play_button.set_sensitive(true);
                     imp.text_input.set_editable(true);
                 }
             }
         ));
 
-        self.imp().play_button.connect_clicked(clone!(
+        audio.play_button.connect_clicked(clone!(
             #[weak]
             imp,
+            #[weak]
+            audio,
             #[weak]
             tts,
             move |button| {
@@ -259,7 +164,7 @@ impl TextReader {
                 }
                 button.set_icon_name("media-playback-pause-symbolic");
 
-                imp.stop_button.set_sensitive(true);
+                audio.stop_button.set_sensitive(true);
                 let cleaned = imp.text_highlighter.borrow_mut().clean_text();
                 imp.text_input.buffer().set_text(&cleaned);
 
@@ -270,7 +175,11 @@ impl TextReader {
                     .borrow()
                     .convert_text_blocks_into_reading_block();
 
-                if let Some(item) = imp.voice_selector.selected_item() {
+                imp.text_highlighter
+                    .borrow()
+                    .set_text_blocks(readings_blocks);
+
+                if let Some(item) = audio.voice_selector.selected_item() {
                     if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
                         let voice = voice_row.key();
 
@@ -282,13 +191,8 @@ impl TextReader {
                             async move {
                                 while let Ok(event) = tts.sender.subscribe().recv().await {
                                     match event {
-                                        TTSEvent::Progress {
-                                            offset_start,
-                                            offset_end,
-                                        } => {
-                                            imp.text_highlighter
-                                                .borrow()
-                                                .highlight(offset_start, offset_end);
+                                        TTSEvent::Progress { block_id } => {
+                                            imp.text_highlighter.borrow().highlight(block_id);
                                         }
                                         TTSEvent::Error(e) => {
                                             dialogs::show_error_dialog(&e, &button);
@@ -313,6 +217,9 @@ impl TextReader {
                             #[weak]
                             imp,
                             async move {
+                                let readings_blocks =
+                                    imp.text_highlighter.borrow().get_reading_blocks().unwrap();
+
                                 if let Err(e) =
                                     imp.tts.read_block_by_voice(&voice, readings_blocks).await
                                 {
