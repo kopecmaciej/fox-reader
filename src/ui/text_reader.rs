@@ -116,15 +116,12 @@ impl TextReader {
                     return;
                 }
                 imp.text_input.set_editable(false);
-                let cleaned = imp.text_highlighter.borrow_mut().clean_text();
+                let cleaned = imp.text_highlighter.borrow_mut().normalize_text();
                 imp.text_input.buffer().set_text(&cleaned);
-                let readings_blocks = imp
-                    .text_highlighter
-                    .borrow()
-                    .convert_text_blocks_into_reading_block();
+                let readings_blocks = imp.text_highlighter.borrow().generate_reading_blocks();
                 imp.text_highlighter
                     .borrow()
-                    .set_text_blocks(readings_blocks);
+                    .update_reading_blocks(readings_blocks);
 
                 glib::spawn_future_local(clone!(
                     #[weak]

@@ -7,14 +7,14 @@ use super::highlighter::ReadingBlock;
 const HIGHLIGHTED_TAG: &str = "highlighted";
 
 #[derive(Debug, Clone)]
-pub struct TextBlock {
+pub struct TextReadingBlocks {
     pub id: u32,
     pub text: String,
     pub start_offset: i32,
     pub end_offset: i32,
 }
 
-impl ReadingBlock for TextBlock {
+impl ReadingBlock for TextReadingBlocks {
     fn get_text(&self) -> String {
         self.text.clone()
     }
@@ -29,7 +29,7 @@ pub struct TextHighlighter {
     buffer: gtk::TextBuffer,
     highlight_tag: gtk::TextTag,
     min_block_len: i32,
-    current_blocks: RefCell<Option<Vec<TextBlock>>>,
+    current_blocks: RefCell<Option<Vec<TextReadingBlocks>>>,
 }
 
 impl TextHighlighter {
@@ -67,7 +67,7 @@ impl TextHighlighter {
             .to_string()
     }
 
-    pub fn clean_text(&mut self) -> String {
+    pub fn normalize_text(&mut self) -> String {
         let buffer = &self.buffer;
 
         let text = buffer
@@ -85,10 +85,10 @@ impl TextHighlighter {
         cleaned_text
     }
 
-    pub fn convert_text_blocks_into_reading_block(&self) -> Vec<TextBlock> {
+    pub fn generate_reading_blocks(&self) -> Vec<TextReadingBlocks> {
         let mut reading_blocks = Vec::new();
         let full_text = self.get_text();
-        let blocks = self.split_text_into_blocks();
+        let blocks = self.segment_text_blocks();
 
         let mut current_pos = 0;
         let mut text_iter = full_text.chars().peekable();
@@ -117,7 +117,7 @@ impl TextHighlighter {
 
                 if block_index == block_chars.len() {
                     let start = block_start.unwrap();
-                    reading_blocks.push(TextBlock {
+                    reading_blocks.push(TextReadingBlocks {
                         id: n as u32,
                         text: block.clone(),
                         start_offset: start,
@@ -131,7 +131,7 @@ impl TextHighlighter {
         reading_blocks
     }
 
-    pub fn split_text_into_blocks(&self) -> Vec<String> {
+    pub fn segment_text_blocks(&self) -> Vec<String> {
         let text = self.get_text();
 
         let paragraphs: Vec<String> = text
@@ -142,14 +142,14 @@ impl TextHighlighter {
 
         let mut all_blocks = Vec::new();
         for paragraph in paragraphs {
-            let sentences = self.split_text_into_sentences(paragraph);
+            let sentences = self.segment_sentences(paragraph);
             all_blocks.extend(sentences);
         }
 
         all_blocks
     }
 
-    pub fn split_text_into_sentences<T: Borrow<str>>(&self, text: T) -> Vec<String> {
+    pub fn segment_sentences<T: Borrow<str>>(&self, text: T) -> Vec<String> {
         let re = regex::Regex::new(r"([.!?])(\s+[A-Z])").unwrap();
         let mut raw_blocks = Vec::new();
         let mut start = 0;
@@ -189,11 +189,11 @@ impl TextHighlighter {
         result
     }
 
-    pub fn set_text_blocks(&self, reading_block: Vec<TextBlock>) {
+    pub fn update_reading_blocks(&self, reading_block: Vec<TextReadingBlocks>) {
         self.current_blocks.replace(Some(reading_block));
     }
 
-    pub fn get_reading_blocks(&self) -> Option<Vec<TextBlock>> {
+    pub fn get_reading_blocks(&self) -> Option<Vec<TextReadingBlocks>> {
         self.current_blocks.borrow().as_ref().cloned()
     }
 
@@ -261,7 +261,7 @@ mod tests {
         let text = "First sentence. Second sentence! Third sentence? Fourth sentence.";
         let highlighter = create_test_highlighter("");
 
-        let sentences = highlighter.split_text_into_sentences(text);
+        let sentences = highlighter.segment_sentences(text);
         assert!(!sentences.is_empty());
         assert!(sentences.len() == 1);
     }
@@ -271,7 +271,7 @@ mod tests {
         let text = "First sentence. Second sentence! Third sentence? Fourth sentence.";
         let mut highlighter = create_test_highlighter("");
         highlighter.min_block_len = 7;
-        let sentences = highlighter.split_text_into_sentences(text);
+        let sentences = highlighter.segment_sentences(text);
 
         assert_eq!(sentences.len(), 4);
         assert!(sentences[0].contains("First sentence"));
@@ -284,13 +284,13 @@ mod tests {
     fn test_split_text_into_sentences_edge_cases() {
         let highlighter = create_test_highlighter("");
 
-        assert!(highlighter.split_text_into_sentences("").is_empty());
+        assert!(highlighter.segment_sentences("").is_empty());
 
-        let single = highlighter.split_text_into_sentences("Just one sentence.");
+        let single = highlighter.segment_sentences("Just one sentence.");
         assert_eq!(single.len(), 1);
 
         let text = "Hello!! What?! Really...".to_string();
-        let multiple_punct = highlighter.split_text_into_sentences(text);
+        let multiple_punct = highlighter.segment_sentences(text);
         assert!(!multiple_punct.is_empty());
     }
 
@@ -324,7 +324,7 @@ mod tests {
         let text = "First sentence. Second sentence.";
         let highlighter = create_test_highlighter(text);
 
-        let blocks = highlighter.convert_text_blocks_into_reading_block();
+        let blocks = highlighter.generate_reading_blocks();
         assert!(!blocks.is_empty());
 
         if let Some(first_block) = blocks.first() {
@@ -338,7 +338,7 @@ mod tests {
         let text = "First paragraph.\n\nSecond paragraph.";
         let highlighter = create_test_highlighter(text);
 
-        let blocks = highlighter.split_text_into_blocks();
+        let blocks = highlighter.segment_text_blocks();
         assert!(!blocks.is_empty());
     }
 
@@ -346,7 +346,7 @@ mod tests {
     fn test_split_text_into_blocks_with_different_separators() {
         let text = "Para 1.\n\nPara 2\n\n\nPara 3.";
         let highlighter = create_test_highlighter(text);
-        let blocks = highlighter.split_text_into_blocks();
+        let blocks = highlighter.segment_text_blocks();
 
         assert_eq!(blocks.len(), 3);
         assert!(blocks[0].contains("Para 1"));
@@ -358,7 +358,7 @@ mod tests {
     fn test_split_text_into_blocks_with_whitespace() {
         let text = "   Para 1   \n\n     Para 2     \n\nPara 3   ";
         let highlighter = create_test_highlighter(text);
-        let blocks = highlighter.split_text_into_blocks();
+        let blocks = highlighter.segment_text_blocks();
 
         assert_eq!(blocks.len(), 3);
         assert!(blocks[0].starts_with(" "));
@@ -369,7 +369,7 @@ mod tests {
     fn test_convert_blocks_into_reading_block_simple() {
         let text = "First sentence. Second sentence. Third sentence.";
         let highlighter = create_test_highlighter(text);
-        let blocks = highlighter.convert_text_blocks_into_reading_block();
+        let blocks = highlighter.generate_reading_blocks();
 
         assert!(!blocks.is_empty());
         assert!(blocks.len() == 1);
@@ -380,7 +380,7 @@ mod tests {
     fn test_convert_blocks_into_reading_block_complex() {
         let text = "First paragraph.\n\nSecond paragraph with multiple sentences. Another sentence here! And one more?";
         let highlighter = create_test_highlighter(text);
-        let blocks = highlighter.convert_text_blocks_into_reading_block();
+        let blocks = highlighter.generate_reading_blocks();
 
         assert!(blocks.len() > 1);
 
@@ -391,16 +391,16 @@ mod tests {
     #[gtk::test]
     fn test_convert_blocks_into_reading_block_edge_cases() {
         let highlighter = create_test_highlighter("");
-        let empty_blocks = highlighter.convert_text_blocks_into_reading_block();
+        let empty_blocks = highlighter.generate_reading_blocks();
         assert!(empty_blocks.is_empty());
 
         let highlighter = create_test_highlighter("A");
-        let single_char_blocks = highlighter.convert_text_blocks_into_reading_block();
+        let single_char_blocks = highlighter.generate_reading_blocks();
         assert!(!single_char_blocks.is_empty());
 
         let text = "Hello! @#$% World?\n\nSpecial chars: &*()";
         let highlighter = create_test_highlighter(text);
-        let special_blocks = highlighter.convert_text_blocks_into_reading_block();
+        let special_blocks = highlighter.generate_reading_blocks();
         assert!(!special_blocks.is_empty());
     }
 
@@ -430,7 +430,7 @@ The victory fell on us.";
         let mut highlighter = create_test_highlighter(text);
         highlighter.min_block_len = 250;
 
-        let blocks = highlighter.split_text_into_blocks();
+        let blocks = highlighter.segment_text_blocks();
         assert_eq!(blocks.len(), 6);
 
         assert!(blocks[0].contains("Malcolm"));
@@ -440,7 +440,7 @@ The victory fell on us.";
         assert!(blocks[4].contains("Ross. From Fife"));
         assert!(blocks[5].contains("Curbing his lavish spirit"));
 
-        let reading_blocks = highlighter.convert_text_blocks_into_reading_block();
+        let reading_blocks = highlighter.generate_reading_blocks();
         assert!(!reading_blocks.is_empty());
 
         assert_eq!(reading_blocks[0].start_offset, 0);
