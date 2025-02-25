@@ -118,6 +118,7 @@ impl FoxReaderAppWindow {
         style_manager.set_color_scheme(window.imp().user_config.borrow().get_color_scheme());
         window.imp().voice_list.init();
         window.imp().text_reader.init();
+        window.imp().pdf_reader.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
@@ -143,7 +144,14 @@ impl FoxReaderAppWindow {
     fn update_voice_selector_on_click(&self) {
         let imp = self.imp();
         let voice_rows = imp.voice_list.get_downloaded_rows();
-        imp.text_reader.populate_voice_selector(voice_rows);
+        imp.text_reader
+            .imp()
+            .audio_controls
+            .populate_voice_selector(&voice_rows);
+        imp.pdf_reader
+            .imp()
+            .audio_controls
+            .populate_voice_selector(&voice_rows);
 
         let gesture_click = gtk::GestureClick::new();
         gesture_click.connect_pressed(clone!(
@@ -151,10 +159,24 @@ impl FoxReaderAppWindow {
             imp,
             move |_, _, _, _| {
                 let voice_rows = imp.voice_list.get_downloaded_rows();
-                imp.text_reader.populate_voice_selector(voice_rows);
+                imp.pdf_reader
+                    .imp()
+                    .audio_controls
+                    .populate_voice_selector(&voice_rows);
+                imp.text_reader
+                    .imp()
+                    .audio_controls
+                    .populate_voice_selector(&voice_rows);
             }
         ));
         imp.text_reader
+            .imp()
+            .audio_controls
+            .get_voice_selector()
+            .add_controller(gesture_click.clone());
+        imp.pdf_reader
+            .imp()
+            .audio_controls
             .get_voice_selector()
             .add_controller(gesture_click);
     }

@@ -215,9 +215,9 @@ impl AudioControls {
         &self.imp().voice_selector
     }
 
-    pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
+    pub fn populate_voice_selector(&self, downloaded_rows: &[VoiceRow]) {
         let model = gio::ListStore::new::<VoiceRow>();
-        model.extend_from_slice(&downloaded_rows);
+        model.extend_from_slice(downloaded_rows);
         let factory = gtk::SignalListItemFactory::new();
         factory.connect_setup(move |_, list_item| {
             if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {

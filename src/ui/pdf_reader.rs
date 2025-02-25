@@ -7,10 +7,15 @@ use std::{cell::RefCell, fmt::Debug};
 
 use poppler::Document;
 
-use super::dialogs::show_error_dialog;
+use crate::core::tts::TTSEvent;
+
+use super::{
+    dialogs::{self, show_error_dialog},
+    voice_row::VoiceRow,
+};
 
 mod imp {
-    use crate::ui::audio_controls::AudioControls;
+    use crate::{ui::audio_controls::AudioControls, utils::pdf_highlighter::PdfHighlighter};
 
     use super::*;
     use gtk::CompositeTemplate;
@@ -43,6 +48,7 @@ mod imp {
 
         pub pdf_document: RefCell<Option<Document>>,
         pub current_page_num: RefCell<i32>,
+        pub pdf_highlighter: RefCell<PdfHighlighter>,
     }
 
     #[glib::object_subclass]
@@ -150,6 +156,12 @@ impl Default for PdfReader {
 }
 
 impl PdfReader {
+    pub fn init(&self) {
+        let imp = self.imp();
+        imp.audio_controls.init();
+        self.init_audio_control_buttons();
+    }
+
     pub fn load_pdf(&self, file: gio::File) {
         let path_str = file.path().and_then(|p| p.to_str().map(|s| s.to_owned()));
 
@@ -336,5 +348,185 @@ impl PdfReader {
                 }
             ),
         );
+    }
+
+    pub fn init_audio_control_buttons(&self) {
+        let imp = self.imp();
+        imp.audio_controls.set_stop_handler(clone!(
+            #[weak]
+            imp,
+            move || {
+                imp.pdf_highlighter.borrow().clear();
+                // Refresh the view to clear highlights
+                if let Some(parent) = imp.pdf_content.parent() {
+                    if let Some(widget) = parent.downcast_ref::<gtk::Widget>() {
+                        widget.queue_draw();
+                    }
+                }
+            }
+        ));
+
+        imp.audio_controls.set_read_handler(clone!(
+            #[weak]
+            imp,
+            #[weak(rename_to=this)]
+            self,
+            move |voice: String, button: &gtk::Button| {
+                // Get the current page
+                let current_page_num = *imp.current_page_num.borrow();
+                let current_page = match imp.pdf_document.borrow().as_ref() {
+                    Some(doc) => doc.page(current_page_num),
+                    None => {
+                        dialogs::show_error_dialog("No PDF document loaded", button);
+                        return;
+                    }
+                };
+
+                let current_page = match current_page {
+                    Some(page) => page,
+                    None => {
+                        dialogs::show_error_dialog("Failed to load page", button);
+                        return;
+                    }
+                };
+
+                // Check if page is empty
+                if imp
+                    .pdf_highlighter
+                    .borrow()
+                    .is_pdf_page_empty(current_page.clone())
+                {
+                    dialogs::show_error_dialog("Page has no text content to read", button);
+                    return;
+                }
+
+                // Generate reading blocks
+                imp.pdf_highlighter
+                    .borrow()
+                    .generate_reading_blocks(current_page.clone());
+
+                // Get reading blocks
+                let reading_blocks = match imp.pdf_highlighter.borrow().get_reading_blocks() {
+                    Some(blocks) => blocks,
+                    None => {
+                        dialogs::show_error_dialog("Failed to generate reading blocks", button);
+                        return;
+                    }
+                };
+
+                if reading_blocks.is_empty() {
+                    dialogs::show_error_dialog("No readable content found on this page", button);
+                    return;
+                }
+
+                // Create a clone of reading blocks for the progress handler
+                let reading_blocks_clone = reading_blocks.clone();
+
+                // Handle TTSEvent progress updates
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    imp,
+                    #[weak]
+                    this,
+                    #[weak]
+                    button,
+                    async move {
+                        let mut subscriber = imp.audio_controls.imp().tts.sender.subscribe();
+
+                        while let Ok(event) = subscriber.recv().await {
+                            match event {
+                                TTSEvent::Progress { block_id } => {
+                                    // Highlight the current block
+                                    imp.pdf_highlighter.borrow().highlight(block_id);
+
+                                    // Find the current reading block to get its rectangle
+                                    if let Some(current_block) =
+                                        reading_blocks_clone.iter().find(|b| b.id == block_id)
+                                    {
+                                        // Update the current reading rectangle and refresh the view
+                                        this.update_highlight_rectangle(current_block.rectangle);
+                                    }
+                                }
+                                TTSEvent::Error(e) => {
+                                    dialogs::show_error_dialog(&e, &button);
+                                    imp.pdf_highlighter.borrow().clear();
+                                    this.clear_highlight_rectangle();
+                                    break;
+                                }
+                                TTSEvent::Next | TTSEvent::Prev => {
+                                    imp.pdf_highlighter.borrow().clear();
+                                    this.clear_highlight_rectangle();
+                                }
+                                TTSEvent::Stop => {
+                                    imp.pdf_highlighter.borrow().clear();
+                                    this.clear_highlight_rectangle();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                ));
+
+                // Start the TTS reading
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    imp,
+                    #[weak]
+                    this,
+                    #[weak]
+                    button,
+                    async move {
+                        if let Err(e) = imp
+                            .audio_controls
+                            .imp()
+                            .tts
+                            .read_block_by_voice(&voice, reading_blocks)
+                            .await
+                        {
+                            let err_msg = format!("Error while reading text by given voice: {}", e);
+                            dialogs::show_error_dialog(&err_msg, &button);
+                        }
+
+                        // Clean up when reading is done
+                        imp.pdf_highlighter.borrow().clear();
+                        this.clear_highlight_rectangle();
+                    }
+                ));
+            }
+        ));
+    }
+
+    pub fn update_highlight_rectangle(&self, rectangle: Rectangle) {
+        // Store the current rectangle in the PdfReader state if needed
+        // For now we'll just refresh the view with the new rectangle
+        self.refresh_view_with_highlight(rectangle);
+    }
+
+    // Clear the highlight rectangle
+    pub fn clear_highlight_rectangle(&self) {
+        // Clear any stored rectangle and refresh the view
+        self.refresh_view();
+    }
+
+    // Refresh the view with a specific highlight rectangle
+    fn refresh_view_with_highlight(&self, highlight_rect: Rectangle) {
+        let imp = self.imp();
+
+        if let Some(ref doc) = *imp.pdf_document.borrow() {
+            let current_page = *imp.current_page_num.borrow();
+
+            if let Some(page) = doc.page(current_page) {
+                let (width, height) = page.size();
+
+                // Create drawing area with the current highlight rectangle
+                let drawing_area =
+                    Self::create_drawing_area(page.clone(), highlight_rect, width, height);
+                let scrolled_window = Self::create_scrolled_window(&drawing_area);
+
+                // Replace the current content with the updated one
+                Self::clear_container(imp.pdf_content.as_ref());
+                imp.pdf_content.append(&scrolled_window);
+            }
+        }
     }
 }

@@ -7,7 +7,7 @@ use std::cell::RefCell;
 
 use crate::{core::tts::TTSEvent, utils::text_highlighter::TextHighlighter};
 
-use super::{dialogs, voice_row::VoiceRow};
+use super::dialogs;
 
 mod imp {
 
@@ -53,21 +53,11 @@ glib::wrapper! {
 
 impl TextReader {
     pub fn init(&self) {
-        self.init_audio_control_buttons();
         let imp = self.imp();
+        imp.audio_controls.init();
         imp.text_highlighter
             .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
-        imp.audio_controls.init();
-    }
-
-    pub fn populate_voice_selector(&self, downloaded_rows: Vec<VoiceRow>) {
-        self.imp()
-            .audio_controls
-            .populate_voice_selector(downloaded_rows);
-    }
-
-    pub fn get_voice_selector(&self) -> &TemplateChild<gtk::DropDown> {
-        self.imp().audio_controls.get_voice_selector()
+        self.init_audio_control_buttons();
     }
 
     pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
@@ -118,10 +108,7 @@ impl TextReader {
                 imp.text_input.set_editable(false);
                 let cleaned = imp.text_highlighter.borrow_mut().normalize_text();
                 imp.text_input.buffer().set_text(&cleaned);
-                let readings_blocks = imp.text_highlighter.borrow().generate_reading_blocks();
-                imp.text_highlighter
-                    .borrow()
-                    .update_reading_blocks(readings_blocks);
+                imp.text_highlighter.borrow().generate_reading_blocks();
 
                 glib::spawn_future_local(clone!(
                     #[weak]

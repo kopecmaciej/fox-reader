@@ -7,14 +7,14 @@ use super::highlighter::ReadingBlock;
 const HIGHLIGHTED_TAG: &str = "highlighted";
 
 #[derive(Debug, Clone)]
-pub struct TextReadingBlocks {
+pub struct TextReadingBlock {
     pub id: u32,
     pub text: String,
     pub start_offset: i32,
     pub end_offset: i32,
 }
 
-impl ReadingBlock for TextReadingBlocks {
+impl ReadingBlock for TextReadingBlock {
     fn get_text(&self) -> String {
         self.text.clone()
     }
@@ -29,7 +29,7 @@ pub struct TextHighlighter {
     buffer: gtk::TextBuffer,
     highlight_tag: gtk::TextTag,
     min_block_len: i32,
-    current_blocks: RefCell<Option<Vec<TextReadingBlocks>>>,
+    current_blocks: RefCell<Option<Vec<TextReadingBlock>>>,
 }
 
 impl TextHighlighter {
@@ -85,7 +85,7 @@ impl TextHighlighter {
         cleaned_text
     }
 
-    pub fn generate_reading_blocks(&self) -> Vec<TextReadingBlocks> {
+    pub fn generate_reading_blocks(&self) {
         let mut reading_blocks = Vec::new();
         let full_text = self.get_text();
         let blocks = self.segment_text_blocks();
@@ -117,7 +117,7 @@ impl TextHighlighter {
 
                 if block_index == block_chars.len() {
                     let start = block_start.unwrap();
-                    reading_blocks.push(TextReadingBlocks {
+                    reading_blocks.push(TextReadingBlock {
                         id: n as u32,
                         text: block.clone(),
                         start_offset: start,
@@ -128,7 +128,7 @@ impl TextHighlighter {
             }
         }
 
-        reading_blocks
+        self.current_blocks.replace(Some(reading_blocks));
     }
 
     pub fn segment_text_blocks(&self) -> Vec<String> {
@@ -189,11 +189,11 @@ impl TextHighlighter {
         result
     }
 
-    pub fn update_reading_blocks(&self, reading_block: Vec<TextReadingBlocks>) {
+    pub fn update_reading_blocks(&self, reading_block: Vec<TextReadingBlock>) {
         self.current_blocks.replace(Some(reading_block));
     }
 
-    pub fn get_reading_blocks(&self) -> Option<Vec<TextReadingBlocks>> {
+    pub fn get_reading_blocks(&self) -> Option<Vec<TextReadingBlock>> {
         self.current_blocks.borrow().as_ref().cloned()
     }
 
@@ -324,7 +324,8 @@ mod tests {
         let text = "First sentence. Second sentence.";
         let highlighter = create_test_highlighter(text);
 
-        let blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
         assert!(!blocks.is_empty());
 
         if let Some(first_block) = blocks.first() {
@@ -369,7 +370,8 @@ mod tests {
     fn test_convert_blocks_into_reading_block_simple() {
         let text = "First sentence. Second sentence. Third sentence.";
         let highlighter = create_test_highlighter(text);
-        let blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
 
         assert!(!blocks.is_empty());
         assert!(blocks.len() == 1);
@@ -380,7 +382,8 @@ mod tests {
     fn test_convert_blocks_into_reading_block_complex() {
         let text = "First paragraph.\n\nSecond paragraph with multiple sentences. Another sentence here! And one more?";
         let highlighter = create_test_highlighter(text);
-        let blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
 
         assert!(blocks.len() > 1);
 
@@ -391,16 +394,18 @@ mod tests {
     #[gtk::test]
     fn test_convert_blocks_into_reading_block_edge_cases() {
         let highlighter = create_test_highlighter("");
-        let empty_blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let empty_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
         assert!(empty_blocks.is_empty());
 
-        let highlighter = create_test_highlighter("A");
-        let single_char_blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let single_char_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
         assert!(!single_char_blocks.is_empty());
 
         let text = "Hello! @#$% World?\n\nSpecial chars: &*()";
         let highlighter = create_test_highlighter(text);
-        let special_blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let special_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
         assert!(!special_blocks.is_empty());
     }
 
@@ -440,7 +445,8 @@ The victory fell on us.";
         assert!(blocks[4].contains("Ross. From Fife"));
         assert!(blocks[5].contains("Curbing his lavish spirit"));
 
-        let reading_blocks = highlighter.generate_reading_blocks();
+        highlighter.generate_reading_blocks();
+        let reading_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
         assert!(!reading_blocks.is_empty());
 
         assert_eq!(reading_blocks[0].start_offset, 0);
