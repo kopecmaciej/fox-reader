@@ -80,12 +80,12 @@
                       <class name="toolbar"/>
                     </style>
                     <child>
-                      <object class="GtkButton">
+                      <object class="GtkButton" id="zoom_out">
                         <property name="icon-name">zoom-out-symbolic</property>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkButton">
+                      <object class="GtkButton" id="zoom_in">
                         <property name="icon-name">zoom-in-symbolic</property>
                       </object>
                     </child>
@@ -144,10 +144,25 @@
                 </child>
                 <!-- PDF Content Container -->
                 <child>
-                  <object class="GtkBox" id="pdf_content">
+                 <object class="GtkBox" id="pdf_content">
                     <property name="orientation">vertical</property>
                     <property name="vexpand">true</property>
                     <property name="hexpand">true</property>
+                    <child>
+                      <!-- Scrolled Window wrapping the Drawing Area -->
+                      <object class="GtkScrolledWindow" id="scrolled_window">
+                        <property name="hexpand">true</property>
+                        <property name="vexpand">true</property>
+                        <child>
+                          <!-- Drawing Area for the PDF page -->
+                          <object class="GtkDrawingArea" id="drawing_area">
+                            <!-- Optionally, set initial content dimensions -->
+                            <property name="hexpand">true</property>
+                            <property name="vexpand">true</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <!-- Playback Controls -->

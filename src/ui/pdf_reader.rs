@@ -1,24 +1,28 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gio::glib::{self, Object};
-use gtk::{self, glib::clone};
-use poppler::Rectangle;
+use gtk::{
+    self,
+    cairo::Context,
+    gdk_pixbuf::{Colorspace, Pixbuf},
+    glib::clone,
+};
+use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRect, PdfRenderConfig};
 use std::{cell::RefCell, fmt::Debug};
-
-use poppler::Document;
 
 use crate::core::tts::TTSEvent;
 
-use super::{
-    dialogs::{self, show_error_dialog},
-    voice_row::VoiceRow,
-};
+use super::dialogs::{self, show_error_dialog};
 
 mod imp {
-    use crate::{ui::audio_controls::AudioControls, utils::pdf_highlighter::PdfHighlighter};
+    use crate::{
+        ui::audio_controls::AudioControls,
+        utils::{pdf_highlighter::PdfHighlighter, pdfium::PdfiumWrapper},
+    };
 
     use super::*;
     use gtk::CompositeTemplate;
+    use pdfium_render::prelude::PdfPageIndex;
 
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/org/fox-reader/ui/pdf_reader.ui")]
@@ -30,9 +34,9 @@ mod imp {
         #[template_child]
         pub open_pdf: TemplateChild<gtk::Button>,
         #[template_child]
-        pub pdf_view: TemplateChild<gtk::Box>,
-        #[template_child]
         pub pdf_content: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub drawing_area: TemplateChild<gtk::DrawingArea>,
         #[template_child]
         pub prev_page: TemplateChild<gtk::Button>,
         #[template_child]
@@ -44,10 +48,15 @@ mod imp {
         #[template_child]
         pub close_pdf: TemplateChild<gtk::Button>,
         #[template_child]
+        pub zoom_in: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub zoom_out: TemplateChild<gtk::Button>,
+        #[template_child]
         pub audio_controls: TemplateChild<AudioControls>,
 
-        pub pdf_document: RefCell<Option<Document>>,
-        pub current_page_num: RefCell<i32>,
+        pub scale_factor: RefCell<f32>,
+        pub pdf_wrapper: RefCell<PdfiumWrapper>,
+        pub current_page_num: RefCell<PdfPageIndex>,
         pub pdf_highlighter: RefCell<PdfHighlighter>,
     }
 
@@ -122,6 +131,18 @@ mod imp {
                 }
             ));
 
+            self.zoom_in.connect_clicked(clone!(
+                #[weak]
+                obj,
+                move |_| obj.scale_pdf(0.25)
+            ));
+
+            self.zoom_out.connect_clicked(clone!(
+                #[weak]
+                obj,
+                move |_| obj.scale_pdf(-0.25)
+            ));
+
             self.current_page.connect_activate(clone!(
                 #[weak]
                 obj,
@@ -160,119 +181,126 @@ impl PdfReader {
         let imp = self.imp();
         imp.audio_controls.init();
         self.init_audio_control_buttons();
+        imp.scale_factor.replace(1.0);
     }
 
-    pub fn load_pdf(&self, file: gio::File) {
-        let path_str = file.path().and_then(|p| p.to_str().map(|s| s.to_owned()));
-
-        if let Some(str_path) = path_str {
-            match Document::from_file(&format!("file:///{}", str_path), None) {
-                Ok(doc) => {
-                    let imp = self.imp();
-                    *imp.current_page_num.borrow_mut() = 0;
-                    *imp.pdf_document.borrow_mut() = Some(doc);
-
-                    if let Some(ref doc) = *imp.pdf_document.borrow() {
-                        imp.total_pages.set_text(&doc.n_pages().to_string());
-                    }
-
-                    self.render_current_page();
-                    imp.content_stack.set_visible_child_name("pdf_view");
-                }
-                Err(e) => show_error_dialog(&format!("Error loading PDF: {}", e), self),
+    fn load_pdf(&self, file: gio::File) {
+        let path = match file.path() {
+            Some(path) => path,
+            None => {
+                show_error_dialog("Could not get file path", self);
+                return;
             }
-        } else {
-            show_error_dialog("Error retrieving or converting file path", self);
+        };
+        let _ = self.imp().pdf_wrapper.borrow_mut().load_document(&path);
+
+        if let Some(pdf_document) = self.imp().pdf_wrapper.borrow().get_document() {
+            let imp = self.imp();
+            *imp.current_page_num.borrow_mut() = 0;
+            imp.total_pages
+                .set_text(&pdf_document.pages().len().to_string());
+
+            self.render_current_page(pdf_document);
+            imp.content_stack.set_visible_child_name("pdf_view");
         }
     }
 
-    fn render_current_page(&self) {
+    fn render_current_page(&self, doc: &PdfDocument) {
         let imp = self.imp();
         let current_page = *imp.current_page_num.borrow();
 
-        if let Some(ref doc) = *imp.pdf_document.borrow() {
-            if let Some(page) = doc.page(current_page) {
-                let (width, height) = page.size();
-                let rect = self
-                    .get_text_positions(current_page as usize)
-                    .unwrap_or_default();
+        match doc.pages().get(current_page) {
+            Ok(page) => {
+                let (width, height) = (page.width(), page.height());
 
-                let drawing_area = Self::create_drawing_area(page.clone(), rect, width, height);
-                let scrolled_window = Self::create_scrolled_window(&drawing_area);
-
-                Self::clear_container(imp.pdf_content.as_ref());
-                imp.pdf_content.append(&scrolled_window);
+                self.create_drawing_area(page, &Vec::new(), width, height);
                 imp.current_page.set_text(&(current_page + 1).to_string());
+            }
+            Err(e) => {
+                eprintln!("Error rendering PDF: {}", e);
+                show_error_dialog(&format!("Error rendering PDF: {}", e), self);
             }
         }
     }
 
     fn create_drawing_area(
-        page: poppler::Page,
-        rec: Rectangle,
-        width: f64,
-        height: f64,
-    ) -> gtk::DrawingArea {
-        let drawing_area = gtk::DrawingArea::new();
-        drawing_area.set_content_width(width as i32);
-        drawing_area.set_content_height((height + 240.0) as i32);
-        drawing_area.set_hexpand(true);
-        drawing_area.set_vexpand(true);
+        &self,
+        page: PdfPage,
+        rectangles: &[PdfRect],
+        width: PdfPoints,
+        height: PdfPoints,
+    ) {
+        let scale_factor = *self.imp().scale_factor.borrow();
+        let rendered = page
+            .render_with_config(
+                &PdfRenderConfig::new()
+                    .set_target_width((width.value) as i32)
+                    .set_target_height((height.value) as i32)
+                    .scale_page_height_by_factor(scale_factor)
+                    .scale_page_width_by_factor(scale_factor),
+            )
+            .expect("Failed to render PDF page");
 
-        drawing_area.set_draw_func(move |da, cr, draw_width, _| {
-            let (page_width, page_height) = page.size();
-            let scale = draw_width as f64 / page_width;
-            cr.scale(scale, scale);
+        let dynamic_image = rendered.as_image();
+        let rgba_image = dynamic_image.to_rgba8();
+        let (img_width, img_height) = rgba_image.dimensions();
+        let rowstride = img_width * 4;
 
-            page.render(cr);
+        let pixbuf = Pixbuf::from_mut_slice(
+            rgba_image.into_raw(),
+            Colorspace::Rgb,
+            true,
+            8,
+            img_width as i32,
+            img_height as i32,
+            rowstride as i32,
+        );
 
-            let highlight_x = rec.x1();
-            let highlight_y = page_height - rec.y2();
-            let highlight_width = rec.x2() - rec.x1();
-            let highlight_height = rec.y2() - rec.y1();
+        let drawing_area = &self.imp().drawing_area;
+        drawing_area.set_content_width(img_width as i32);
+        drawing_area.set_content_height(img_height as i32);
+        let page_size = page.page_size();
 
+        let rec = rectangles.to_vec();
+        drawing_area.set_draw_func(move |_, cr: &Context, _width, _height| {
+            // First, draw the PDF page image.
+            cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
+            cr.paint().expect("Failed to paint PDF page");
+
+            // Now overlay the highlights with proper scaling
             cr.set_source_rgba(1.0, 1.0, 0.0, 0.5);
-            cr.rectangle(highlight_x, highlight_y, highlight_width, highlight_height);
-            if let Err(e) = cr.fill() {
-                show_error_dialog(&format!("Error rendering PDF: {}", e), da);
+            let scale_factor = scale_factor as f64;
+            for rect in rec.iter() {
+                cr.rectangle(
+                    rect.left().value as f64 * scale_factor,
+                    page_size.top().value as f64 * scale_factor
+                        - rect.top().value as f64 * scale_factor,
+                    rect.width().value as f64 * scale_factor,
+                    rect.height().value as f64 * scale_factor,
+                );
             }
+            cr.fill().expect("Failed to fill highlight");
         });
-
-        drawing_area
-    }
-
-    fn create_scrolled_window(child: &gtk::DrawingArea) -> gtk::ScrolledWindow {
-        let scrolled_window = gtk::ScrolledWindow::new();
-        scrolled_window.set_hexpand(true);
-        scrolled_window.set_vexpand(true);
-        scrolled_window.set_child(Some(child));
-        scrolled_window
-    }
-
-    fn clear_container(container: &gtk::Box) {
-        while let Some(child) = container.first_child() {
-            container.remove(&child);
-        }
     }
 
     fn navigate_page(&self, delta: i32) {
         let imp = self.imp();
-        if let Some(ref doc) = *imp.pdf_document.borrow() {
-            let current = *imp.current_page_num.borrow();
+        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
+            let current = *imp.current_page_num.borrow() as i32;
             let new_page = current + delta;
 
-            if new_page >= 0 && new_page < doc.n_pages() {
-                *imp.current_page_num.borrow_mut() = new_page;
+            if new_page >= 0 && new_page < doc.pages().len() as i32 {
+                *imp.current_page_num.borrow_mut() = new_page as u16;
                 self.refresh_view();
             }
         }
     }
 
-    fn go_to_page(&self, page: i32) {
+    fn go_to_page(&self, page_number: i32) {
         let imp = self.imp();
-        if let Some(ref doc) = *imp.pdf_document.borrow() {
-            if page >= 0 && page < doc.n_pages() {
-                *imp.current_page_num.borrow_mut() = page;
+        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
+            if page_number >= 0 && page_number < doc.pages().len() as i32 {
+                imp.current_page_num.replace(page_number as u16);
                 self.refresh_view();
             }
         }
@@ -280,44 +308,29 @@ impl PdfReader {
 
     fn refresh_view(&self) {
         let imp = self.imp();
-        Self::clear_container(imp.pdf_content.as_ref());
-        self.render_current_page();
+        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
+            self.render_current_page(doc);
+        }
+    }
+
+    pub fn scale_pdf(&self, factor: f32) {
+        self.imp().scale_factor.replace_with(|old| {
+            if (*old + factor) < 0.5 {
+                *old
+            } else {
+                *old + factor
+            }
+        });
+        self.refresh_view();
     }
 
     fn close_pdf(&self) {
         let imp = self.imp();
-        *imp.pdf_document.borrow_mut() = None;
+        //let rc_doc = &mut self.imp().pdf_document;
         *imp.current_page_num.borrow_mut() = 0;
         imp.current_page.set_text("1");
         imp.total_pages.set_text("1");
         imp.content_stack.set_visible_child_name("empty");
-    }
-
-    pub fn get_text_positions(&self, page_index: usize) -> Option<Rectangle> {
-        let imp = self.imp();
-        if let Some(ref doc) = *imp.pdf_document.borrow() {
-            if let Some(page) = doc.page(page_index as i32) {
-                let page_text = page.text().unwrap_or_default();
-                if page_text.is_empty() {
-                    return None;
-                }
-                let mut position = Rectangle::new();
-
-                for (n, word) in page_text.split_whitespace().enumerate() {
-                    if n == 1 {
-                        break;
-                    }
-                    if let Some(rect) = page.find_text(word).first() {
-                        position = *rect;
-                    }
-                    if word.ends_with('.') {
-                        break;
-                    }
-                }
-                return Some(position);
-            }
-        }
-        None
     }
 
     fn open_file_dialog(&self) {
@@ -374,53 +387,28 @@ impl PdfReader {
             move |voice: String, button: &gtk::Button| {
                 // Get the current page
                 let current_page_num = *imp.current_page_num.borrow();
-                let current_page = match imp.pdf_document.borrow().as_ref() {
-                    Some(doc) => doc.page(current_page_num),
+                let page = match imp.pdf_wrapper.borrow().get_document() {
+                    Some(page) => page.pages().get(current_page_num).unwrap(),
                     None => {
                         dialogs::show_error_dialog("No PDF document loaded", button);
                         return;
                     }
                 };
 
-                let current_page = match current_page {
-                    Some(page) => page,
-                    None => {
-                        dialogs::show_error_dialog("Failed to load page", button);
-                        return;
-                    }
-                };
-
-                // Check if page is empty
-                if imp
-                    .pdf_highlighter
-                    .borrow()
-                    .is_pdf_page_empty(current_page.clone())
-                {
+                if imp.pdf_highlighter.borrow().is_pdf_page_empty(&page) {
                     dialogs::show_error_dialog("Page has no text content to read", button);
                     return;
                 }
 
-                // Generate reading blocks
-                imp.pdf_highlighter
-                    .borrow()
-                    .generate_reading_blocks(current_page.clone());
-
-                // Get reading blocks
-                let reading_blocks = match imp.pdf_highlighter.borrow().get_reading_blocks() {
-                    Some(blocks) => blocks,
-                    None => {
-                        dialogs::show_error_dialog("Failed to generate reading blocks", button);
-                        return;
-                    }
-                };
-
-                if reading_blocks.is_empty() {
-                    dialogs::show_error_dialog("No readable content found on this page", button);
+                if let Err(e) = imp.pdf_highlighter.borrow().generate_reading_blocks(page) {
+                    dialogs::show_error_dialog(
+                        "Error while parsing pdf into blocks that could be read",
+                        button,
+                    );
                     return;
                 }
 
-                // Create a clone of reading blocks for the progress handler
-                let reading_blocks_clone = reading_blocks.clone();
+                let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
 
                 // Handle TTSEvent progress updates
                 glib::spawn_future_local(clone!(
@@ -436,30 +424,27 @@ impl PdfReader {
                         while let Ok(event) = subscriber.recv().await {
                             match event {
                                 TTSEvent::Progress { block_id } => {
-                                    // Highlight the current block
                                     imp.pdf_highlighter.borrow().highlight(block_id);
 
-                                    // Find the current reading block to get its rectangle
                                     if let Some(current_block) =
-                                        reading_blocks_clone.iter().find(|b| b.id == block_id)
+                                        reading_blocks.iter().find(|b| b.id == block_id)
                                     {
-                                        // Update the current reading rectangle and refresh the view
-                                        this.update_highlight_rectangle(current_block.rectangle);
+                                        this.refresh_view_with_highlight(&current_block.rectangles);
                                     }
                                 }
                                 TTSEvent::Error(e) => {
                                     dialogs::show_error_dialog(&e, &button);
                                     imp.pdf_highlighter.borrow().clear();
-                                    this.clear_highlight_rectangle();
+                                    this.refresh_view();
                                     break;
                                 }
                                 TTSEvent::Next | TTSEvent::Prev => {
                                     imp.pdf_highlighter.borrow().clear();
-                                    this.clear_highlight_rectangle();
+                                    this.refresh_view();
                                 }
                                 TTSEvent::Stop => {
                                     imp.pdf_highlighter.borrow().clear();
-                                    this.clear_highlight_rectangle();
+                                    this.refresh_view();
                                     break;
                                 }
                             }
@@ -467,7 +452,7 @@ impl PdfReader {
                     }
                 ));
 
-                // Start the TTS reading
+                let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
                 glib::spawn_future_local(clone!(
                     #[weak]
                     imp,
@@ -480,53 +465,32 @@ impl PdfReader {
                             .audio_controls
                             .imp()
                             .tts
-                            .read_block_by_voice(&voice, reading_blocks)
+                            .read_block_by_voice(&voice, reading_blocks.to_vec())
                             .await
                         {
                             let err_msg = format!("Error while reading text by given voice: {}", e);
                             dialogs::show_error_dialog(&err_msg, &button);
                         }
 
-                        // Clean up when reading is done
                         imp.pdf_highlighter.borrow().clear();
-                        this.clear_highlight_rectangle();
+                        this.refresh_view();
                     }
                 ));
             }
         ));
     }
 
-    pub fn update_highlight_rectangle(&self, rectangle: Rectangle) {
-        // Store the current rectangle in the PdfReader state if needed
-        // For now we'll just refresh the view with the new rectangle
-        self.refresh_view_with_highlight(rectangle);
-    }
-
-    // Clear the highlight rectangle
-    pub fn clear_highlight_rectangle(&self) {
-        // Clear any stored rectangle and refresh the view
-        self.refresh_view();
-    }
-
-    // Refresh the view with a specific highlight rectangle
-    fn refresh_view_with_highlight(&self, highlight_rect: Rectangle) {
+    fn refresh_view_with_highlight(&self, highlight_rect: &[PdfRect]) {
         let imp = self.imp();
 
-        if let Some(ref doc) = *imp.pdf_document.borrow() {
+        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
             let current_page = *imp.current_page_num.borrow();
 
-            if let Some(page) = doc.page(current_page) {
-                let (width, height) = page.size();
+            let page = doc.pages().get(current_page).unwrap();
+            let (width, height) = (page.width(), page.height());
 
-                // Create drawing area with the current highlight rectangle
-                let drawing_area =
-                    Self::create_drawing_area(page.clone(), highlight_rect, width, height);
-                let scrolled_window = Self::create_scrolled_window(&drawing_area);
-
-                // Replace the current content with the updated one
-                Self::clear_container(imp.pdf_content.as_ref());
-                imp.pdf_content.append(&scrolled_window);
-            }
+            // Create drawing area with the current highlight rectangle
+            self.create_drawing_area(page, highlight_rect, width, height);
         }
     }
 }
