@@ -1,5 +1,5 @@
 use pdfium_render::prelude::{
-    PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPoints, PdfRect,
+    PdfPage, PdfPageObject, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPoints, PdfRect,
 };
 
 use crate::utils::highlighter::ReadingBlock;
@@ -8,10 +8,10 @@ use std::{cell::RefCell, error::Error};
 #[derive(Debug, Clone)]
 pub struct PdfReadingBlock {
     pub text: String,
-    pub rectangle: PdfRect,
+    pub rectangles: Vec<PdfRect>,
     pub id: u32,
-    pub font_family: Option<String>,
-    pub font_size: Option<f32>,
+    pub font_family: String,
+    pub font_size: f32,
 }
 
 impl ReadingBlock for PdfReadingBlock {
@@ -26,9 +26,8 @@ impl ReadingBlock for PdfReadingBlock {
 
 #[derive(Debug)]
 pub struct PdfHighlighter {
-    current_page: i32,
     highlight_color: gtk::gdk::RGBA,
-    current_blocks: RefCell<Option<Vec<PdfReadingBlock>>>,
+    current_blocks: RefCell<Vec<PdfReadingBlock>>,
     highlighted_blocks: RefCell<Vec<u32>>,
 }
 
@@ -43,9 +42,8 @@ impl PdfHighlighter {
         let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
 
         Self {
-            current_page: 0,
             highlight_color: initial_rgba,
-            current_blocks: RefCell::new(None),
+            current_blocks: RefCell::new(Vec::new()),
             highlighted_blocks: RefCell::new(Vec::new()),
         }
     }
@@ -60,65 +58,116 @@ impl PdfHighlighter {
     }
 
     pub fn generate_reading_blocks(&self, page: PdfPage) -> Result<(), Box<dyn Error>> {
-        let mut raw_text_objects = Vec::new();
+        // Filter out objects that are not valid text objects.
+        let valid_text_objects: Vec<_> = page
+            .objects()
+            .iter()
+            .filter(|object| Self::is_valid_text_object(object))
+            .collect();
 
-        let max_sentence_lenght = 100;
+        let num_objects = valid_text_objects.len();
+        let mut current_index = 0;
+        let mut reading_blocks = Vec::new();
 
-        // Step 1: Collect all valid text objects (filter out numbers and special chars)
-        for (mut n, obj) in page.objects().iter().enumerate() {
-            if let Some(text_obj) = obj.as_text_object() {
+        let vertical_threshold = PdfPoints::new(10.0); // Example: 2 points vertically
+        let horizontal_threshold = PdfPoints::new(30.0); // Example: 5 points horizontally
+
+        while current_index < num_objects {
+            let object = &valid_text_objects[current_index];
+            if let Some(text_obj) = object.as_text_object() {
                 if let Ok(bounds) = text_obj.bounds() {
-                    let text = text_obj.text().to_string();
-
-                    let font_size = text_obj.scaled_font_size();
-                    let font_family = text_obj.font().family().to_string();
-                    // Skip if text is just a number or special character
-                    if text
+                    let cleaned_text = text_obj
+                        .text()
                         .trim()
-                        .chars()
-                        .all(|c| c.is_numeric() || !c.is_alphanumeric())
-                        || font_size.value == 0.0
-                    {
-                        continue;
-                    }
-
+                        .trim_start_matches(|c: char| !c.is_alphanumeric())
+                        .to_string();
+                    let font_size = text_obj.unscaled_font_size().value;
+                    let font_family = text_obj.font().family().to_string();
                     let rect =
                         PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
 
                     let mut current_block = PdfReadingBlock {
-                        text,
-                        rectangle: rect,
-                        id: n as u32,
-                        font_family: Some(font_family),
-                        font_size: Some(font_size.value),
+                        text: cleaned_text,
+                        rectangles: vec![rect],
+                        id: current_index as u32,
+                        font_family,
+                        font_size,
                     };
 
-                    if let Ok(obj) = page.objects().get(n + 1) {
-                        if let Some(obj) = obj.as_text_object() {
-                            if obj.scaled_font_size() == font_size {
-                                current_block.text.push_str(&obj.text());
-                                //skip next one
+                    while current_index + 1 < num_objects {
+                        let next_index = current_index + 1;
+                        if let Some(next_text_obj) = valid_text_objects[next_index].as_text_object()
+                        {
+                            if let Ok(next_bounds) = next_text_obj.bounds() {
+                                let next_font_size = next_text_obj.unscaled_font_size().value;
+                                let same_font_size =
+                                    (current_block.font_size - next_font_size).abs() < f32::EPSILON;
+
+                                if let Some(current) = current_block.rectangles.last() {
+                                    // Calculate vertical distance between text objects
+                                    let vertical_distance =
+                                        (current.bottom() - next_bounds.top()).abs();
+
+                                    // Calculate horizontal distance for objects on the same line
+                                    // (This is simplified - you might need to consider right-to-left text)
+                                    let horizontal_distance =
+                                        (current.right() - next_bounds.left()).abs();
+                                    let should_merge = same_font_size
+                                        && (vertical_distance <= vertical_threshold
+                                            || (vertical_distance.value == 0.0
+                                                && horizontal_distance <= horizontal_threshold));
+
+                                    if should_merge {
+                                        // Append text from the next object.
+                                        current_block
+                                            .text
+                                            .push_str(&format!(" {}", next_text_obj.text()));
+                                        let next_rect = PdfRect::new(
+                                            next_bounds.bottom(),
+                                            next_bounds.left(),
+                                            next_bounds.top(),
+                                            next_bounds.right(),
+                                        );
+                                        current_block.rectangles.push(next_rect);
+                                        // Move to the next index.
+                                        current_index = next_index;
+                                        continue;
+                                    }
+                                };
                             }
                         }
+                        break;
                     }
 
-                    raw_text_objects.push(current_block);
+                    reading_blocks.push(current_block);
                 }
             }
+            current_index += 1;
         }
 
-        self.current_blocks.replace(Some(raw_text_objects));
+        if reading_blocks.is_empty() {
+            return Err(String::from("Empty reading blocks").into());
+        }
+
+        self.current_blocks.replace(reading_blocks);
         Ok(())
     }
 
-    // Helper function to merge two PdfRect objects
-    fn merge_rectangles(rect1: &PdfRect, rect2: &PdfRect) -> PdfRect {
-        PdfRect::new(
-            rect1.bottom().min(rect2.bottom()),
-            rect1.left().min(rect2.left()),
-            rect1.top().max(rect2.top()),
-            rect2.right().max(rect2.right()),
-        )
+    /// Checks if the provided PDF object is a valid text object.
+    /// A valid text object must have non-empty text (not only numbers or special characters)
+    /// and a non-zero scaled font size.
+    fn is_valid_text_object(object: &PdfPageObject) -> bool {
+        if let Some(text_obj) = object.as_text_object() {
+            let text = text_obj.text().to_string();
+            let font_size = text_obj.scaled_font_size();
+            !(text
+                .trim()
+                .chars()
+                .all(|c| c.is_numeric() || !c.is_alphanumeric())
+                || font_size.value == 0.0)
+        } else {
+            false
+        }
     }
 
     /// Splits a paragraph into sentences
@@ -150,7 +199,9 @@ impl PdfHighlighter {
         sentences
     }
 
-    /// Determines if a period marks the end of a sentence
+    // Determines if a period marks the end of a sentence
+    // Check for emails, titles (like Mr. Dr. etc), float numbers,
+    // and any other text form that includes `.` but is not the end of the sentence
     fn is_sentence_end(&self, text: &str) -> bool {
         // Common abbreviations that shouldn't be treated as sentence boundaries
         let common_abbreviations = [
@@ -191,8 +242,8 @@ impl PdfHighlighter {
         self.highlighted_blocks.borrow_mut().push(block_id);
     }
 
-    pub fn get_reading_blocks(&self) -> Option<Vec<PdfReadingBlock>> {
-        self.current_blocks.borrow().as_ref().cloned()
+    pub fn get_reading_blocks(&self) -> Vec<PdfReadingBlock> {
+        self.current_blocks.borrow().to_vec()
     }
 
     pub fn clear(&self) {

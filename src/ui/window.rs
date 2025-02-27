@@ -153,8 +153,8 @@ impl FoxReaderAppWindow {
             .audio_controls
             .populate_voice_selector(&voice_rows);
 
-        let gesture_click = gtk::GestureClick::new();
-        gesture_click.connect_pressed(clone!(
+        let gesture_click_text = gtk::GestureClick::new();
+        gesture_click_text.connect_pressed(clone!(
             #[weak]
             imp,
             move |_, _, _, _| {
@@ -169,16 +169,35 @@ impl FoxReaderAppWindow {
                     .populate_voice_selector(&voice_rows);
             }
         ));
+
+        let gesture_click_pdf = gtk::GestureClick::new();
+        gesture_click_pdf.connect_pressed(clone!(
+            #[weak]
+            imp,
+            move |_, _, _, _| {
+                let voice_rows = imp.voice_list.get_downloaded_rows();
+                imp.pdf_reader
+                    .imp()
+                    .audio_controls
+                    .populate_voice_selector(&voice_rows);
+                imp.text_reader
+                    .imp()
+                    .audio_controls
+                    .populate_voice_selector(&voice_rows);
+            }
+        ));
+
         imp.text_reader
             .imp()
             .audio_controls
             .get_voice_selector()
-            .add_controller(gesture_click.clone());
+            .add_controller(gesture_click_text);
+
         imp.pdf_reader
             .imp()
             .audio_controls
             .get_voice_selector()
-            .add_controller(gesture_click);
+            .add_controller(gesture_click_pdf);
     }
 
     fn setup_stack_switching(&self) {
