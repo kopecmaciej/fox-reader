@@ -314,19 +314,15 @@ impl PdfReader {
     }
 
     pub fn scale_pdf(&self, factor: f32) {
-        self.imp().scale_factor.replace_with(|old| {
-            if (*old + factor) < 0.5 {
-                *old
-            } else {
-                *old + factor
-            }
-        });
+        self.imp()
+            .scale_factor
+            .replace_with(|old| (*old + factor).max(0.5));
         self.refresh_view();
     }
 
     fn close_pdf(&self) {
         let imp = self.imp();
-        //let rc_doc = &mut self.imp().pdf_document;
+        self.imp().pdf_wrapper.borrow_mut().remove_pdf();
         *imp.current_page_num.borrow_mut() = 0;
         imp.current_page.set_text("1");
         imp.total_pages.set_text("1");
@@ -400,7 +396,11 @@ impl PdfReader {
                     return;
                 }
 
-                if let Err(e) = imp.pdf_highlighter.borrow().generate_reading_blocks(page) {
+                if let Err(e) = imp
+                    .pdf_highlighter
+                    .borrow()
+                    .generate_reading_blocks_v2(page)
+                {
                     dialogs::show_error_dialog(
                         "Error while parsing pdf into blocks that could be read",
                         button,
@@ -489,7 +489,6 @@ impl PdfReader {
             let page = doc.pages().get(current_page).unwrap();
             let (width, height) = (page.width(), page.height());
 
-            // Create drawing area with the current highlight rectangle
             self.create_drawing_area(page, highlight_rect, width, height);
         }
     }

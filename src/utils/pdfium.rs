@@ -35,4 +35,8 @@ impl PdfiumWrapper {
     pub fn get_document(&self) -> Option<&PdfDocument<'static>> {
         self.document.as_ref()
     }
+
+    pub fn remove_pdf(&mut self) {
+        self.document = None;
+    }
 }
