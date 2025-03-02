@@ -396,11 +396,7 @@ impl PdfReader {
                     return;
                 }
 
-                if let Err(e) = imp
-                    .pdf_highlighter
-                    .borrow()
-                    .generate_reading_blocks_v2(page)
-                {
+                if let Err(e) = imp.pdf_highlighter.borrow().generate_reading_blocks(page) {
                     dialogs::show_error_dialog(
                         "Error while parsing pdf into blocks that could be read",
                         button,

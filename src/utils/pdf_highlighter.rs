@@ -1,5 +1,6 @@
 use pdfium_render::prelude::{
-    PdfPage, PdfPageObject, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPoints, PdfRect,
+    PdfPage, PdfPageObject, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPageTextObject,
+    PdfPoints, PdfQuadPoints, PdfRect, PdfSearchDirection, PdfSearchOptions,
 };
 
 use crate::utils::highlighter::ReadingBlock;
@@ -63,123 +64,28 @@ impl PdfHighlighter {
     }
 
     pub fn generate_reading_blocks(&self, page: PdfPage) -> Result<(), Box<dyn Error>> {
-        // Here I will leave the pseudocode as this will probably be a long peace of code
-        // not easly understable
-
-        // 1. Filter out objects that are not valid text objects.
+        // 1. Filter out objects that are not valid text objects
         let valid_text_objects: Vec<_> = page
             .objects()
             .iter()
             .filter(|object| Self::is_valid_text_object(object))
             .collect();
 
-        let num_objects = valid_text_objects.len();
-        let mut current_index = 0;
-
         let mut reading_blocks: Vec<PdfReadingBlock> = Vec::new();
 
-        while current_index < num_objects {
-            let object = &valid_text_objects[current_index];
-            if let Some(text_obj) = object.as_text_object() {
-                if let Ok(bounds) = text_obj.bounds() {
-                    // 2. Clean the text from special characters at the beggining
-                    let cleaned_text = text_obj
-                        .text()
-                        .trim()
-                        .trim_start_matches(|c: char| !c.is_alphanumeric())
-                        .to_string();
+        for object in valid_text_objects.iter() {
+            let text_obj = match object.as_text_object() {
+                Some(obj) => obj,
+                None => continue,
+            };
 
-                    // Text will be merge only if it has same size and font as e.g. title
-                    // should not be joined with authors of the pdf as those two are often on
-                    // the first page of the papers near each other
-                    let font_size = text_obj.unscaled_font_size().value;
-                    let font_family = text_obj.font().family().to_string();
-                    let rect =
-                        PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
+            let bounds = match text_obj.bounds() {
+                Ok(bounds) => bounds,
+                Err(_) => continue,
+            };
 
-                    let sentence_end_index = self.find_sentence_end_index(&cleaned_text);
-
-                    if sentence_end_index > 0 {
-                        let (current_sentence, next_sentence) =
-                            cleaned_text.split_at(sentence_end_index);
-
-                        let char_lenght = bounds.width().value / cleaned_text.len() as f32;
-                        let move_by = char_lenght * next_sentence.len() as f32;
-
-                        let current_rect = PdfRect::new(
-                            bounds.bottom(),
-                            bounds.left(),
-                            bounds.top(),
-                            PdfPoints::new(bounds.right().value - move_by + 1.0),
-                        );
-
-                        // Check if create new block or push to the last one
-                        if let Some(last_block) = reading_blocks.last_mut() {
-                            if self.should_merge_with_last_block(
-                                last_block,
-                                &current_rect,
-                                font_size,
-                            ) {
-                                last_block.text.push_str(&format!(" {}", current_sentence));
-                                last_block.rectangles.push(current_rect);
-                            } else {
-                                let current_block = PdfReadingBlock {
-                                    text: current_sentence.into(),
-                                    rectangles: vec![current_rect],
-                                    id: current_index as u32,
-                                    font_family: font_family.clone(),
-                                    font_size,
-                                };
-                                reading_blocks.push(current_block);
-                            }
-                        }
-
-                        let move_by = char_lenght * current_sentence.len() as f32;
-
-                        let next_rect = PdfRect::new(
-                            bounds.bottom(),
-                            PdfPoints::new(bounds.left().value + move_by + 1.0),
-                            bounds.top(),
-                            bounds.right(),
-                        );
-                        let next_block = PdfReadingBlock {
-                            text: next_sentence.into(),
-                            rectangles: vec![next_rect],
-                            id: current_index as u32,
-                            font_family,
-                            font_size,
-                        };
-
-                        reading_blocks.push(next_block);
-                    } else {
-                        if let Some(last_block) = reading_blocks.last_mut() {
-                            if self.should_merge_with_last_block(last_block, &rect, font_size) {
-                                last_block.text.push_str(&format!(" {}", cleaned_text));
-                                last_block.rectangles.push(rect);
-                            } else {
-                                let current_block = PdfReadingBlock {
-                                    text: cleaned_text,
-                                    rectangles: vec![rect],
-                                    id: current_index as u32,
-                                    font_family: font_family.clone(),
-                                    font_size,
-                                };
-                                reading_blocks.push(current_block);
-                            }
-                        } else {
-                            let current_block = PdfReadingBlock {
-                                text: cleaned_text,
-                                rectangles: vec![rect],
-                                id: current_index as u32,
-                                font_family: font_family.clone(),
-                                font_size,
-                            };
-                            reading_blocks.push(current_block);
-                        }
-                    }
-                }
-            }
-            current_index += 1;
+            // Process text and create reading blocks
+            self.process_text_into_blocks(&page, &mut reading_blocks, text_obj, bounds)?;
         }
 
         if reading_blocks.is_empty() {
@@ -188,6 +94,138 @@ impl PdfHighlighter {
 
         self.current_blocks.replace(reading_blocks);
         Ok(())
+    }
+
+    fn search_for_text_rect(
+        &self,
+        page: &PdfPage,
+        text: &str,
+        bounds: &PdfQuadPoints,
+    ) -> Result<Option<PdfRect>, Box<dyn Error>> {
+        let search_opt = &PdfSearchOptions::new();
+        let pdf_text = page.text()?;
+        let mut pdf_text_search = pdf_text.search(text, search_opt);
+        if pdf_text_search.find_next().is_none() {
+            // for some reason sometimes if sentence is move to another line hyphen is missing
+            pdf_text_search = pdf_text.search(&format!("{text}-"), search_opt);
+            if pdf_text_search.find_next().is_none() {
+                return Ok(None);
+            }
+        }
+        for pdf_text_iter in pdf_text_search.iter(PdfSearchDirection::SearchForward) {
+            for text_segment in pdf_text_iter.iter() {
+                if text_segment.bounds().top() == bounds.top() {
+                    return Ok(Some(text_segment.bounds()));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    // Helper method to process text and add to reading blocks
+    fn process_text_into_blocks(
+        &self,
+        page: &PdfPage,
+        reading_blocks: &mut Vec<PdfReadingBlock>,
+        text_obj: &PdfPageTextObject,
+        bounds: PdfQuadPoints,
+    ) -> Result<(), Box<dyn Error>> {
+        // 2. Clean the text from special characters at the beginning
+        let cleaned_text = text_obj
+            .text()
+            .trim()
+            .trim_start_matches(|c: char| !c.is_alphanumeric())
+            .to_string();
+        // Extract text properties
+        let font_size = text_obj.unscaled_font_size().value;
+        let font_family = text_obj.font().family().to_string();
+        let rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
+
+        let sentence_end_index = self.find_sentence_end_index(&cleaned_text);
+
+        if sentence_end_index > 0 {
+            // Split text at sentence boundary
+            let (mut current_sentence, mut next_sentence) =
+                cleaned_text.split_at(sentence_end_index);
+            current_sentence = current_sentence.trim();
+            next_sentence = next_sentence.trim().trim_start_matches(".");
+            // Calculate character width and positions
+            let char_length = bounds.width().value / cleaned_text.len() as f32;
+            let move_by = char_length * current_sentence.len() as f32;
+
+            // better precision of highlighting the text
+            let mut right = PdfPoints::new(bounds.left().value + move_by);
+            if let Some(rect) = self.search_for_text_rect(page, current_sentence, &bounds)? {
+                right = rect.right();
+            }
+            let current_rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), right);
+
+            self.add_text_to_blocks(
+                reading_blocks,
+                current_sentence.to_string(),
+                current_rect,
+                font_size,
+                font_family.clone(),
+            );
+
+            if next_sentence.trim().is_empty() {
+                return Ok(());
+            }
+
+            let mut left = PdfPoints::new(right.value + char_length);
+
+            if let Some(rect) = self.search_for_text_rect(page, next_sentence, &bounds)? {
+                left = rect.left();
+            }
+            let next_rect = PdfRect::new(bounds.bottom(), left, bounds.top(), bounds.right());
+
+            let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(1);
+            let new_block = PdfReadingBlock {
+                text: next_sentence.to_string(),
+                rectangles: vec![next_rect],
+                id,
+                font_family,
+                font_size,
+            };
+
+            reading_blocks.push(new_block);
+        } else {
+            // Add entire text as single block or merge with previous
+            self.add_text_to_blocks(reading_blocks, cleaned_text, rect, font_size, font_family);
+        }
+        Ok(())
+    }
+
+    // Helper to add text to blocks
+    fn add_text_to_blocks(
+        &self,
+        reading_blocks: &mut Vec<PdfReadingBlock>,
+        text: String,
+        rect: PdfRect,
+        font_size: f32,
+        font_family: String,
+    ) {
+        if let Some(last_block) = reading_blocks.last_mut() {
+            if self.should_merge_with_last_block(last_block, &rect, font_size) {
+                // Merge with the last block
+                last_block.text.push_str(&format!(" {}", text));
+                last_block.rectangles.push(rect);
+                return;
+            }
+        }
+
+        let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(1);
+
+        // Create a new block
+        let new_block = PdfReadingBlock {
+            text,
+            rectangles: vec![rect],
+            id,
+            font_family,
+            font_size,
+        };
+
+        reading_blocks.push(new_block);
     }
 
     fn should_merge_with_last_block(
