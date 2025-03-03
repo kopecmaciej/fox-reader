@@ -153,7 +153,7 @@ impl TextReader {
                             .audio_controls
                             .imp()
                             .tts
-                            .read_block_by_voice(&voice, readings_blocks)
+                            .read_blocks_by_voice(voice, readings_blocks)
                             .await
                         {
                             let err_msg = format!("Error while reading text by given voice, {}", e);

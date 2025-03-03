@@ -1,5 +1,5 @@
-use crate::paths::{dispatcher_config, huggingface_config, PIPER_PATH};
 use crate::core::file_handler::FileHandler;
+use crate::paths::{dispatcher_config, huggingface_config, PIPER_PATH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -124,7 +124,7 @@ impl VoiceManager {
     pub async fn generate_piper_raw_speech(
         text: &str,
         voice: &str,
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
+    ) -> Result<Vec<u8>, Box<dyn Error + Sync + Send>> {
         let cleaned_text = text.replace("\"", "'");
         let cleaned_text = cleaned_text.replace("\n", " ... ");
         let voice_path = format!("{}/{}", huggingface_config::get_download_path(), voice);

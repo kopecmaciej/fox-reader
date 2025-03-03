@@ -96,18 +96,20 @@ impl PdfHighlighter {
         Ok(())
     }
 
-    fn search_for_text_rect(
+    fn _search_for_text_rect(
         &self,
         page: &PdfPage,
         text: &str,
         bounds: &PdfQuadPoints,
     ) -> Result<Option<PdfRect>, Box<dyn Error>> {
-        let search_opt = &PdfSearchOptions::new();
+        let search_opt = &PdfSearchOptions::new()
+            .match_case(true)
+            .match_whole_word(true);
         let pdf_text = page.text()?;
-        let mut pdf_text_search = pdf_text.search(text, search_opt);
+        let pdf_text_search = pdf_text.search(text, search_opt);
         if pdf_text_search.find_next().is_none() {
             // for some reason sometimes if sentence is move to another line hyphen is missing
-            pdf_text_search = pdf_text.search(&format!("{text}-"), search_opt);
+            //pdf_text_search = pdf_text.search(&format!("{text}-"), search_opt);
             if pdf_text_search.find_next().is_none() {
                 return Ok(None);
             }
@@ -144,20 +146,17 @@ impl PdfHighlighter {
         let sentence_end_index = self.find_sentence_end_index(&cleaned_text);
 
         if sentence_end_index > 0 {
-            // Split text at sentence boundary
+            let char_length = bounds.width().value / cleaned_text.len() as f32;
+
             let (mut current_sentence, mut next_sentence) =
                 cleaned_text.split_at(sentence_end_index);
             current_sentence = current_sentence.trim();
-            next_sentence = next_sentence.trim().trim_start_matches(".");
+            next_sentence = next_sentence.trim();
             // Calculate character width and positions
-            let char_length = bounds.width().value / cleaned_text.len() as f32;
             let move_by = char_length * current_sentence.len() as f32;
 
             // better precision of highlighting the text
-            let mut right = PdfPoints::new(bounds.left().value + move_by);
-            if let Some(rect) = self.search_for_text_rect(page, current_sentence, &bounds)? {
-                right = rect.right();
-            }
+            let right = PdfPoints::new(bounds.left().value + move_by);
             let current_rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), right);
 
             self.add_text_to_blocks(
@@ -168,18 +167,10 @@ impl PdfHighlighter {
                 font_family.clone(),
             );
 
-            if next_sentence.trim().is_empty() {
-                return Ok(());
-            }
-
-            let mut left = PdfPoints::new(right.value + char_length);
-
-            if let Some(rect) = self.search_for_text_rect(page, next_sentence, &bounds)? {
-                left = rect.left();
-            }
+            let left = PdfPoints::new(right.value + char_length);
             let next_rect = PdfRect::new(bounds.bottom(), left, bounds.top(), bounds.right());
 
-            let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(1);
+            let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(0);
             let new_block = PdfReadingBlock {
                 text: next_sentence.to_string(),
                 rectangles: vec![next_rect],
@@ -214,7 +205,7 @@ impl PdfHighlighter {
             }
         }
 
-        let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(1);
+        let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(0);
 
         // Create a new block
         let new_block = PdfReadingBlock {
@@ -282,8 +273,6 @@ impl PdfHighlighter {
         if let Some(last_period_pos) = trimmed.rfind('.') {
             // Get the absolute position in the original text
             let original_pos = text.len() - (trimmed.len() - last_period_pos);
-
-            // Check if this last period is actually a sentence end
 
             // Extract the context around the period for analysis
             let before_period = &trimmed[..last_period_pos];
@@ -382,7 +371,7 @@ impl PdfHighlighter {
             }
 
             // If we've passed all these checks, it's likely a sentence ending
-            return original_pos;
+            return original_pos + 1;
         }
 
         // No period found (shouldn't happen at this point, but just in case)

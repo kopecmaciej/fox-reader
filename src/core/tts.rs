@@ -10,6 +10,32 @@ use std::{
     },
 };
 use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::mpsc;
+
+struct AudioData {
+    id: usize,
+    raw_audio: Vec<u8>,
+}
+
+struct AudioQueue {
+    sender: mpsc::Sender<AudioData>,
+    receiver: mpsc::Receiver<AudioData>,
+}
+
+impl AudioQueue {
+    pub fn new(buffer_size: usize) -> Self {
+        let (sender, receiver) = mpsc::channel(buffer_size);
+        Self { sender, receiver }
+    }
+
+    pub fn get_sender(&self) -> mpsc::Sender<AudioData> {
+        self.sender.clone()
+    }
+
+    pub fn get_receiver(&mut self) -> &mut mpsc::Receiver<AudioData> {
+        &mut self.receiver
+    }
+}
 
 #[derive(Clone)]
 pub struct Tts {
@@ -51,24 +77,51 @@ impl Tts {
         }
     }
 
-    pub async fn read_block_by_voice<T>(
+    pub async fn read_blocks_by_voice<T>(
         &self,
-        voice: &str,
+        voice: String,
         reading_blocks: Vec<T>,
     ) -> Result<(), Box<dyn Error>>
     where
-        T: ReadingBlock,
+        T: ReadingBlock + Send + Sync + 'static,
     {
-        while self.idx.load(Ordering::Relaxed) < reading_blocks.len() {
-            let current_idx = self.idx.load(Ordering::Relaxed);
-            let reading_block = &reading_blocks[current_idx];
+        // If `PREV` or `NEXT`
+        let mut audio_queue = AudioQueue::new(2);
+        let reading_blocks_len = reading_blocks.len();
+
+        let producer_sender = audio_queue.get_sender();
+
+        let idx_clone = Arc::clone(&self.idx);
+
+        let producer_handle = runtime().spawn(async move {
+            while idx_clone.load(Ordering::Relaxed) < reading_blocks_len {
+                let current_idx = idx_clone.load(Ordering::Relaxed);
+                let reading_block = &reading_blocks[current_idx];
+                idx_clone.fetch_add(1, Ordering::SeqCst);
+                let raw_audio =
+                    VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice)
+                        .await?;
+                let id = reading_block.get_id() as usize;
+
+                if producer_sender
+                    .send(AudioData { id, raw_audio })
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        });
+
+        let receiver = audio_queue.get_receiver();
+
+        while let Some(audio_data) = receiver.recv().await {
             self.sender.send(TTSEvent::Progress {
-                block_id: reading_block.get_id(),
+                block_id: audio_data.id as u32,
             })?;
 
-            let event = self
-                .read_block_of_text(reading_block.get_text(), voice.to_string())
-                .await;
+            let event = self.read_block_of_text(audio_data.raw_audio).await;
 
             match event {
                 Ok(Some(TTSEvent::Stop)) => {
@@ -76,42 +129,42 @@ impl Tts {
                     break;
                 }
                 Ok(Some(TTSEvent::Next)) => {
-                    if current_idx + 1 < reading_blocks.len() {
-                        self.idx.store(current_idx + 1, Ordering::Relaxed);
+                    if audio_data.id + 1 < reading_blocks_len {
+                        println!("{}", receiver.len());
+                        //let _ = receiver.try_recv();
+                        //self.idx.store(audio_data.id + 1, Ordering::Relaxed);
                     }
                     continue;
                 }
                 Ok(Some(TTSEvent::Prev)) => {
-                    if current_idx > 0 {
-                        self.idx.store(current_idx - 1, Ordering::Relaxed);
+                    if audio_data.id > 0 {
+                        while receiver.try_recv().is_ok() {
+                            println!("DROPPPING PREV");
+                        }
+                        self.idx.store(audio_data.id - 1, Ordering::Relaxed);
                     }
                     continue;
                 }
                 Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
                 Err(e) => return Err(e),
                 _ => {
-                    self.idx.fetch_add(1, Ordering::Relaxed);
                     continue;
                 }
             };
         }
 
-        self.idx.store(0, Ordering::Relaxed);
+        if let Err(e) = producer_handle.await {
+            return Err(Box::new(e));
+        }
+
         Ok(())
     }
 
     pub async fn read_block_of_text(
         &self,
-        reading_block: String,
-        voice: String,
+        raw_audio: Vec<u8>,
     ) -> Result<Option<TTSEvent>, Box<dyn Error>> {
         let mut receiver = self.sender.subscribe();
-
-        let raw_audio = runtime().block_on(VoiceManager::generate_piper_raw_speech(
-            &reading_block,
-            &voice,
-        ))?;
-
         let reading_speed = *self.reading_speed.borrow();
         let audio_player = self.audio_player.clone();
 

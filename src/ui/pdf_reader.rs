@@ -461,7 +461,7 @@ impl PdfReader {
                             .audio_controls
                             .imp()
                             .tts
-                            .read_block_by_voice(&voice, reading_blocks.to_vec())
+                            .read_blocks_by_voice(voice, reading_blocks.to_vec())
                             .await
                         {
                             let err_msg = format!("Error while reading text by given voice: {}", e);
