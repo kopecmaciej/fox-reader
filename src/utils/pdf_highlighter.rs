@@ -58,6 +58,17 @@ impl PdfHighlighter {
         self.highlight_color = rgba;
     }
 
+    pub fn get_rgba_colors(&self) -> (f32, f32, f32) {
+        let highlight_color = self.highlight_color;
+        let (red, green, blue) = (
+            highlight_color.red(),
+            highlight_color.green(),
+            highlight_color.blue(),
+        );
+
+        (red, green, blue)
+    }
+
     pub fn is_pdf_page_empty(&self, page: &PdfPage) -> bool {
         let page_text = page.text().unwrap();
         page_text.all().trim().is_empty()

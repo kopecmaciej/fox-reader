@@ -52,11 +52,12 @@ glib::wrapper! {
 }
 
 impl TextReader {
-    pub fn init(&self) {
+    pub fn init(&self, highlight_color: gtk::gdk::RGBA) {
         let imp = self.imp();
         imp.audio_controls.init();
         imp.text_highlighter
             .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
+        self.set_highlight_color(highlight_color);
         self.init_audio_control_buttons();
     }
 

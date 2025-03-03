@@ -178,11 +178,12 @@ impl Default for PdfReader {
 }
 
 impl PdfReader {
-    pub fn init(&self) {
+    pub fn init(&self, highlight_color: gtk::gdk::RGBA) {
         let imp = self.imp();
         imp.audio_controls.init();
         self.init_audio_control_buttons();
         imp.scale_factor.replace(1.0);
+        self.set_highlight_color(highlight_color);
     }
 
     pub fn set_highlight_color(&self, rgba: gtk::gdk::RGBA) {
@@ -252,19 +253,17 @@ impl PdfReader {
         let dynamic_image = rendered.as_image();
         let mut rgba_image = dynamic_image.to_rgba8();
 
+        // TODO: only if dark theme is on
         for pixel in rgba_image.pixels_mut() {
-            // Skip transparent pixels
             if pixel[3] == 0 {
                 continue;
             }
 
-            // For white or near-white pixels, convert to dark gray
             if pixel[0] > 240 && pixel[1] > 240 && pixel[2] > 240 {
                 pixel[0] = 30;
                 pixel[1] = 30;
                 pixel[2] = 30;
             } else {
-                // Invert other colors
                 pixel[0] = 255 - pixel[0];
                 pixel[1] = 255 - pixel[1];
                 pixel[2] = 255 - pixel[2];
@@ -291,19 +290,12 @@ impl PdfReader {
 
         let rec = rectangles.to_vec();
 
-        let highlight_color = self.imp().pdf_highlighter.borrow().highlight_color;
-        let (red, blue, green) = (
-            highlight_color.red(),
-            highlight_color.blue(),
-            highlight_color.green(),
-        );
+        let (red, blue, green) = self.imp().pdf_highlighter.borrow().get_rgba_colors();
         drawing_area.set_draw_func(move |_, cr: &Context, _width, _height| {
-            // First, draw the PDF page image.
             cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
             cr.paint().expect("Failed to paint PDF page");
 
-            // Set highlight color based on theme
-            cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.5);
+            cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.3);
 
             let scale_factor = scale_factor as f64;
             for rect in rec.iter() {

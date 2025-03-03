@@ -41,10 +41,12 @@ impl UserConfig {
             .map(|font_str| FontDescription::from_string(font_str))
     }
 
-    pub fn get_highlight_rgba(&self) -> Option<RGBA> {
+    pub fn get_highlight_rgba(&self) -> RGBA {
+        let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
         self.highlight_color
             .as_ref()
             .and_then(|color_str| RGBA::parse(color_str).ok())
+            .unwrap_or(initial_rgba)
     }
 
     pub fn get_color_scheme(&self) -> ColorScheme {

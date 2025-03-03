@@ -11,6 +11,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::config::UserConfig;
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::ui::dialogs;
+use crate::utils::highlighter;
 
 use super::settings::Settings;
 
@@ -118,8 +119,9 @@ impl FoxReaderAppWindow {
         let style_manager = adw::StyleManager::default();
         style_manager.set_color_scheme(window.imp().user_config.borrow().get_color_scheme());
         imp.voice_list.init();
-        imp.text_reader.init();
-        imp.pdf_reader.init();
+        let highlight_color = imp.user_config.borrow().get_highlight_rgba();
+        imp.text_reader.init(highlight_color);
+        imp.pdf_reader.init(highlight_color);
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
