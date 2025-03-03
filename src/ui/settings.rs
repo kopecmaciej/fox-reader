@@ -5,6 +5,8 @@ use gtk::gdk::RGBA;
 use gtk::glib::{self, clone};
 use std::{cell::RefCell, rc::Rc};
 
+use super::pdf_reader::PdfReader;
+
 mod imp {
 
     use super::*;
@@ -69,7 +71,7 @@ impl Settings {
         obj
     }
 
-    pub fn setup_signals(&self, text_reader: &TextReader) {
+    pub fn setup_signals(&self, text_reader: &TextReader, pdf_reader: &PdfReader) {
         let imp = self.imp();
 
         imp.font_button.connect_font_desc_notify(clone!(
@@ -90,9 +92,12 @@ impl Settings {
             imp,
             #[weak]
             text_reader,
+            #[weak]
+            pdf_reader,
             move |button| {
                 let rgba = button.rgba();
                 text_reader.set_highlight_color(rgba);
+                pdf_reader.set_highlight_color(rgba);
                 imp.user_config.borrow_mut().set_highlight_color(&rgba);
             }
         ));

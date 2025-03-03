@@ -32,7 +32,7 @@ impl ReadingBlock for PdfReadingBlock {
 
 #[derive(Debug)]
 pub struct PdfHighlighter {
-    highlight_color: gtk::gdk::RGBA,
+    pub highlight_color: gtk::gdk::RGBA,
     current_blocks: RefCell<Vec<PdfReadingBlock>>,
     highlighted_blocks: RefCell<Vec<u32>>,
 }

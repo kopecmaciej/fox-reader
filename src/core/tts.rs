@@ -85,7 +85,6 @@ impl Tts {
     where
         T: ReadingBlock + Send + Sync + 'static,
     {
-        // If `PREV` or `NEXT`
         let mut audio_queue = AudioQueue::new(2);
         let reading_blocks_len = reading_blocks.len();
 
@@ -129,18 +128,12 @@ impl Tts {
                     break;
                 }
                 Ok(Some(TTSEvent::Next)) => {
-                    if audio_data.id + 1 < reading_blocks_len {
-                        println!("{}", receiver.len());
-                        //let _ = receiver.try_recv();
-                        //self.idx.store(audio_data.id + 1, Ordering::Relaxed);
-                    }
                     continue;
                 }
+                //TODO: Fix going backwards
                 Ok(Some(TTSEvent::Prev)) => {
                     if audio_data.id > 0 {
-                        while receiver.try_recv().is_ok() {
-                            println!("DROPPPING PREV");
-                        }
+                        while receiver.try_recv().is_ok() {}
                         self.idx.store(audio_data.id - 1, Ordering::Relaxed);
                     }
                     continue;

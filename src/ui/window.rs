@@ -81,7 +81,7 @@ mod imp {
         #[template_callback]
         fn on_settings_button_clicked(&self, button: &gtk::Button) {
             let settings = Settings::new(Rc::clone(&self.user_config));
-            settings.setup_signals(&self.text_reader);
+            settings.setup_signals(&self.text_reader, &self.pdf_reader);
             settings.present(Some(button));
         }
     }
@@ -113,12 +113,13 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, &window);
         }
 
-        window.imp().user_config.replace(UserConfig::new());
+        let imp = window.imp();
+        imp.user_config.replace(UserConfig::new());
         let style_manager = adw::StyleManager::default();
         style_manager.set_color_scheme(window.imp().user_config.borrow().get_color_scheme());
-        window.imp().voice_list.init();
-        window.imp().text_reader.init();
-        window.imp().pdf_reader.init();
+        imp.voice_list.init();
+        imp.text_reader.init();
+        imp.pdf_reader.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();

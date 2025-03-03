@@ -15,6 +15,7 @@ use crate::core::tts::TTSEvent;
 use super::dialogs::{self, show_error_dialog};
 
 mod imp {
+
     use crate::{
         ui::audio_controls::AudioControls,
         utils::{pdf_highlighter::PdfHighlighter, pdfium::PdfiumWrapper},
@@ -184,6 +185,13 @@ impl PdfReader {
         imp.scale_factor.replace(1.0);
     }
 
+    pub fn set_highlight_color(&self, rgba: gtk::gdk::RGBA) {
+        self.imp()
+            .pdf_highlighter
+            .borrow_mut()
+            .set_highlight_color(rgba);
+    }
+
     fn load_pdf(&self, file: gio::File) {
         let path = match file.path() {
             Some(path) => path,
@@ -242,7 +250,27 @@ impl PdfReader {
             .expect("Failed to render PDF page");
 
         let dynamic_image = rendered.as_image();
-        let rgba_image = dynamic_image.to_rgba8();
+        let mut rgba_image = dynamic_image.to_rgba8();
+
+        for pixel in rgba_image.pixels_mut() {
+            // Skip transparent pixels
+            if pixel[3] == 0 {
+                continue;
+            }
+
+            // For white or near-white pixels, convert to dark gray
+            if pixel[0] > 240 && pixel[1] > 240 && pixel[2] > 240 {
+                pixel[0] = 30;
+                pixel[1] = 30;
+                pixel[2] = 30;
+            } else {
+                // Invert other colors
+                pixel[0] = 255 - pixel[0];
+                pixel[1] = 255 - pixel[1];
+                pixel[2] = 255 - pixel[2];
+            }
+        }
+
         let (img_width, img_height) = rgba_image.dimensions();
         let rowstride = img_width * 4;
 
@@ -262,13 +290,21 @@ impl PdfReader {
         let page_size = page.page_size();
 
         let rec = rectangles.to_vec();
+
+        let highlight_color = self.imp().pdf_highlighter.borrow().highlight_color;
+        let (red, blue, green) = (
+            highlight_color.red(),
+            highlight_color.blue(),
+            highlight_color.green(),
+        );
         drawing_area.set_draw_func(move |_, cr: &Context, _width, _height| {
             // First, draw the PDF page image.
             cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
             cr.paint().expect("Failed to paint PDF page");
 
-            // Now overlay the highlights with proper scaling
-            cr.set_source_rgba(1.0, 1.0, 0.0, 0.5);
+            // Set highlight color based on theme
+            cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.5);
+
             let scale_factor = scale_factor as f64;
             for rect in rec.iter() {
                 cr.rectangle(
@@ -396,7 +432,12 @@ impl PdfReader {
                     return;
                 }
 
-                if let Err(e) = imp.pdf_highlighter.borrow().generate_reading_blocks(page) {
+                if imp
+                    .pdf_highlighter
+                    .borrow()
+                    .generate_reading_blocks(page)
+                    .is_err()
+                {
                     dialogs::show_error_dialog(
                         "Error while parsing pdf into blocks that could be read",
                         button,
