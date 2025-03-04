@@ -8,16 +8,17 @@ use crate::{core::file_handler::FileHandler, paths::get_app_config_path};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserConfig {
     pub font: Option<String>,
-    pub highlight_color: Option<String>,
-    pub theme: Option<String>,
+    pub highlight_color: String,
+    pub theme: String,
 }
 
 impl Default for UserConfig {
     fn default() -> Self {
+        let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
         Self {
             font: None,
-            highlight_color: None,
-            theme: Some("system".to_string()),
+            highlight_color: initial_rgba.to_string(),
+            theme: "light".to_string(),
         }
     }
 }
@@ -43,18 +44,19 @@ impl UserConfig {
 
     pub fn get_highlight_rgba(&self) -> RGBA {
         let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
-        self.highlight_color
-            .as_ref()
-            .and_then(|color_str| RGBA::parse(color_str).ok())
-            .unwrap_or(initial_rgba)
+        RGBA::parse(self.highlight_color.clone()).unwrap_or(initial_rgba)
     }
 
     pub fn get_color_scheme(&self) -> ColorScheme {
-        match self.theme.as_deref() {
-            Some("light") => ColorScheme::ForceLight,
-            Some("dark") => ColorScheme::ForceDark,
+        match self.theme.as_str() {
+            "light" => ColorScheme::ForceLight,
+            "dark" => ColorScheme::ForceDark,
             _ => ColorScheme::Default,
         }
+    }
+
+    pub fn is_dark_color_scheme(&self) -> bool {
+        self.get_color_scheme() == ColorScheme::ForceDark
     }
 
     pub fn set_font(&mut self, font_desc: &FontDescription) {
@@ -65,14 +67,14 @@ impl UserConfig {
     }
 
     pub fn set_highlight_color(&mut self, rgba: &RGBA) {
-        self.highlight_color = Some(rgba.to_string());
+        self.highlight_color = rgba.to_string();
         if let Err(e) = self.save() {
             eprintln!("Failed to save highlight color settings: {}", e);
         }
     }
 
     pub fn set_theme(&mut self, is_dark: bool) {
-        self.theme = Some(if is_dark { "dark" } else { "light" }.to_string());
+        self.theme = if is_dark { "dark" } else { "light" }.to_string();
         if let Err(e) = self.save() {
             eprintln!("Failed to save theme settings: {}", e);
         }

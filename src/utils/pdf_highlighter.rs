@@ -32,7 +32,6 @@ impl ReadingBlock for PdfReadingBlock {
 
 #[derive(Debug)]
 pub struct PdfHighlighter {
-    pub highlight_color: gtk::gdk::RGBA,
     current_blocks: RefCell<Vec<PdfReadingBlock>>,
     highlighted_blocks: RefCell<Vec<u32>>,
 }
@@ -45,28 +44,10 @@ impl Default for PdfHighlighter {
 
 impl PdfHighlighter {
     pub fn new() -> Self {
-        let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
-
         Self {
-            highlight_color: initial_rgba,
             current_blocks: RefCell::new(Vec::new()),
             highlighted_blocks: RefCell::new(Vec::new()),
         }
-    }
-
-    pub fn set_highlight_color(&mut self, rgba: gtk::gdk::RGBA) {
-        self.highlight_color = rgba;
-    }
-
-    pub fn get_rgba_colors(&self) -> (f32, f32, f32) {
-        let highlight_color = self.highlight_color;
-        let (red, green, blue) = (
-            highlight_color.red(),
-            highlight_color.green(),
-            highlight_color.blue(),
-        );
-
-        (red, green, blue)
     }
 
     pub fn is_pdf_page_empty(&self, page: &PdfPage) -> bool {

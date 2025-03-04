@@ -5,8 +5,6 @@ use gtk::gdk::RGBA;
 use gtk::glib::{self, clone};
 use std::{cell::RefCell, rc::Rc};
 
-use super::pdf_reader::PdfReader;
-
 mod imp {
 
     use super::*;
@@ -19,7 +17,7 @@ mod imp {
         pub font_button: TemplateChild<gtk::FontDialogButton>,
         #[template_child]
         pub highlight_color_button: TemplateChild<gtk::ColorDialogButton>,
-        pub user_config: Rc<RefCell<UserConfig>>,
+        pub user_config: RefCell<Rc<RefCell<UserConfig>>>,
     }
 
     #[glib::object_subclass]
@@ -60,18 +58,17 @@ impl Settings {
             imp.font_button.set_font_desc(&font_desc);
         }
 
-        if let Some(color_str) = &user_config.borrow().highlight_color {
-            if let Ok(rgba) = RGBA::parse(color_str) {
-                imp.highlight_color_button.set_rgba(&rgba);
-            }
+        let color_str = &user_config.borrow().highlight_color.clone();
+        if let Ok(rgba) = RGBA::parse(color_str) {
+            imp.highlight_color_button.set_rgba(&rgba);
         }
 
-        obj.imp().user_config.swap(&user_config);
+        obj.imp().user_config.replace(user_config);
 
         obj
     }
 
-    pub fn setup_signals(&self, text_reader: &TextReader, pdf_reader: &PdfReader) {
+    pub fn setup_signals(&self, text_reader: &TextReader) {
         let imp = self.imp();
 
         imp.font_button.connect_font_desc_notify(clone!(
@@ -82,7 +79,7 @@ impl Settings {
             move |button| {
                 if let Some(font_desc) = button.font_desc() {
                     text_reader.set_text_font(font_desc.clone());
-                    imp.user_config.borrow_mut().set_font(&font_desc);
+                    imp.user_config.borrow().borrow_mut().set_font(&font_desc);
                 }
             }
         ));
@@ -92,13 +89,13 @@ impl Settings {
             imp,
             #[weak]
             text_reader,
-            #[weak]
-            pdf_reader,
             move |button| {
                 let rgba = button.rgba();
                 text_reader.set_highlight_color(rgba);
-                pdf_reader.set_highlight_color(rgba);
-                imp.user_config.borrow_mut().set_highlight_color(&rgba);
+                imp.user_config
+                    .borrow()
+                    .borrow_mut()
+                    .set_highlight_color(&rgba);
             }
         ));
     }

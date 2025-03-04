@@ -8,14 +8,13 @@ use gtk::{
     glib::clone,
 };
 use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRect, PdfRenderConfig};
-use std::{cell::RefCell, fmt::Debug};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use crate::core::tts::TTSEvent;
+use crate::{config::UserConfig, core::tts::TTSEvent};
 
 use super::dialogs::{self, show_error_dialog};
 
 mod imp {
-
     use crate::{
         ui::audio_controls::AudioControls,
         utils::{pdf_highlighter::PdfHighlighter, pdfium::PdfiumWrapper},
@@ -55,6 +54,7 @@ mod imp {
         #[template_child]
         pub audio_controls: TemplateChild<AudioControls>,
 
+        pub user_config: RefCell<Rc<RefCell<UserConfig>>>,
         pub scale_factor: RefCell<f32>,
         pub pdf_wrapper: RefCell<PdfiumWrapper>,
         pub current_page_num: RefCell<PdfPageIndex>,
@@ -178,19 +178,12 @@ impl Default for PdfReader {
 }
 
 impl PdfReader {
-    pub fn init(&self, highlight_color: gtk::gdk::RGBA) {
+    pub fn init(&self, user_config: Rc<RefCell<UserConfig>>) {
         let imp = self.imp();
         imp.audio_controls.init();
         self.init_audio_control_buttons();
         imp.scale_factor.replace(1.0);
-        self.set_highlight_color(highlight_color);
-    }
-
-    pub fn set_highlight_color(&self, rgba: gtk::gdk::RGBA) {
-        self.imp()
-            .pdf_highlighter
-            .borrow_mut()
-            .set_highlight_color(rgba);
+        imp.user_config.replace(user_config);
     }
 
     fn load_pdf(&self, file: gio::File) {
@@ -253,20 +246,27 @@ impl PdfReader {
         let dynamic_image = rendered.as_image();
         let mut rgba_image = dynamic_image.to_rgba8();
 
-        // TODO: only if dark theme is on
-        for pixel in rgba_image.pixels_mut() {
-            if pixel[3] == 0 {
-                continue;
-            }
+        if self
+            .imp()
+            .user_config
+            .borrow()
+            .borrow()
+            .is_dark_color_scheme()
+        {
+            for pixel in rgba_image.pixels_mut() {
+                if pixel[3] == 0 {
+                    continue;
+                }
 
-            if pixel[0] > 240 && pixel[1] > 240 && pixel[2] > 240 {
-                pixel[0] = 30;
-                pixel[1] = 30;
-                pixel[2] = 30;
-            } else {
-                pixel[0] = 255 - pixel[0];
-                pixel[1] = 255 - pixel[1];
-                pixel[2] = 255 - pixel[2];
+                if pixel[0] > 240 && pixel[1] > 240 && pixel[2] > 240 {
+                    pixel[0] = 30;
+                    pixel[1] = 30;
+                    pixel[2] = 30;
+                } else {
+                    pixel[0] = 255 - pixel[0];
+                    pixel[1] = 255 - pixel[1];
+                    pixel[2] = 255 - pixel[2];
+                }
             }
         }
 
@@ -290,7 +290,7 @@ impl PdfReader {
 
         let rec = rectangles.to_vec();
 
-        let (red, blue, green) = self.imp().pdf_highlighter.borrow().get_rgba_colors();
+        let (red, green, blue) = self.get_rgba_colors();
         drawing_area.set_draw_func(move |_, cr: &Context, _width, _height| {
             cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
             cr.paint().expect("Failed to paint PDF page");
@@ -520,5 +520,21 @@ impl PdfReader {
 
             self.create_drawing_area(page, highlight_rect, width, height);
         }
+    }
+
+    pub fn get_rgba_colors(&self) -> (f32, f32, f32) {
+        let highlight_color = self
+            .imp()
+            .user_config
+            .borrow()
+            .borrow()
+            .get_highlight_rgba();
+        let (red, green, blue) = (
+            highlight_color.red(),
+            highlight_color.green(),
+            highlight_color.blue(),
+        );
+
+        (red, green, blue)
     }
 }
