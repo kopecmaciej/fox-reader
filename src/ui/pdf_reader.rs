@@ -7,7 +7,7 @@ use gtk::{
     gdk_pixbuf::{Colorspace, Pixbuf},
     glib::clone,
 };
-use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRect, PdfRenderConfig};
+use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRenderConfig};
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{config::UserConfig, core::tts::TTSEvent};
@@ -54,6 +54,7 @@ mod imp {
         #[template_child]
         pub audio_controls: TemplateChild<AudioControls>,
 
+        //TODO: Find better way of sharing user_config
         pub user_config: RefCell<Rc<RefCell<UserConfig>>>,
         pub scale_factor: RefCell<f32>,
         pub pdf_wrapper: RefCell<PdfiumWrapper>,
@@ -215,7 +216,16 @@ impl PdfReader {
             Ok(page) => {
                 let (width, height) = (page.width(), page.height());
 
-                self.create_drawing_area(page, &Vec::new(), width, height);
+                if imp
+                    .pdf_highlighter
+                    .borrow_mut()
+                    .generate_reading_blocks(&page, current_page)
+                    .is_err()
+                {
+                    return;
+                }
+
+                self.create_drawing_area(page, 9999999, width, height);
                 imp.current_page.set_text(&(current_page + 1).to_string());
             }
             Err(e) => {
@@ -228,11 +238,12 @@ impl PdfReader {
     fn create_drawing_area(
         &self,
         page: PdfPage,
-        rectangles: &[PdfRect],
+        reading_index: u32,
         width: PdfPoints,
         height: PdfPoints,
     ) {
-        let scale_factor = *self.imp().scale_factor.borrow();
+        let imp = self.imp();
+        let scale_factor = *imp.scale_factor.borrow();
         let rendered = page
             .render_with_config(
                 &PdfRenderConfig::new()
@@ -246,13 +257,7 @@ impl PdfReader {
         let dynamic_image = rendered.as_image();
         let mut rgba_image = dynamic_image.to_rgba8();
 
-        if self
-            .imp()
-            .user_config
-            .borrow()
-            .borrow()
-            .is_dark_color_scheme()
-        {
+        if imp.user_config.borrow().borrow().is_dark_color_scheme() {
             for pixel in rgba_image.pixels_mut() {
                 if pixel[3] == 0 {
                     continue;
@@ -283,31 +288,162 @@ impl PdfReader {
             rowstride as i32,
         );
 
-        let drawing_area = &self.imp().drawing_area;
+        let drawing_area = &imp.drawing_area;
         drawing_area.set_content_width(img_width as i32);
         drawing_area.set_content_height(img_height as i32);
         let page_size = page.page_size();
 
-        let rec = rectangles.to_vec();
+        let hovered_rect = Rc::new(RefCell::new(Option::<usize>::None));
+        let hovered_rect_clone = Rc::clone(&hovered_rect);
+
+        let motion_controller = gtk::EventControllerMotion::new();
+        let all_rect = imp.pdf_highlighter.borrow().get_reading_blocks();
+
+        // After user click from this point we'll start reading
+        let click_controller = gtk::GestureClick::new();
+
+        let hover_rect = all_rect.to_vec();
+        let hover_rect_clone = hover_rect.to_vec();
+        let click_rect = hover_rect.clone();
+
+        click_controller.connect_pressed(clone!(
+            #[weak]
+            imp,
+            move |_, _, x, y| {
+                let clicked_block = click_rect.iter().find_map(|block| {
+                    let scale_factor = scale_factor as f64;
+                    block.rectangles.iter().find_map(|rect| {
+                        let scaled_rect = (
+                            rect.left().value as f64 * scale_factor,
+                            page_size.top().value as f64 * scale_factor
+                                - rect.top().value as f64 * scale_factor,
+                            rect.width().value as f64 * scale_factor,
+                            rect.height().value as f64 * scale_factor,
+                        );
+
+                        if x >= scaled_rect.0
+                            && x <= scaled_rect.0 + scaled_rect.2
+                            && y >= scaled_rect.1
+                            && y <= scaled_rect.1 + scaled_rect.3
+                        {
+                            Some(block.id)
+                        } else {
+                            None
+                        }
+                    })
+                });
+
+                if let Some(block_id) = clicked_block {
+                    if let Some(voice) = imp.audio_controls.get_selected_voice() {
+                        let reading_blocks = imp
+                            .pdf_highlighter
+                            .borrow()
+                            .get_reading_blocks_from_id(block_id);
+
+                        glib::spawn_future_local(clone!(
+                            #[weak]
+                            imp,
+                            async move {
+                                if let Err(e) = imp
+                                    .audio_controls
+                                    .imp()
+                                    .tts
+                                    .read_blocks_by_voice(voice, reading_blocks)
+                                    .await
+                                {
+                                    let err_msg =
+                                        format!("Error while reading text by given voice: {}", e);
+                                    //dialogs::show_error_dialog(&err_msg, gesture_click);
+                                }
+
+                                imp.pdf_highlighter.borrow_mut().clear_highlight();
+                            }
+                        ));
+                    }
+                }
+            }
+        ));
+        drawing_area.add_controller(click_controller);
+
+        let reading_block = all_rect
+            .iter()
+            .find(|block| block.id == reading_index)
+            .cloned();
+
+        // Maybe not neccessary but usable following user cursor
+        motion_controller.connect_motion(clone!(
+            #[weak]
+            drawing_area,
+            move |_, x, y| {
+                let mut current_hover = hovered_rect_clone.borrow_mut();
+
+                let new_hover = hover_rect.iter().enumerate().find_map(|(index, block)| {
+                    let scale_factor = scale_factor as f64;
+                    block.rectangles.iter().find_map(|rect| {
+                        let scaled_rect = (
+                            rect.left().value as f64 * scale_factor,
+                            page_size.top().value as f64 * scale_factor
+                                - rect.top().value as f64 * scale_factor,
+                            rect.width().value as f64 * scale_factor,
+                            rect.height().value as f64 * scale_factor,
+                        );
+
+                        if x >= scaled_rect.0
+                            && x <= scaled_rect.0 + scaled_rect.2
+                            && y >= scaled_rect.1
+                            && y <= scaled_rect.1 + scaled_rect.3
+                        {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    })
+                });
+
+                if *current_hover != new_hover {
+                    *current_hover = new_hover;
+                    drawing_area.queue_draw();
+                }
+            }
+        ));
+        drawing_area.add_controller(motion_controller);
 
         let (red, green, blue) = self.get_rgba_colors();
         drawing_area.set_draw_func(move |_, cr: &Context, _width, _height| {
             cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
             cr.paint().expect("Failed to paint PDF page");
 
+            // Readable block
             cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.3);
-
             let scale_factor = scale_factor as f64;
-            for rect in rec.iter() {
-                cr.rectangle(
-                    rect.left().value as f64 * scale_factor,
-                    page_size.top().value as f64 * scale_factor
-                        - rect.top().value as f64 * scale_factor,
-                    rect.width().value as f64 * scale_factor,
-                    rect.height().value as f64 * scale_factor,
-                );
+            if let Some(reading_block) = reading_block.as_ref() {
+                for rect in reading_block.rectangles.iter() {
+                    cr.rectangle(
+                        rect.left().value as f64 * scale_factor,
+                        page_size.top().value as f64 * scale_factor
+                            - rect.top().value as f64 * scale_factor,
+                        rect.width().value as f64 * scale_factor,
+                        rect.height().value as f64 * scale_factor,
+                    );
+                }
             }
-            cr.fill().expect("Failed to fill highlight");
+
+            // Hovered block
+            if let Some(hover_index) = *hovered_rect.borrow() {
+                cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.6);
+                let highlighted_block = &hover_rect_clone[hover_index];
+
+                for rect in highlighted_block.rectangles.iter() {
+                    cr.rectangle(
+                        rect.left().value as f64 * scale_factor,
+                        page_size.top().value as f64 * scale_factor
+                            - rect.top().value as f64 * scale_factor,
+                        rect.width().value as f64 * scale_factor,
+                        rect.height().value as f64 * scale_factor,
+                    );
+                }
+            }
+            cr.fill().expect("Failed to fill base highlights");
         });
     }
 
@@ -315,9 +451,9 @@ impl PdfReader {
         let imp = self.imp();
         if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
             let current = *imp.current_page_num.borrow() as i32;
-            let new_page = current + delta;
+            let new_page = (current + delta).max(0);
 
-            if new_page >= 0 && new_page < doc.pages().len() as i32 {
+            if new_page < doc.pages().len() as i32 {
                 *imp.current_page_num.borrow_mut() = new_page as u16;
                 self.refresh_view();
             }
@@ -393,7 +529,7 @@ impl PdfReader {
             #[weak]
             imp,
             move || {
-                imp.pdf_highlighter.borrow().clear();
+                imp.pdf_highlighter.borrow_mut().clear_highlight();
                 // Refresh the view to clear highlights
                 if let Some(parent) = imp.pdf_content.parent() {
                     if let Some(widget) = parent.downcast_ref::<gtk::Widget>() {
@@ -424,21 +560,6 @@ impl PdfReader {
                     return;
                 }
 
-                if imp
-                    .pdf_highlighter
-                    .borrow()
-                    .generate_reading_blocks(page)
-                    .is_err()
-                {
-                    dialogs::show_error_dialog(
-                        "Error while parsing pdf into blocks that could be read",
-                        button,
-                    );
-                    return;
-                }
-
-                let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
-
                 // Handle TTSEvent progress updates
                 glib::spawn_future_local(clone!(
                     #[weak]
@@ -453,26 +574,22 @@ impl PdfReader {
                         while let Ok(event) = subscriber.recv().await {
                             match event {
                                 TTSEvent::Progress { block_id } => {
-                                    imp.pdf_highlighter.borrow().highlight(block_id);
+                                    imp.pdf_highlighter.borrow_mut().highlight(block_id);
 
-                                    if let Some(current_block) =
-                                        reading_blocks.iter().find(|b| b.id == block_id)
-                                    {
-                                        this.refresh_view_with_highlight(&current_block.rectangles);
-                                    }
+                                    this.refresh_view_with_highlight(block_id);
                                 }
                                 TTSEvent::Error(e) => {
                                     dialogs::show_error_dialog(&e, &button);
-                                    imp.pdf_highlighter.borrow().clear();
+                                    imp.pdf_highlighter.borrow_mut().clear_highlight();
                                     this.refresh_view();
                                     break;
                                 }
                                 TTSEvent::Next | TTSEvent::Prev => {
-                                    imp.pdf_highlighter.borrow().clear();
+                                    imp.pdf_highlighter.borrow_mut().clear_highlight();
                                     this.refresh_view();
                                 }
                                 TTSEvent::Stop => {
-                                    imp.pdf_highlighter.borrow().clear();
+                                    imp.pdf_highlighter.borrow_mut().clear_highlight();
                                     this.refresh_view();
                                     break;
                                 }
@@ -501,7 +618,7 @@ impl PdfReader {
                             dialogs::show_error_dialog(&err_msg, &button);
                         }
 
-                        imp.pdf_highlighter.borrow().clear();
+                        imp.pdf_highlighter.borrow_mut().clear_highlight();
                         this.refresh_view();
                     }
                 ));
@@ -509,7 +626,7 @@ impl PdfReader {
         ));
     }
 
-    fn refresh_view_with_highlight(&self, highlight_rect: &[PdfRect]) {
+    fn refresh_view_with_highlight(&self, block_id: u32) {
         let imp = self.imp();
 
         if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
@@ -518,7 +635,7 @@ impl PdfReader {
             let page = doc.pages().get(current_page).unwrap();
             let (width, height) = (page.width(), page.height());
 
-            self.create_drawing_area(page, highlight_rect, width, height);
+            self.create_drawing_area(page, block_id, width, height);
         }
     }
 

@@ -4,7 +4,7 @@ use pdfium_render::prelude::{
 };
 
 use crate::utils::highlighter::ReadingBlock;
-use std::{cell::RefCell, error::Error};
+use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct PdfReadingBlock {
@@ -32,8 +32,9 @@ impl ReadingBlock for PdfReadingBlock {
 
 #[derive(Debug)]
 pub struct PdfHighlighter {
-    current_blocks: RefCell<Vec<PdfReadingBlock>>,
-    highlighted_blocks: RefCell<Vec<u32>>,
+    pub blocks_generated_for: Option<u16>,
+    pub current_blocks: Vec<PdfReadingBlock>,
+    pub highlighted_blocks: Vec<u32>,
 }
 
 impl Default for PdfHighlighter {
@@ -45,8 +46,9 @@ impl Default for PdfHighlighter {
 impl PdfHighlighter {
     pub fn new() -> Self {
         Self {
-            current_blocks: RefCell::new(Vec::new()),
-            highlighted_blocks: RefCell::new(Vec::new()),
+            blocks_generated_for: None,
+            current_blocks: Vec::new(),
+            highlighted_blocks: Vec::new(),
         }
     }
 
@@ -55,8 +57,29 @@ impl PdfHighlighter {
         page_text.all().trim().is_empty()
     }
 
-    pub fn generate_reading_blocks(&self, page: PdfPage) -> Result<(), Box<dyn Error>> {
+    pub fn generate_reading_blocks(
+        &mut self,
+        page: &PdfPage,
+        curr_page_num: u16,
+    ) -> Result<(), Box<dyn Error>> {
         // 1. Filter out objects that are not valid text objects
+        if let Some(page_num) = self.blocks_generated_for {
+            if curr_page_num != page_num {
+                self.blocks_generated_for = Some(curr_page_num)
+            }
+        };
+
+        println!(
+            "Page Object: {}",
+            page.objects()
+                .iter()
+                .filter_map(|object| object.as_text_object().map(|object| object.text()))
+                .collect::<Vec<_>>()
+                .join("")
+        );
+
+        println!("Page Text: {}", page.text().unwrap().all());
+        //TODO: change to page.text() as objects() don't return all the text
         let valid_text_objects: Vec<_> = page
             .objects()
             .iter()
@@ -77,14 +100,14 @@ impl PdfHighlighter {
             };
 
             // Process text and create reading blocks
-            self.process_text_into_blocks(&page, &mut reading_blocks, text_obj, bounds)?;
+            self.process_text_into_blocks(&mut reading_blocks, text_obj, bounds)?;
         }
 
         if reading_blocks.is_empty() {
             return Err(String::from("Empty reading blocks").into());
         }
 
-        self.current_blocks.replace(reading_blocks);
+        self.current_blocks = reading_blocks;
         Ok(())
     }
 
@@ -119,7 +142,6 @@ impl PdfHighlighter {
     // Helper method to process text and add to reading blocks
     fn process_text_into_blocks(
         &self,
-        page: &PdfPage,
         reading_blocks: &mut Vec<PdfReadingBlock>,
         text_obj: &PdfPageTextObject,
         bounds: PdfQuadPoints,
@@ -227,8 +249,7 @@ impl PdfHighlighter {
             // Check font size and spatial positioning
             same_font_size
                 && (vertical_distance.value <= VERTICAL_THRESHOLD.into()
-                    || (vertical_distance.value == 0.0
-                        && horizontal_distance.value <= HORIZONTAL_THRESHOLD.into()))
+                    || horizontal_distance.value <= HORIZONTAL_THRESHOLD.into())
         } else {
             false
         }
@@ -251,10 +272,9 @@ impl PdfHighlighter {
         }
     }
 
-    // Determines if a period marks the end of a sentence and returns its index
-    // Returns the index of the sentence-ending period, or 0 if not a sentence end
+    // Determines if a period marks the end of a sentence and
+    // returns the index of the sentence-ending period, or 0 if not a sentence end
     fn find_sentence_end_index(&self, text: &str) -> usize {
-        // Bail early if text doesn't contain a period
         if !text.contains('.') {
             return 0;
         }
@@ -370,18 +390,25 @@ impl PdfHighlighter {
         0
     }
 
-    pub fn highlight(&self, block_id: u32) {
-        self.clear();
-        self.highlighted_blocks.borrow_mut().push(block_id);
+    pub fn highlight(&mut self, block_id: u32) {
+        self.clear_highlight();
+        self.highlighted_blocks.push(block_id);
     }
 
     pub fn get_reading_blocks(&self) -> Vec<PdfReadingBlock> {
-        self.current_blocks.borrow().to_vec()
+        self.current_blocks.to_vec()
     }
 
-    pub fn clear(&self) {
-        let mut blocks = self.highlighted_blocks.borrow_mut();
-        blocks.clear();
+    pub fn get_reading_blocks_from_id(&self, id: u32) -> Vec<PdfReadingBlock> {
+        self.current_blocks
+            .iter()
+            .filter(|b| b.id >= id)
+            .cloned()
+            .collect()
+    }
+
+    pub fn clear_highlight(&mut self) {
+        self.highlighted_blocks.clear();
         // TODO:clear pdf highlighter area
     }
 }

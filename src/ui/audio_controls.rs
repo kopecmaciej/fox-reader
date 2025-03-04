@@ -215,6 +215,16 @@ impl AudioControls {
         &self.imp().voice_selector
     }
 
+    pub fn get_selected_voice(&self) -> Option<String> {
+        if let Some(item) = self.imp().voice_selector.selected_item() {
+            if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
+                let voice = voice_row.key();
+                return Some(voice);
+            }
+        }
+        None
+    }
+
     pub fn populate_voice_selector(&self, downloaded_rows: &[VoiceRow]) {
         let model = gio::ListStore::new::<VoiceRow>();
         model.extend_from_slice(downloaded_rows);
