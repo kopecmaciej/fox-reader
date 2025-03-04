@@ -102,7 +102,7 @@ impl TextReader {
         imp.audio_controls.set_read_handler(clone!(
             #[weak]
             imp,
-            move |voice: String, button: &gtk::Button| {
+            move |button: &gtk::Button| {
                 if imp.text_highlighter.borrow().is_buffer_empty() {
                     return;
                 }
@@ -150,18 +150,21 @@ impl TextReader {
                         let readings_blocks =
                             imp.text_highlighter.borrow().get_reading_blocks().unwrap();
 
-                        if let Err(e) = imp
-                            .audio_controls
-                            .imp()
-                            .tts
-                            .read_blocks_by_voice(voice, readings_blocks)
-                            .await
-                        {
-                            let err_msg = format!("Error while reading text by given voice, {}", e);
-                            dialogs::show_error_dialog(&err_msg, &button);
+                        if let Some(voice) = imp.audio_controls.get_selected_voice() {
+                            if let Err(e) = imp
+                                .audio_controls
+                                .imp()
+                                .tts
+                                .read_blocks_by_voice(voice, readings_blocks)
+                                .await
+                            {
+                                let err_msg =
+                                    format!("Error while reading text by given voice, {}", e);
+                                dialogs::show_error_dialog(&err_msg, &button);
+                            }
+                            imp.text_highlighter.borrow().clear();
+                            imp.text_input.set_editable(true);
                         }
-                        imp.text_highlighter.borrow().clear();
-                        imp.text_input.set_editable(true);
                     }
                 ));
             }

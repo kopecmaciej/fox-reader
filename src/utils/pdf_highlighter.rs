@@ -11,7 +11,6 @@ pub struct PdfReadingBlock {
     pub text: String,
     pub rectangles: Vec<PdfRect>,
     pub id: u32,
-    pub font_family: String,
     pub font_size: f32,
 }
 
@@ -69,16 +68,6 @@ impl PdfHighlighter {
             }
         };
 
-        println!(
-            "Page Object: {}",
-            page.objects()
-                .iter()
-                .filter_map(|object| object.as_text_object().map(|object| object.text()))
-                .collect::<Vec<_>>()
-                .join("")
-        );
-
-        println!("Page Text: {}", page.text().unwrap().all());
         //TODO: change to page.text() as objects() don't return all the text
         let valid_text_objects: Vec<_> = page
             .objects()
@@ -154,7 +143,6 @@ impl PdfHighlighter {
             .to_string();
         // Extract text properties
         let font_size = text_obj.unscaled_font_size().value;
-        let font_family = text_obj.font().family().to_string();
         let rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
 
         let sentence_end_index = self.find_sentence_end_index(&cleaned_text);
@@ -178,7 +166,6 @@ impl PdfHighlighter {
                 current_sentence.to_string(),
                 current_rect,
                 font_size,
-                font_family.clone(),
             );
 
             let left = PdfPoints::new(right.value + char_length);
@@ -189,14 +176,13 @@ impl PdfHighlighter {
                 text: next_sentence.to_string(),
                 rectangles: vec![next_rect],
                 id,
-                font_family,
                 font_size,
             };
 
             reading_blocks.push(new_block);
         } else {
             // Add entire text as single block or merge with previous
-            self.add_text_to_blocks(reading_blocks, cleaned_text, rect, font_size, font_family);
+            self.add_text_to_blocks(reading_blocks, cleaned_text, rect, font_size);
         }
         Ok(())
     }
@@ -208,7 +194,6 @@ impl PdfHighlighter {
         text: String,
         rect: PdfRect,
         font_size: f32,
-        font_family: String,
     ) {
         if let Some(last_block) = reading_blocks.last_mut() {
             if self.should_merge_with_last_block(last_block, &rect, font_size) {
@@ -226,7 +211,6 @@ impl PdfHighlighter {
             text,
             rectangles: vec![rect],
             id,
-            font_family,
             font_size,
         };
 
@@ -245,9 +229,11 @@ impl PdfHighlighter {
         if let Some(last_rect) = last_block.rectangles.last() {
             let vertical_distance = (last_rect.bottom() - current_rect.top()).abs();
             let horizontal_distance = (last_rect.right() - current_rect.left()).abs();
+            let last_dot = last_block.text.trim().ends_with(".");
 
             // Check font size and spatial positioning
             same_font_size
+                && !last_dot
                 && (vertical_distance.value <= VERTICAL_THRESHOLD.into()
                     || horizontal_distance.value <= HORIZONTAL_THRESHOLD.into())
         } else {
@@ -283,6 +269,9 @@ impl PdfHighlighter {
 
         // Find the last period in the text
         if let Some(last_period_pos) = trimmed.rfind('.') {
+            if last_period_pos == trimmed.len() - 1 {
+                return 0;
+            }
             // Get the absolute position in the original text
             let original_pos = text.len() - (trimmed.len() - last_period_pos);
 

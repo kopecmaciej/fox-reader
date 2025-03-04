@@ -10,7 +10,7 @@ use gtk::{
 use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRenderConfig};
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use crate::{config::UserConfig, core::tts::TTSEvent};
+use crate::{config::UserConfig, core::tts::TTSEvent, utils::pdf_highlighter::PdfReadingBlock};
 
 use super::dialogs::{self, show_error_dialog};
 
@@ -307,6 +307,8 @@ impl PdfReader {
         let click_rect = hover_rect.clone();
 
         click_controller.connect_pressed(clone!(
+            #[weak(rename_to=this)]
+            self,
             #[weak]
             imp,
             move |_, _, x, y| {
@@ -334,32 +336,12 @@ impl PdfReader {
                 });
 
                 if let Some(block_id) = clicked_block {
-                    if let Some(voice) = imp.audio_controls.get_selected_voice() {
-                        let reading_blocks = imp
-                            .pdf_highlighter
-                            .borrow()
-                            .get_reading_blocks_from_id(block_id);
+                    let reading_blocks = imp
+                        .pdf_highlighter
+                        .borrow()
+                        .get_reading_blocks_from_id(block_id);
 
-                        glib::spawn_future_local(clone!(
-                            #[weak]
-                            imp,
-                            async move {
-                                if let Err(e) = imp
-                                    .audio_controls
-                                    .imp()
-                                    .tts
-                                    .read_blocks_by_voice(voice, reading_blocks)
-                                    .await
-                                {
-                                    let err_msg =
-                                        format!("Error while reading text by given voice: {}", e);
-                                    //dialogs::show_error_dialog(&err_msg, gesture_click);
-                                }
-
-                                imp.pdf_highlighter.borrow_mut().clear_highlight();
-                            }
-                        ));
-                    }
+                    this.start_reading_pdf(reading_blocks);
                 }
             }
         ));
@@ -544,7 +526,7 @@ impl PdfReader {
             imp,
             #[weak(rename_to=this)]
             self,
-            move |voice: String, button: &gtk::Button| {
+            move |button: &gtk::Button| {
                 // Get the current page
                 let current_page_num = *imp.current_page_num.borrow();
                 let page = match imp.pdf_wrapper.borrow().get_document() {
@@ -559,69 +541,71 @@ impl PdfReader {
                     dialogs::show_error_dialog("Page has no text content to read", button);
                     return;
                 }
-
-                // Handle TTSEvent progress updates
-                glib::spawn_future_local(clone!(
-                    #[weak]
-                    imp,
-                    #[weak]
-                    this,
-                    #[weak]
-                    button,
-                    async move {
-                        let mut subscriber = imp.audio_controls.imp().tts.sender.subscribe();
-
-                        while let Ok(event) = subscriber.recv().await {
-                            match event {
-                                TTSEvent::Progress { block_id } => {
-                                    imp.pdf_highlighter.borrow_mut().highlight(block_id);
-
-                                    this.refresh_view_with_highlight(block_id);
-                                }
-                                TTSEvent::Error(e) => {
-                                    dialogs::show_error_dialog(&e, &button);
-                                    imp.pdf_highlighter.borrow_mut().clear_highlight();
-                                    this.refresh_view();
-                                    break;
-                                }
-                                TTSEvent::Next | TTSEvent::Prev => {
-                                    imp.pdf_highlighter.borrow_mut().clear_highlight();
-                                    this.refresh_view();
-                                }
-                                TTSEvent::Stop => {
-                                    imp.pdf_highlighter.borrow_mut().clear_highlight();
-                                    this.refresh_view();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                ));
-
                 let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
-                glib::spawn_future_local(clone!(
-                    #[weak]
-                    imp,
-                    #[weak]
-                    this,
-                    #[weak]
-                    button,
-                    async move {
-                        if let Err(e) = imp
-                            .audio_controls
-                            .imp()
-                            .tts
-                            .read_blocks_by_voice(voice, reading_blocks.to_vec())
-                            .await
-                        {
-                            let err_msg = format!("Error while reading text by given voice: {}", e);
-                            dialogs::show_error_dialog(&err_msg, &button);
-                        }
+                this.start_reading_pdf(reading_blocks);
+            }
+        ));
+    }
 
-                        imp.pdf_highlighter.borrow_mut().clear_highlight();
-                        this.refresh_view();
+    fn start_reading_pdf(&self, reading_blocks: Vec<PdfReadingBlock>) {
+        let imp = self.imp();
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            imp,
+            #[weak(rename_to=this)]
+            self,
+            async move {
+                let mut subscriber = imp.audio_controls.imp().tts.sender.subscribe();
+
+                while let Ok(event) = subscriber.recv().await {
+                    match event {
+                        TTSEvent::Progress { block_id } => {
+                            imp.pdf_highlighter.borrow_mut().highlight(block_id);
+
+                            this.refresh_view_with_highlight(block_id);
+                        }
+                        TTSEvent::Error(e) => {
+                            dialogs::show_error_dialog(&e, &this);
+                            imp.pdf_highlighter.borrow_mut().clear_highlight();
+                            this.refresh_view();
+                            break;
+                        }
+                        TTSEvent::Next | TTSEvent::Prev => {
+                            imp.pdf_highlighter.borrow_mut().clear_highlight();
+                            this.refresh_view();
+                        }
+                        TTSEvent::Stop => {
+                            imp.pdf_highlighter.borrow_mut().clear_highlight();
+                            this.refresh_view();
+                            break;
+                        }
                     }
-                ));
+                }
+            }
+        ));
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            imp,
+            #[weak(rename_to=this)]
+            self,
+            async move {
+                if let Some(voice) = imp.audio_controls.get_selected_voice() {
+                    if let Err(e) = imp
+                        .audio_controls
+                        .imp()
+                        .tts
+                        .read_blocks_by_voice(voice, reading_blocks.to_vec())
+                        .await
+                    {
+                        let err_msg = format!("Error while reading text by given voice: {}", e);
+                        dialogs::show_error_dialog(&err_msg, &this);
+                    }
+
+                    imp.pdf_highlighter.borrow_mut().clear_highlight();
+                    this.refresh_view();
+                }
             }
         ));
     }

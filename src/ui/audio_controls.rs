@@ -32,7 +32,7 @@ mod imp {
         #[template_child]
         pub speed_spin: TemplateChild<gtk::SpinButton>,
         pub tts: Arc<Tts>,
-        pub play_handler: RefCell<Option<Box<dyn Fn(String, &gtk::Button)>>>,
+        pub play_handler: RefCell<Option<Box<dyn Fn(&gtk::Button)>>>,
         pub stop_handler: RefCell<Option<Box<dyn Fn()>>>,
     }
 
@@ -68,7 +68,7 @@ impl AudioControls {
 
     pub fn set_read_handler<F>(&self, handler: F)
     where
-        F: Fn(String, &gtk::Button) + 'static,
+        F: Fn(&gtk::Button) + 'static,
     {
         self.imp().play_handler.replace(Some(Box::new(handler)));
     }
@@ -129,18 +129,13 @@ impl AudioControls {
 
                 imp.stop_button.set_sensitive(true);
 
-                if let Some(item) = imp.voice_selector.selected_item() {
-                    if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
-                        let voice = voice_row.key();
-                        if let Some(handler) = imp.play_handler.borrow().as_ref() {
-                            handler(voice, button);
-                        } else {
-                            dialogs::show_error_dialog("No read handler configured", button);
-                        }
-
-                        button.set_icon_name("media-playback-start-symbolic");
-                    }
+                if let Some(handler) = imp.play_handler.borrow().as_ref() {
+                    handler(button);
+                } else {
+                    dialogs::show_error_dialog("No read handler configured", button);
                 }
+
+                button.set_icon_name("media-playback-start-symbolic");
             }
         ));
 
