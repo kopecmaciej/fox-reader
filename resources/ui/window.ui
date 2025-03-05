@@ -5,6 +5,7 @@
   <requires lib="gtk" version="4.0"></requires>
   <requires lib="libadwaita" version="1.0"></requires>
   <template class="FoxReaderAppWindow" parent="AdwApplicationWindow">
+    <property name="resizable">true</property>
     <property name="default-width">1080</property>
     <property name="default-height">960</property>
     <property name="title">Fox Reader</property>

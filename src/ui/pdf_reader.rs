@@ -290,6 +290,7 @@ impl PdfReader {
 
         let drawing_area = &imp.drawing_area;
         drawing_area.set_content_width(img_width as i32);
+        drawing_area.set_halign(gtk::Align::Center);
         drawing_area.set_content_height(img_height as i32);
         let page_size = page.page_size();
 
@@ -538,7 +539,10 @@ impl PdfReader {
                 };
 
                 if imp.pdf_highlighter.borrow().is_pdf_page_empty(&page) {
-                    dialogs::show_error_dialog("Page has no text content to read", &this);
+                    dialogs::show_error_dialog(
+                        "Page has no text content to read",
+                        &imp.obj().clone().upcast::<gtk::Widget>(),
+                    );
                     return;
                 }
                 let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
