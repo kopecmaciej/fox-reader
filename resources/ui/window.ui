@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+  <!--Helper Halign:
+    fill - 0, start -1, end - 2, center -3, base_line - 4-->
   <requires lib="gtk" version="4.0"></requires>
   <requires lib="libadwaita" version="1.0"></requires>
   <template class="FoxReaderAppWindow" parent="AdwApplicationWindow">
-    <property name="default-width">800</property>
-    <property name="default-height">800</property>
+    <property name="default-width">1080</property>
+    <property name="default-height">960</property>
     <property name="title">Fox Reader</property>
     <child>
       <object class="GtkBox">
@@ -46,9 +48,11 @@
         <!-- Reader View Switcher -->
         <!-- Main Content -->
         <child>
-          <object class="AdwClamp">
-            <property name="maximum-size">800</property>
-            <property name="tightening-threshold">600</property>
+          <object class="GtkBox">
+            <property name="margin-start">16</property>
+            <property name="margin-end">16</property>
+            <property name="margin-top">16</property>
+            <property name="margin-bottom">16</property>
             <child>
               <object class="AdwViewStack" id="reader_stack">
                 <!-- Reader Page -->
@@ -70,12 +74,14 @@
                     <property name="icon-name">view-list-symbolic</property>
                     <property name="child">
                       <object class="GtkBox">
+                        <property name="halign">3</property>
                         <property name="orientation">vertical</property>
                         <property name="margin-start">16</property>
                         <property name="margin-end">16</property>
                         <property name="margin-top">16</property>
                         <property name="margin-bottom">16</property>
                         <property name="spacing">16</property>
+                        <property name="width-request">600</property>
                         <!-- Search and Filter Controls -->
                         <child>
                           <object class="GtkBox">

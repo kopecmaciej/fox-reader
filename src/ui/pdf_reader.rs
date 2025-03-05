@@ -183,7 +183,7 @@ impl PdfReader {
         let imp = self.imp();
         imp.audio_controls.init();
         self.init_audio_control_buttons();
-        imp.scale_factor.replace(1.0);
+        imp.scale_factor.replace(1.5);
         imp.user_config.replace(user_config);
     }
 
