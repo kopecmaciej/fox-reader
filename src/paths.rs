@@ -30,6 +30,10 @@ pub fn get_app_config_path() -> String {
     resolve_home(&format!("{}/config.json", FOX_READER_BASE_PATH))
 }
 
+pub fn get_pdfium_path() -> String {
+    build_path(FOX_READER_BASE_PATH, "pdfium")
+}
+
 pub mod huggingface_config {
     use super::*;
 

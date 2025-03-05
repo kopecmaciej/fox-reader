@@ -182,6 +182,9 @@ impl PdfReader {
     pub fn init(&self, user_config: Rc<RefCell<UserConfig>>) {
         let imp = self.imp();
         imp.audio_controls.init();
+        if let Err(e) = imp.pdf_wrapper.borrow_mut().init() {
+            show_error_dialog(&format!("Error initializing pdfium: {}", e), self);
+        };
         self.init_audio_control_buttons();
         imp.scale_factor.replace(1.5);
         imp.user_config.replace(user_config);
@@ -195,7 +198,9 @@ impl PdfReader {
                 return;
             }
         };
-        let _ = self.imp().pdf_wrapper.borrow_mut().load_document(&path);
+        if let Err(e) = self.imp().pdf_wrapper.borrow_mut().load_document(&path) {
+            show_error_dialog(&format!("{}", e), self);
+        }
 
         if let Some(pdf_document) = self.imp().pdf_wrapper.borrow().get_document() {
             let imp = self.imp();
