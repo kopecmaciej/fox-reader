@@ -75,7 +75,8 @@ mod imp {
                 adw::ColorScheme::ForceLight
             });
 
-            self.user_config.borrow_mut().set_theme(is_dark)
+            self.user_config.borrow_mut().set_theme(is_dark);
+            self.pdf_reader.refresh_view();
         }
 
         #[template_callback]

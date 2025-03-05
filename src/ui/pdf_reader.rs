@@ -190,6 +190,13 @@ impl PdfReader {
         imp.user_config.replace(user_config);
     }
 
+    pub fn refresh_view(&self) {
+        let imp = self.imp();
+        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
+            self.render_current_page(doc);
+        }
+    }
+
     fn load_pdf(&self, file: gio::File) {
         let path = match file.path() {
             Some(path) => path,
@@ -458,20 +465,6 @@ impl PdfReader {
         }
     }
 
-    fn refresh_view(&self) {
-        let imp = self.imp();
-        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
-            self.render_current_page(doc);
-        }
-    }
-
-    pub fn scale_pdf(&self, factor: f32) {
-        self.imp()
-            .scale_factor
-            .replace_with(|old| (*old + factor).max(0.5));
-        self.refresh_view();
-    }
-
     fn close_pdf(&self) {
         let imp = self.imp();
         self.imp().pdf_wrapper.borrow_mut().remove_pdf();
@@ -511,7 +504,7 @@ impl PdfReader {
         );
     }
 
-    pub fn init_audio_control_buttons(&self) {
+    fn init_audio_control_buttons(&self) {
         let imp = self.imp();
         imp.audio_controls.set_stop_handler(clone!(
             #[weak]
@@ -632,7 +625,14 @@ impl PdfReader {
         }
     }
 
-    pub fn get_rgba_colors(&self) -> (f32, f32, f32) {
+    fn scale_pdf(&self, factor: f32) {
+        self.imp()
+            .scale_factor
+            .replace_with(|old| (*old + factor).max(0.5));
+        self.refresh_view();
+    }
+
+    fn get_rgba_colors(&self) -> (f32, f32, f32) {
         let highlight_color = self
             .imp()
             .user_config

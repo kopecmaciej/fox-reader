@@ -258,8 +258,7 @@ impl PdfHighlighter {
         }
     }
 
-    // Determines if a period marks the end of a sentence and
-    // returns the index of the sentence-ending period, or 0 if not a sentence end
+    // TODO: Rewrite this so more cases could be easly added
     fn find_sentence_end_index(&self, text: &str) -> usize {
         if !text.contains('.') {
             return 0;
@@ -352,13 +351,6 @@ impl PdfHighlighter {
                 {
                     return 0;
                 }
-            }
-
-            // Check for ellipsis (...) which isn't a sentence ending
-            if (last_period_pos >= 2 && &trimmed[last_period_pos - 2..=last_period_pos] == "...")
-                || trimmed.contains("….")
-            {
-                return 0;
             }
 
             // Check for quoted text that ends with a period inside the quotes

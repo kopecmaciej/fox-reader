@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"/>
-  <requires lib="libadwaita" version="1.0"/>
+  <requires lib="gtk" version="4.0" />
+  <requires lib="libadwaita" version="1.0" />
   <template class="PdfReader" parent="GtkWidget">
     <child>
       <object class="GtkDropTarget" id="drop_area">
@@ -29,7 +29,7 @@
                     <property name="icon-name">x-office-document-symbolic</property>
                     <property name="pixel-size">96</property>
                     <style>
-                      <class name="dim-label"/>
+                      <class name="dim-label" />
                     </style>
                   </object>
                 </child>
@@ -37,7 +37,7 @@
                   <object class="GtkLabel">
                     <property name="label">Drop your PDF here or click to upload</property>
                     <style>
-                      <class name="title-2"/>
+                      <class name="title-2" />
                     </style>
                   </object>
                 </child>
@@ -45,7 +45,7 @@
                   <object class="GtkLabel">
                     <property name="label">Supported formats: PDF</property>
                     <style>
-                      <class name="dim-label"/>
+                      <class name="dim-label" />
                     </style>
                   </object>
                 </child>
@@ -54,8 +54,8 @@
                     <property name="label">Open PDF</property>
                     <property name="halign">center</property>
                     <style>
-                      <class name="suggested-action"/>
-                      <class name="pill"/>
+                      <class name="suggested-action" />
+                      <class name="pill" />
                     </style>
                   </object>
                 </child>
@@ -76,8 +76,9 @@
                   <object class="GtkBox" id="toolbar">
                     <property name="orientation">horizontal</property>
                     <property name="spacing">6</property>
+                    <property name="halign">3</property>
                     <style>
-                      <class name="toolbar"/>
+                      <class name="toolbar" />
                     </style>
                     <child>
                       <object class="GtkButton" id="zoom_out">
@@ -144,7 +145,7 @@
                 </child>
                 <!-- PDF Content Container -->
                 <child>
-                 <object class="GtkBox" id="pdf_content">
+                  <object class="GtkBox" id="pdf_content">
                     <property name="orientation">vertical</property>
                     <property name="vexpand">true</property>
                     <property name="hexpand">true</property>
@@ -167,7 +168,7 @@
                 </child>
                 <!-- Playback Controls -->
                 <child>
-                  <object class="AudioControls" id="audio_controls"/>
+                  <object class="AudioControls" id="audio_controls" />
                 </child>
               </object>
             </property>
