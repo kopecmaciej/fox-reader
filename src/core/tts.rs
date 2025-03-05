@@ -87,8 +87,10 @@ impl Tts {
     {
         let mut audio_queue = AudioQueue::new(2);
         let reading_blocks_len = reading_blocks.len();
+        let last_block_id = reading_blocks.last().map(|b| b.get_id());
 
         let producer_sender = audio_queue.get_sender();
+        let receiver = audio_queue.get_receiver();
 
         let idx_clone = Arc::clone(&self.idx);
 
@@ -96,7 +98,7 @@ impl Tts {
             while idx_clone.load(Ordering::Relaxed) < reading_blocks_len {
                 let current_idx = idx_clone.load(Ordering::Relaxed);
                 let reading_block = &reading_blocks[current_idx];
-                idx_clone.fetch_add(1, Ordering::SeqCst);
+                idx_clone.fetch_add(1, Ordering::Relaxed);
                 let raw_audio =
                     VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice)
                         .await?;
@@ -113,8 +115,6 @@ impl Tts {
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         });
 
-        let receiver = audio_queue.get_receiver();
-
         while let Some(audio_data) = receiver.recv().await {
             self.sender.send(TTSEvent::Progress {
                 block_id: audio_data.id as u32,
@@ -127,9 +127,6 @@ impl Tts {
                     self.idx.store(0, Ordering::Relaxed);
                     break;
                 }
-                Ok(Some(TTSEvent::Next)) => {
-                    continue;
-                }
                 //TODO: Fix going backwards
                 Ok(Some(TTSEvent::Prev)) => {
                     if audio_data.id > 0 {
@@ -141,6 +138,11 @@ impl Tts {
                 Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
                 Err(e) => return Err(e),
                 _ => {
+                    if let Some(last_id) = last_block_id {
+                        if last_id == audio_data.id as u32 {
+                            break;
+                        }
+                    }
                     continue;
                 }
             };
@@ -149,6 +151,8 @@ impl Tts {
         if let Err(e) = producer_handle.await {
             return Err(Box::new(e));
         }
+
+        self.idx.store(0, Ordering::Relaxed);
 
         Ok(())
     }

@@ -526,19 +526,19 @@ impl PdfReader {
             imp,
             #[weak(rename_to=this)]
             self,
-            move |button: &gtk::Button| {
+            move || {
                 // Get the current page
                 let current_page_num = *imp.current_page_num.borrow();
                 let page = match imp.pdf_wrapper.borrow().get_document() {
                     Some(page) => page.pages().get(current_page_num).unwrap(),
                     None => {
-                        dialogs::show_error_dialog("No PDF document loaded", button);
+                        dialogs::show_error_dialog("No PDF document loaded", &this);
                         return;
                     }
                 };
 
                 if imp.pdf_highlighter.borrow().is_pdf_page_empty(&page) {
-                    dialogs::show_error_dialog("Page has no text content to read", button);
+                    dialogs::show_error_dialog("Page has no text content to read", &this);
                     return;
                 }
                 let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();

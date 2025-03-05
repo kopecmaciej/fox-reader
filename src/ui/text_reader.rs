@@ -100,9 +100,11 @@ impl TextReader {
         ));
 
         imp.audio_controls.set_read_handler(clone!(
+            #[weak(rename_to=this)]
+            self,
             #[weak]
             imp,
-            move |button: &gtk::Button| {
+            move || {
                 if imp.text_highlighter.borrow().is_buffer_empty() {
                     return;
                 }
@@ -113,9 +115,9 @@ impl TextReader {
 
                 glib::spawn_future_local(clone!(
                     #[weak]
-                    imp,
+                    this,
                     #[weak]
-                    button,
+                    imp,
                     async move {
                         while let Ok(event) =
                             imp.audio_controls.imp().tts.sender.subscribe().recv().await
@@ -125,7 +127,7 @@ impl TextReader {
                                     imp.text_highlighter.borrow().highlight(block_id);
                                 }
                                 TTSEvent::Error(e) => {
-                                    dialogs::show_error_dialog(&e, &button);
+                                    dialogs::show_error_dialog(&e, &this);
                                     imp.text_highlighter.borrow().clear();
                                     imp.text_input.set_editable(true);
                                     break;
@@ -143,9 +145,9 @@ impl TextReader {
 
                 glib::spawn_future_local(clone!(
                     #[weak]
-                    imp,
+                    this,
                     #[weak]
-                    button,
+                    imp,
                     async move {
                         let readings_blocks =
                             imp.text_highlighter.borrow().get_reading_blocks().unwrap();
@@ -160,7 +162,7 @@ impl TextReader {
                             {
                                 let err_msg =
                                     format!("Error while reading text by given voice, {}", e);
-                                dialogs::show_error_dialog(&err_msg, &button);
+                                dialogs::show_error_dialog(&err_msg, &this);
                             }
                             imp.text_highlighter.borrow().clear();
                             imp.text_input.set_editable(true);

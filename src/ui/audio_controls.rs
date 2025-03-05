@@ -32,7 +32,7 @@ mod imp {
         #[template_child]
         pub speed_spin: TemplateChild<gtk::SpinButton>,
         pub tts: Arc<Tts>,
-        pub play_handler: RefCell<Option<Box<dyn Fn(&gtk::Button)>>>,
+        pub play_handler: RefCell<Option<Box<dyn Fn()>>>,
         pub stop_handler: RefCell<Option<Box<dyn Fn()>>>,
     }
 
@@ -68,7 +68,7 @@ impl AudioControls {
 
     pub fn set_read_handler<F>(&self, handler: F)
     where
-        F: Fn(&gtk::Button) + 'static,
+        F: Fn() + 'static,
     {
         self.imp().play_handler.replace(Some(Box::new(handler)));
     }
@@ -130,7 +130,7 @@ impl AudioControls {
                 imp.stop_button.set_sensitive(true);
 
                 if let Some(handler) = imp.play_handler.borrow().as_ref() {
-                    handler(button);
+                    handler();
                 } else {
                     dialogs::show_error_dialog("No read handler configured", button);
                 }
@@ -179,6 +179,9 @@ impl AudioControls {
             move |spin| {
                 let speed = (spin.value() / 100.0) as f32;
                 tts.set_speed(speed);
+                if !tts.is_playing() {
+                    return;
+                }
 
                 if let Some(handle) = timeout_handle.borrow_mut().take() {
                     if glib::MainContext::default()
@@ -189,6 +192,7 @@ impl AudioControls {
                     }
                 }
 
+                // THIS COMPLICATES HOW TTS IS HANDLING WHEN SPEED CHANGES
                 *timeout_handle.borrow_mut() = Some(glib::timeout_add_local(
                     debounce_duration,
                     clone!(
