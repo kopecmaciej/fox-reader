@@ -56,6 +56,17 @@
             <property name="margin-bottom">16</property>
             <child>
               <object class="AdwViewStack" id="reader_stack">
+                <!-- PDF Reader Page -->
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">pdf_reader</property>
+                    <property name="title">PDF Reader</property>
+                    <property name="icon-name">emblem-documents-symbolic</property>
+                    <property name="child">
+                      <object class="PdfReader" id="pdf_reader" />
+                    </property>
+                  </object>
+                </child>
                 <!-- Reader Page -->
                 <child>
                   <object class="AdwViewStackPage">
@@ -158,17 +169,6 @@
                           </object>
                         </child>
                       </object>
-                    </property>
-                  </object>
-                </child>
-                <!-- PDF Reader Page -->
-                <child>
-                  <object class="AdwViewStackPage">
-                    <property name="name">pdf_reader</property>
-                    <property name="title">PDF Reader</property>
-                    <property name="icon-name">emblem-documents-symbolic</property>
-                    <property name="child">
-                      <object class="PdfReader" id="pdf_reader" />
                     </property>
                   </object>
                 </child>
