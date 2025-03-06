@@ -126,6 +126,7 @@ impl FoxReaderAppWindow {
         imp.text_reader
             .init(imp.user_config.borrow().get_highlight_rgba());
         imp.pdf_reader.init(imp.user_config.clone());
+        imp.ai_chat.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
