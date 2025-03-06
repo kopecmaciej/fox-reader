@@ -78,6 +78,17 @@
                     </property>
                   </object>
                 </child>
+                <!-- AI Chat Page - NEW TAB -->
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">ai_chat</property>
+                    <property name="title">AI Chat</property>
+                    <property name="icon-name">user-available-symbolic</property>
+                    <property name="child">
+                      <object class="AiChat" id="ai_chat"></object>
+                    </property>
+                  </object>
+                </child>
                 <!-- Voice List Page -->
                 <child>
                   <object class="AdwViewStackPage">

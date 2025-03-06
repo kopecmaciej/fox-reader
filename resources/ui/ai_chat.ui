@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"></requires>
+  <requires lib="libadwaita" version="1.0"></requires>
+  <template class="AiChat" parent="AdwBin">
+    <property name="child">
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">24</property>
+        <property name="valign">center</property>
+        <property name="halign">center</property>
+        <property name="vexpand">true</property>
+        <property name="hexpand">true</property>
+
+        <!-- Main content - centered microphone button -->
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="spacing">32</property>
+            <property name="valign">center</property>
+            <property name="halign">center</property>
+
+            <!-- Title -->
+            <child>
+              <object class="GtkLabel">
+                <property name="label">AI Voice Assistant</property>
+                <style>
+                  <class name="title-1" />
+                </style>
+              </object>
+            </child>
+
+            <!-- Description -->
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Click the button below to start talking with the AI</property>
+                <style>
+                  <class name="dim-label" />
+                  <class name="title-4" />
+                </style>
+              </object>
+            </child>
+
+            <!-- Mic button -->
+            <child>
+              <object class="GtkButton" id="mic_button">
+                <property name="halign">center</property>
+                <property name="valign">center</property>
+                <property name="width-request">120</property>
+                <property name="height-request">120</property>
+                <property name="tooltip-text">Start Voice Chat</property>
+                <signal name="clicked" handler="on_mic_button_clicked" swapped="true" />
+                <style>
+                  <class name="circular" />
+                  <class name="suggested-action" />
+                </style>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">8</property>
+                    <property name="halign">center</property>
+                    <property name="valign">center</property>
+
+                    <!-- Mic icon -->
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">microphone-symbolic</property>
+                        <property name="pixel-size">48</property>
+                      </object>
+                    </child>
+
+                    <!-- Button text -->
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Talk</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <!-- Status indicator -->
+            <child>
+              <object class="GtkLabel" id="status_label">
+                <property name="label">Ready</property>
+                <style>
+                  <class name="dim-label" />
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </property>
+  </template>
+</interface>
