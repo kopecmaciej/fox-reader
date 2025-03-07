@@ -12,7 +12,6 @@
         <property name="vexpand">true</property>
         <property name="hexpand">true</property>
 
-        <!-- Main content - centered microphone button -->
         <child>
           <object class="GtkBox">
             <property name="orientation">vertical</property>
@@ -41,6 +40,50 @@
               </object>
             </child>
 
+            <!-- Language selection dropdown -->
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">12</property>
+                <property name="halign">center</property>
+                <property name="margin-top">8</property>
+                <property name="margin-bottom">8</property>
+
+                <!-- Language label -->
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label">Language:</property>
+                    <property name="halign">end</property>
+                  </object>
+                </child>
+
+                <!-- Language dropdown -->
+                <child>
+                  <object class="GtkDropDown" id="language_dropdown">
+                    <property name="halign">start</property>
+                    <property name="tooltip-text">Select input language</property>
+                    <property name="model">
+                      <object class="GtkStringList" id="language_model">
+                        <items>
+                          <item>Auto-detect</item>
+                          <item>English</item>
+                          <item>Spanish</item>
+                          <item>French</item>
+                          <item>German</item>
+                          <item>Italian</item>
+                          <item>Japanese</item>
+                          <item>Chinese</item>
+                          <item>Russian</item>
+                          <item>Portuguese</item>
+                          <item>Polish</item>
+                        </items>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
             <!-- Mic button -->
             <child>
               <object class="GtkButton" id="mic_button">
@@ -63,7 +106,7 @@
 
                     <!-- Mic icon -->
                     <child>
-                      <object class="GtkImage">
+                      <object class="GtkImage" id="button_icon">
                         <property name="icon-name">microphone-symbolic</property>
                         <property name="pixel-size">48</property>
                       </object>
@@ -71,7 +114,7 @@
 
                     <!-- Button text -->
                     <child>
-                      <object class="GtkLabel">
+                      <object class="GtkLabel" id="button_label">
                         <property name="label">Talk</property>
                       </object>
                     </child>

@@ -177,8 +177,7 @@ impl AudioControls {
             #[weak]
             tts,
             move |spin| {
-                let speed = (spin.value() / 100.0) as f32;
-                tts.set_speed(speed);
+                tts.set_speed(spin.value());
                 if !tts.is_playing() {
                     return;
                 }
@@ -192,7 +191,6 @@ impl AudioControls {
                     }
                 }
 
-                // THIS COMPLICATES HOW TTS IS HANDLING WHEN SPEED CHANGES
                 *timeout_handle.borrow_mut() = Some(glib::timeout_add_local(
                     debounce_duration,
                     clone!(
@@ -250,7 +248,7 @@ impl AudioControls {
         voice_selector.set_model(Some(&model));
     }
 
-    pub fn get_speed(&self) -> f32 {
-        (self.imp().speed_spin.value() / 100.0) as f32
+    pub fn get_speed(&self) -> f64 {
+        self.imp().speed_spin.value()
     }
 }

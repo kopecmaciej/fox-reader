@@ -50,32 +50,25 @@ impl AudioPlayer {
         Ok(())
     }
 
-    pub fn play_wav(
+    pub fn play_audio(
         &self,
-        audio_data: Vec<u8>,
-        speed: f32,
+        source_audio: SamplesBuffer<f32>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.stop();
 
-        // Let's remove the wav header as we're using `SamplesBuffer`
-        let pcm_data = if audio_data.starts_with(b"RIFF") && audio_data.len() > 44 {
-            &audio_data[44..]
-        } else {
-            audio_data.as_slice()
-        };
+        let (_stream, stream_handle) = OutputStream::try_default()
+            .map_err(|e| format!("Failed to setup audio output: {}", e))?;
 
-        let (_stream, stream_handle) = OutputStream::try_default()?;
-        let sink = Sink::try_new(&stream_handle)?;
+        let sink = Sink::try_new(&stream_handle)
+            .map_err(|e| format!("Failed to create audio sink: {}", e))?;
 
         let sink = Arc::new(sink);
+
         *self.sink.lock().unwrap() = Some(Arc::clone(&sink));
 
-        let samples = Self::process_audio(pcm_data, speed);
-
-        let source = SamplesBuffer::new(1, 22050, samples);
-
         *self.state.lock().unwrap() = State::Playing;
-        sink.append(source);
+
+        sink.append(source_audio);
         sink.sleep_until_end();
 
         self.clean();
@@ -86,6 +79,18 @@ impl AudioPlayer {
     fn clean(&self) {
         *self.sink.lock().unwrap() = None;
         *self.state.lock().unwrap() = State::Idle;
+    }
+
+    pub fn generate_source(audio_data: Vec<u8>, speed: f32) -> SamplesBuffer<f32> {
+        let pcm_data = if audio_data.starts_with(b"RIFF") && audio_data.len() > 44 {
+            &audio_data[44..]
+        } else {
+            audio_data.as_slice()
+        };
+
+        let samples = Self::process_audio(pcm_data, speed);
+
+        SamplesBuffer::new(1, 22050, samples)
     }
 
     /// Process audio data for playback, applying time-stretching if needed
