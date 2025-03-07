@@ -1,7 +1,8 @@
+pub mod ai_chat;
+pub mod audio_controls;
 pub mod dialogs;
 pub mod pdf_reader;
 pub mod piper_installer;
-pub mod audio_controls;
 pub mod settings;
 pub mod text_reader;
 pub mod voice_list;

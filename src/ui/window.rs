@@ -18,7 +18,9 @@ mod imp {
 
     use crate::{
         config::UserConfig,
-        ui::{pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList},
+        ui::{
+            ai_chat::AiChat, pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList,
+        },
     };
 
     use super::*;
@@ -31,6 +33,8 @@ mod imp {
         pub text_reader: TemplateChild<TextReader>,
         #[template_child]
         pub pdf_reader: TemplateChild<PdfReader>,
+        #[template_child]
+        pub ai_chat: TemplateChild<AiChat>,
         #[template_child]
         pub search_entry: TemplateChild<gtk::SearchEntry>,
         #[template_child]
@@ -122,6 +126,7 @@ impl FoxReaderAppWindow {
         imp.text_reader
             .init(imp.user_config.borrow().get_highlight_rgba());
         imp.pdf_reader.init(imp.user_config.clone());
+        imp.ai_chat.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();

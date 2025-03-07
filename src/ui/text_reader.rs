@@ -132,7 +132,7 @@ impl TextReader {
                                     imp.text_input.set_editable(true);
                                     break;
                                 }
-                                TTSEvent::Next | TTSEvent::Prev => {
+                                TTSEvent::Next | TTSEvent::Prev | TTSEvent::Repeat => {
                                     imp.text_highlighter.borrow().clear();
                                 }
                                 TTSEvent::Stop => {

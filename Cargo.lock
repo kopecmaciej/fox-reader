@@ -167,7 +167,27 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash",
+ "rustc-hash 1.1.0",
+ "shlex",
+ "syn",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.71.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
+dependencies = [
+ "bitflags 2.6.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.1",
  "shlex",
  "syn",
 ]
@@ -339,6 +359,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bfbf56724aa9eca8afa4fcfadeb479e722935bb2a0900c2d37e0cc477af0688"
 
 [[package]]
+name = "cmake"
+version = "0.1.54"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7caa3f9de89ddbe2c607f4101924c5abec803763ae9534e4f4d7d8f84aa81f0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -407,7 +436,7 @@ version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ce857aa0b77d77287acc1ac3e37a05a8c95a2af3647d23b15f263bdaeb7562b"
 dependencies = [
- "bindgen",
+ "bindgen 0.70.1",
 ]
 
 [[package]]
@@ -644,6 +673,7 @@ dependencies = [
 name = "fox-reader"
 version = "0.1.0"
 dependencies = [
+ "cpal",
  "dirs",
  "flate2",
  "gio",
@@ -660,7 +690,14 @@ dependencies = [
  "tar",
  "tokio",
  "which",
+ "whisper-rs",
 ]
+
+[[package]]
+name = "fs_extra"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "futures-channel"
@@ -2041,6 +2078,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prettyplease"
+version = "0.2.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1ccf34da56fc294e7d4ccf69a85992b7dfb826b7cf57bac6a70bba3494cc08a"
+dependencies = [
+ "proc-macro2",
+ "syn",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2340,6 +2387,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
+name = "rustc-hash"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+
+[[package]]
 name = "rustc_version"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2630,9 +2683,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.90"
+version = "2.0.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "919d3b74a5dd0ccd15aeb8f93e7006bd9e14c295087c9896a110f490752bcf31"
+checksum = "e02e925281e18ffd9d640e234264753c43edc62d64b2d4cf898f1bc5e75f3fc2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3112,6 +3165,27 @@ dependencies = [
  "env_home",
  "rustix",
  "winsafe",
+]
+
+[[package]]
+name = "whisper-rs"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b6dca51a101d32fa551d66d34fef899a39d5c8b68b6ea5adf4080b9ec37bb58"
+dependencies = [
+ "whisper-rs-sys",
+]
+
+[[package]]
+name = "whisper-rs-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7c6b8157262ff9e4239549db921ed40ba758e03f565893d4e700380286c643b"
+dependencies = [
+ "bindgen 0.71.1",
+ "cfg-if",
+ "cmake",
+ "fs_extra",
 ]
 
 [[package]]

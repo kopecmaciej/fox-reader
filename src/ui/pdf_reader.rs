@@ -573,7 +573,7 @@ impl PdfReader {
                             this.refresh_view();
                             break;
                         }
-                        TTSEvent::Next | TTSEvent::Prev => {
+                        TTSEvent::Next | TTSEvent::Prev | TTSEvent::Repeat => {
                             imp.pdf_highlighter.borrow_mut().clear_highlight();
                             this.refresh_view();
                         }

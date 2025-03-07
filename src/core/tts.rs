@@ -1,9 +1,9 @@
 use super::{runtime::runtime, voice_manager::VoiceManager};
 use crate::utils::{audio_player::AudioPlayer, highlighter::ReadingBlock};
 use std::{
-    cell::RefCell,
     error::Error,
     fmt,
+    ops::Div,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -16,7 +16,7 @@ use tokio::sync::{
 
 struct AudioData {
     id: u32,
-    raw_audio: Vec<u8>,
+    source_audio: rodio::buffer::SamplesBuffer<f32>,
 }
 
 struct BoundedBuffer<T> {
@@ -37,6 +37,15 @@ impl<T> BoundedBuffer<T> {
     async fn wait_for_slots(&self) {
         let permit = self.slots.acquire().await.unwrap();
         permit.forget();
+    }
+
+    async fn push_to_start(&self, item: T) {
+        {
+            let mut buffer = self.buffer.lock().await;
+            buffer.insert(0, item);
+        }
+
+        self.items.add_permits(1);
     }
 
     async fn produce(&self, item: T) {
@@ -74,7 +83,7 @@ impl<T> BoundedBuffer<T> {
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
     idx: Arc<AtomicUsize>,
-    reading_speed: RefCell<f32>,
+    reading_speed: Arc<AtomicUsize>,
     audio_player: Arc<AudioPlayer>,
 }
 
@@ -83,6 +92,7 @@ pub enum TTSEvent {
     Progress { block_id: u32 },
     Stop,
     Next,
+    Repeat,
     Prev,
     Error(String),
 }
@@ -105,7 +115,7 @@ impl Tts {
         Self {
             sender: Arc::new(sender),
             idx: Arc::new(AtomicUsize::new(0)),
-            reading_speed: RefCell::new(1.0),
+            reading_speed: Arc::new(AtomicUsize::new(100)),
             audio_player: Arc::new(AudioPlayer::new()),
         }
     }
@@ -118,20 +128,30 @@ impl Tts {
     where
         T: ReadingBlock + Send + Sync + 'static,
     {
+        if reading_blocks.is_empty() {
+            return Ok(());
+        }
         let reading_blocks_len = reading_blocks.len();
         let buffer = Arc::new(BoundedBuffer::new(2));
+        self.idx
+            .store(reading_blocks[0].get_id() as usize, Ordering::SeqCst);
         let idx_clone = Arc::clone(&self.idx);
         let producer_buffer = buffer.clone();
         let last_id = reading_blocks[reading_blocks_len - 1].get_id();
+        let reading_speed = self.reading_speed.clone();
 
         let producer_handle = runtime().spawn(async move {
             while idx_clone.load(Ordering::SeqCst) < reading_blocks_len {
                 producer_buffer.wait_for_slots().await;
                 let idx = idx_clone.load(Ordering::SeqCst);
                 let reading_block = &reading_blocks[idx];
+
                 let raw_audio =
                     VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice)
                         .await?;
+                let reading_speed = reading_speed.load(Ordering::SeqCst) as f32;
+                let source_audio =
+                    AudioPlayer::generate_source(raw_audio, reading_speed.div(100.0));
 
                 let id = reading_block.get_id();
                 // if Prev occurse, we'll have diffrent idx so
@@ -140,7 +160,9 @@ impl Tts {
                     producer_buffer.slots.add_permits(1);
                     continue;
                 }
-                producer_buffer.produce(AudioData { id, raw_audio }).await;
+                producer_buffer
+                    .produce(AudioData { id, source_audio })
+                    .await;
                 idx_clone.fetch_add(1, Ordering::SeqCst);
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
@@ -148,29 +170,37 @@ impl Tts {
 
         loop {
             let audio_data = buffer.consume().await;
+            let id = audio_data.id;
             self.sender.send(TTSEvent::Progress {
-                block_id: audio_data.id as u32,
+                block_id: id as u32,
             })?;
 
-            let event = self.read_block_of_text(audio_data.raw_audio).await;
+            let event = self
+                .read_block_of_text(audio_data.source_audio.clone())
+                .await;
 
             match event {
                 Ok(Some(TTSEvent::Stop)) => {
                     self.idx.store(0, Ordering::SeqCst);
                     break;
                 }
+                Ok(Some(TTSEvent::Repeat)) => {
+                    buffer.purge_buffer().await;
+                    buffer.push_to_start(audio_data).await;
+                    self.idx.store(id as usize, Ordering::SeqCst);
+                    continue;
+                }
                 Ok(Some(TTSEvent::Prev)) => {
                     if audio_data.id > 0 {
                         buffer.purge_buffer().await;
-                        self.idx
-                            .store((audio_data.id - 1) as usize, Ordering::SeqCst);
+                        self.idx.store((id - 1) as usize, Ordering::SeqCst);
                     }
                     continue;
                 }
                 Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
                 Err(e) => return Err(e),
                 _ => {
-                    if last_id == audio_data.id {
+                    if last_id == id {
                         break;
                     }
                     continue;
@@ -189,16 +219,15 @@ impl Tts {
 
     pub async fn read_block_of_text(
         &self,
-        raw_audio: Vec<u8>,
+        source_audio: rodio::buffer::SamplesBuffer<f32>,
     ) -> Result<Option<TTSEvent>, Box<dyn Error>> {
         let mut receiver = self.sender.subscribe();
-        let reading_speed = *self.reading_speed.borrow();
         let audio_player = self.audio_player.clone();
 
         let result = runtime()
             .spawn(async move {
                 let play_handle =
-                    tokio::spawn(async move { audio_player.play_wav(raw_audio, reading_speed) });
+                    tokio::spawn(async move { audio_player.play_audio(source_audio) });
 
                 tokio::select! {
                     play_result = play_handle => {
@@ -261,7 +290,7 @@ impl Tts {
     }
 
     pub async fn repeat_block(&self) -> Result<(), Box<dyn Error>> {
-        self.idx.fetch_sub(1, Ordering::SeqCst);
+        self.sender.send(TTSEvent::Repeat)?;
         self.stop(false).await?;
         Ok(())
     }
@@ -274,7 +303,8 @@ impl Tts {
         self.audio_player.is_playing()
     }
 
-    pub fn set_speed(&self, speed: f32) {
-        self.reading_speed.replace(speed);
+    pub fn set_speed(&self, speed: f64) {
+        println!("storign {speed}");
+        self.reading_speed.store(speed as usize, Ordering::SeqCst);
     }
 }

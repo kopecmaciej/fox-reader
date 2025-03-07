@@ -9,7 +9,7 @@ dirs = "5.0.1"
 gio = "0.20.6"
 gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }
 adw = { version = "0.7.1", features = ["v1_6"], package = "libadwaita" }
-reqwest = { version = "0.12.9" }
+reqwest = { version = "0.12.9", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process"] }
@@ -20,6 +20,8 @@ regex = "1.11.1"
 rodio = "0.20.1"
 poppler-rs = "0.24.1"
 pdfium-render = "0.8.29"
+whisper-rs = "0.14.2"
+cpal = "0.15.3"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"
