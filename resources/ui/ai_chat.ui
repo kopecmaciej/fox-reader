@@ -118,6 +118,7 @@
                         <property name="label">Talk</property>
                       </object>
                     </child>
+
                   </object>
                 </child>
               </object>
@@ -129,6 +130,20 @@
                 <property name="label">Ready</property>
                 <style>
                   <class name="dim-label" />
+                </style>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkButton" id="reset_button">
+                <property name="halign">center</property>
+                <property name="valign">center</property>
+                <property name="width-request">120</property>
+                <property name="height-request">36</property>
+                <property name="label">Reset history</property>
+                <style>
+                  <class name="circular" />
+                  <class name="destructive-action" />
                 </style>
               </object>
             </child>

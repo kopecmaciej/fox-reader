@@ -137,7 +137,7 @@ impl VoiceRow {
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
-        let audio_player = Arc::new(AudioPlayer::new());
+        let audio_player = Arc::new(AudioPlayer::default());
         play_button.connect_clicked(clone!(
             #[weak(rename_to=this)]
             self,

@@ -4,8 +4,6 @@ use gtk::{
     glib::{self, clone},
     prelude::*,
 };
-use reqwest::Client;
-use serde_json::{json, Value};
 use std::{
     cell::RefCell,
     sync::{Arc, Mutex},
@@ -13,9 +11,17 @@ use std::{
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{
-    core::{runtime::runtime, voice_manager::VoiceManager},
+    core::{llm_manager::LLMManager, runtime::runtime, voice_manager::VoiceManager},
     utils::audio_player::AudioPlayer,
 };
+
+#[derive(Default)]
+pub enum State {
+    #[default]
+    Idle,
+    Recording,
+    Speaking,
+}
 
 mod imp {
 
@@ -35,14 +41,15 @@ mod imp {
         pub button_icon: TemplateChild<gtk::Image>,
         #[template_child]
         pub button_label: TemplateChild<gtk::Label>,
+        #[template_child]
+        pub reset_button: TemplateChild<gtk::Button>,
 
-        pub is_recording: RefCell<bool>,
-        pub is_speaking: RefCell<bool>,
+        pub state: RefCell<State>,
         pub audio_data: RefCell<Option<Vec<f32>>>,
-        pub http_client: RefCell<Client>,
         pub recording_stream: RefCell<Option<cpal::Stream>>,
         pub shared_audio_buffer: RefCell<Option<Arc<Mutex<Vec<f32>>>>>,
-        pub stop_speaking: RefCell<bool>,
+        pub llm_manager: Arc<LLMManager>,
+        pub audio_player: Arc<AudioPlayer>,
     }
 
     #[glib::object_subclass]
@@ -67,16 +74,19 @@ mod imp {
         fn on_mic_button_clicked(&self, _button: &gtk::Button) {
             let obj = self.obj();
 
-            if *self.is_speaking.borrow() {
-                // If speaking, stop the speech
+            if matches!(*self.state.borrow(), State::Speaking) {
                 obj.stop_speaking();
-            } else if *self.is_recording.borrow() {
-                // If recording, stop recording
+            } else if matches!(*self.state.borrow(), State::Recording) {
                 obj.stop_recording();
             } else {
-                // Otherwise, start recording
                 obj.start_recording();
             }
+        }
+
+        #[template_callback]
+        fn on_reset_button_clicked(&self, _button: &gtk::Button) {
+            let obj = self.obj();
+            obj.reset_conversation();
         }
     }
 
@@ -94,42 +104,54 @@ impl AiChat {
     pub fn init(&self) {
         let imp = self.imp();
 
-        // Set up initial UI state
         imp.status_label.set_text("Ready to chat");
 
-        // Initialize HTTP client for LMstudio API
-        *imp.http_client.borrow_mut() = Client::new();
-
-        // Select default language (Auto-detect)
         imp.language_dropdown.set_selected(0);
-
-        // Initialize state flags
-        *imp.is_recording.borrow_mut() = false;
-        *imp.is_speaking.borrow_mut() = false;
-        *imp.stop_speaking.borrow_mut() = false;
     }
 
-    // Method to stop speech playback
+    // Method to reset the conversation history
+    fn reset_conversation(&self) {
+        let imp = self.imp();
+
+        let llm_manager = &*imp.llm_manager.clone();
+        llm_manager.reset_conversation();
+        imp.status_label.set_text("Conversation reset");
+
+        // Show a temporary notification that fades out
+        glib::timeout_add_seconds_local(
+            2,
+            clone!(
+                #[weak(rename_to=this)]
+                self,
+                #[upgrade_or]
+                glib::ControlFlow::Continue,
+                move || {
+                    if this.imp().status_label.text() == "Conversation reset" {
+                        this.imp().status_label.set_text("Ready to chat");
+                    }
+                    glib::ControlFlow::Continue
+                }
+            ),
+        );
+    }
+
     fn stop_speaking(&self) {
         let imp = self.imp();
 
-        println!("Stopping speech playback");
-        *imp.stop_speaking.borrow_mut() = true;
-        *imp.is_speaking.borrow_mut() = false;
+        imp.audio_player.stop();
+        imp.state.replace(State::Idle);
 
-        // Reset button to microphone
         self.set_mic_button_recording_state(false);
 
         imp.status_label.set_text("Ready");
     }
 
-    // Get the selected language code for Whisper
     fn get_selected_language_code(&self) -> Option<&'static str> {
         let imp = self.imp();
         let selected_index = imp.language_dropdown.selected();
 
         match selected_index {
-            0 => None, // Auto-detect
+            0 => None,
             1 => Some("en"),
             2 => Some("es"),
             3 => Some("fr"),
@@ -140,7 +162,7 @@ impl AiChat {
             8 => Some("ru"),
             9 => Some("pt"),
             10 => Some("pl"),
-            _ => None, // Default to auto-detect for unexpected values
+            _ => None,
         }
     }
 
@@ -186,22 +208,17 @@ impl AiChat {
     fn start_recording(&self) {
         let imp = self.imp();
 
-        // Update UI to show recording in progress
-        *imp.is_recording.borrow_mut() = true;
-        *imp.stop_speaking.borrow_mut() = false;
+        imp.state.replace(State::Recording);
         imp.status_label.set_text("Listening...");
 
-        // Change button appearance to indicate recording
         self.set_mic_button_recording_state(true);
 
-        // Initialize the audio data container - important to start with an empty vec
         let shared_audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
         let audio_data_clone = Arc::clone(&shared_audio_data);
 
         // We'll store this Arc in our struct to access it later
         *imp.audio_data.borrow_mut() = Some(Vec::new());
 
-        // Try to use PipeWire explicitly if available
         let host = cpal::host_from_id(
             cpal::available_hosts()
                 .into_iter()
@@ -210,15 +227,10 @@ impl AiChat {
         )
         .expect("Failed to initialize audio host");
 
-        println!("Using audio host: {:?}", host.id());
-
-        // List available input devices
-        println!("Available input devices:");
         let mut input_devices = host
             .input_devices()
             .unwrap_or_else(|_| panic!("Error getting input devices"));
 
-        // Try to find the pipewire device specifically
         let device = input_devices
             .find(|d| {
                 if let Ok(name) = d.name() {
@@ -240,9 +252,6 @@ impl AiChat {
             buffer_size: cpal::BufferSize::Default,
         };
 
-        println!("Using config: {:?}", config);
-
-        // Create an input stream for recording
         let err_fn = move |err| {
             eprintln!("An error occurred on the input audio stream: {}", err);
         };
@@ -251,7 +260,6 @@ impl AiChat {
             .build_input_stream(
                 &config,
                 move |data: &[f32], _: &_| {
-                    // Store the audio data in our shared buffer
                     let mut buffer = audio_data_clone.lock().unwrap();
                     buffer.extend_from_slice(data);
                 },
@@ -260,32 +268,22 @@ impl AiChat {
             )
             .expect("Failed to build input stream");
 
-        // Start the recording
         stream.play().expect("Failed to start recording stream");
         *imp.recording_stream.borrow_mut() = Some(stream);
 
-        // Store the shared audio buffer in a place where stop_recording can access it
         imp.shared_audio_buffer.replace(Some(shared_audio_data));
-
-        println!("Recording started successfully");
     }
 
-    // And update the stop_recording function to retrieve the data
     fn stop_recording(&self) {
         let imp = self.imp();
 
-        // Update UI to show processing
-        *imp.is_recording.borrow_mut() = false;
         imp.status_label.set_text("Processing speech...");
-
-        // Change button appearance to normal state
         self.set_mic_button_recording_state(false);
 
         if let Some(stream) = imp.recording_stream.borrow_mut().take() {
-            println!("Recording stream stopped");
+            drop(stream);
         }
 
-        // Retrieve the recorded audio data from our shared buffer
         let audio_data = if let Some(shared_buffer) = imp.shared_audio_buffer.take() {
             match Arc::try_unwrap(shared_buffer) {
                 Ok(mutex) => {
@@ -298,52 +296,79 @@ impl AiChat {
                     buffer
                 }
                 Err(arc) => {
-                    // If we couldn't get exclusive ownership, clone the data
                     let buffer = arc.lock().unwrap().clone();
-                    println!("Cloned {} audio samples", buffer.len());
                     buffer
                 }
             }
         } else {
-            println!("No audio data found");
             imp.status_label.set_text("Error: No audio recorded");
             return;
         };
 
+        // Process the audio data asynchronously
+        let language = self.get_selected_language_code();
         glib::spawn_future_local(clone!(
             #[weak(rename_to=this)]
             self,
             async move {
-                match this.process_audio(audio_data) {
-                    Ok(text) => {
-                        println!("Transcribed text: {}", text);
-                        this.imp().status_label.set_text("Sending to LLM...");
-
-                        match this.send_to_lm_studio(&text).await {
-                            Ok(response) => {
-                                println!("LLM Response: {}", response);
-                                this.handle_ai_response(&response).await
-                            }
-                            Err(e) => {
-                                println!("LLM API error: {:?}", e);
-                                this.imp()
-                                    .status_label
-                                    .set_text("Error: Failed to get LLM response");
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        println!("Speech recognition error: {:?}", e);
-                        this.imp()
-                            .status_label
-                            .set_text("Error: Failed to recognize speech");
-                    }
-                }
+                this.process_audio_and_get_response(audio_data, language)
+                    .await;
             }
         ));
     }
 
-    fn process_audio(&self, audio_data: Vec<f32>) -> Result<String, Box<dyn std::error::Error>> {
+    async fn process_audio_and_get_response(
+        &self,
+        audio_data: Vec<f32>,
+        language: Option<&'static str>,
+    ) {
+        let imp = self.imp();
+
+        // Process the audio to get transcribed text
+        let transcription_result = runtime()
+            .spawn(async move { Self::process_audio(audio_data, language) })
+            .await;
+
+        match transcription_result {
+            Ok(Ok(text)) => {
+                println!("Transcribed text: {}", text);
+                imp.status_label.set_text("Sending to LLM...");
+
+                let llm_manager = imp.llm_manager.clone();
+
+                let response = runtime()
+                    .spawn(async move { llm_manager.send_to_lm_studio(&text.clone()).await })
+                    .await;
+
+                match response {
+                    Ok(Ok(response)) => {
+                        self.handle_ai_response(&response).await;
+                    }
+                    Ok(Err(err)) => {
+                        println!("LLM response error: {:?}", err);
+                        imp.status_label.set_text("Error: LLM response failed");
+                    }
+                    Err(err) => {
+                        println!("Task join error: {:?}", err);
+                        imp.status_label.set_text("Error: Task join failed");
+                    }
+                }
+            }
+            Ok(Err(err)) => {
+                eprintln!("process_audio error: {}", err);
+                imp.status_label.set_text("Error: Audio processing failed");
+            }
+            Err(join_err) => {
+                eprintln!("Tokio task failed: {}", join_err);
+                imp.status_label.set_text("Error: Task execution failed");
+            }
+        }
+    }
+
+    fn process_audio(
+        audio_data: Vec<f32>,
+        language_code: Option<&str>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let whisper_ctx = WhisperContext::new_with_params(
             "/home/cieju/projects/rust/fox-reader/whisper.cpp/models/ggml-base.bin",
             WhisperContextParameters::default(),
@@ -352,8 +377,6 @@ impl AiChat {
 
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
 
-        // Use the selected language, or auto if none selected
-        let language_code = self.get_selected_language_code();
         params.set_language(language_code);
 
         params.set_print_progress(false);
@@ -370,73 +393,30 @@ impl AiChat {
             text.push(' ');
         }
 
+        let lang_id = state.full_lang_id_from_state()?;
+        let _lang = whisper_rs::get_lang_str(lang_id);
+
         Ok(text.trim().to_string())
-    }
-
-    async fn send_to_lm_studio(&self, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let imp = self.imp();
-
-        // Improved system prompt for voice conversations
-        let system_prompt = "You are a helpful voice assistant. Respond in a conversational, natural way. Use short, clear sentences and avoid complex formatting, lists, or code. Keep responses concise and easy to listen to. Speak as if you're having a casual conversation. Use simple language that's easy to follow when heard rather than read.";
-
-        let request_body = json!({
-            "model": "model-identifier",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 300,  // Limit response length for voice
-        });
-
-        let request = {
-            let client = imp.http_client.borrow();
-            client
-                .post("http://localhost:1234/v1/chat/completions")
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer lm-studio")
-                .json(&request_body)
-        };
-
-        let response = runtime().block_on(request.send())?;
-
-        let response_json: Value = response.json().await?;
-
-        let content = response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .unwrap_or("Failed to parse response")
-            .to_string();
-
-        Ok(content)
     }
 
     async fn handle_ai_response(&self, response: &str) {
         let imp = self.imp();
 
-        // Set UI to speaking state
         imp.status_label.set_text("Speaking...");
-        *imp.is_speaking.borrow_mut() = true;
-        *imp.stop_speaking.borrow_mut() = false;
+
+        imp.state.replace(State::Speaking);
         self.set_mic_button_speaking_state(true);
 
-        // Split by sentences for more natural TTS playback
         let sentences = self.split_into_sentences(response);
 
         for sentence in sentences {
-            // Check if speaking has been stopped
-            if *imp.stop_speaking.borrow() {
-                println!("Speech playback canceled by user");
-                break;
-            }
-
-            // Skip empty sentences
             if sentence.trim().is_empty() {
                 continue;
             }
 
-            let voice = "en_US-ryan-high.onnx";
+            //let voice = "pl_PL-gosia-medium.onnx";
+            let voice = "en_GB-northern_english_male-medium.onnx";
 
-            // Show current sentence in status label (truncated if too long)
             let display_sentence = if sentence.len() > 50 {
                 format!("{}...", &sentence[0..47])
             } else {
@@ -449,29 +429,20 @@ impl AiChat {
                 .block_on(VoiceManager::generate_piper_raw_speech(&sentence, voice))
                 .unwrap();
 
-            let audio_player = AudioPlayer::new();
+            let audio_player = self.imp().audio_player.clone();
             let source_audio = AudioPlayer::generate_source(raw_audio, 1.2);
             let play_result = audio_player.play_audio(source_audio);
 
             if play_result.is_err() {
                 println!("Error playing audio: {:?}", play_result.err());
             }
-
-            // Check again if speaking has been stopped
-            if *imp.stop_speaking.borrow() {
-                println!("Speech playback canceled by user");
-                break;
-            }
         }
 
-        // Reset state
-        *imp.is_speaking.borrow_mut() = false;
-        *imp.stop_speaking.borrow_mut() = false;
+        imp.state.replace(State::Idle);
         self.set_mic_button_speaking_state(false);
         imp.status_label.set_text("Ready");
     }
 
-    // Helper function to split text into more natural sentences for TTS
     fn split_into_sentences(&self, text: &str) -> Vec<String> {
         // Split by common sentence terminators but keep the terminator with the sentence
         let sentence_regex = regex::Regex::new(r"[^.!?]+[.!?]").unwrap();

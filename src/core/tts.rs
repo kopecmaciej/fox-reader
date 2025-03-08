@@ -116,7 +116,7 @@ impl Tts {
             sender: Arc::new(sender),
             idx: Arc::new(AtomicUsize::new(0)),
             reading_speed: Arc::new(AtomicUsize::new(100)),
-            audio_player: Arc::new(AudioPlayer::new()),
+            audio_player: Arc::new(AudioPlayer::default()),
         }
     }
 
@@ -304,7 +304,6 @@ impl Tts {
     }
 
     pub fn set_speed(&self, speed: f64) {
-        println!("storign {speed}");
         self.reading_speed.store(speed as usize, Ordering::SeqCst);
     }
 }

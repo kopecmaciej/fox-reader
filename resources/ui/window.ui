@@ -46,7 +46,6 @@
             </child>
           </object>
         </child>
-        <!-- Reader View Switcher -->
         <!-- Main Content -->
         <child>
           <object class="GtkBox">
@@ -78,7 +77,7 @@
                     </property>
                   </object>
                 </child>
-                <!-- AI Chat Page - NEW TAB -->
+                <!-- AI Chat Page -->
                 <child>
                   <object class="AdwViewStackPage">
                     <property name="name">ai_chat</property>

@@ -18,14 +18,16 @@ pub struct AudioPlayer {
     state: Arc<Mutex<State>>,
 }
 
-impl AudioPlayer {
-    pub fn new() -> Self {
+impl Default for AudioPlayer {
+    fn default() -> Self {
         AudioPlayer {
             sink: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(State::Idle)),
         }
     }
+}
 
+impl AudioPlayer {
     pub fn play_mp3(&self, audio_data: Vec<u8>) -> Result<(), String> {
         let cursor = Cursor::new(audio_data);
 
