@@ -78,23 +78,23 @@
           <class name="linked" />
         </style>
         <child>
-          <object class="GtkSpinButton" id="speed_spin">
-            <property name="adjustment">
-              <object class="GtkAdjustment" id="speed_adjustment">
-                <property name="lower">50</property>
-                <property name="upper">200</property>
-                <property name="value">100</property>
-                <property name="step-increment">10</property>
-                <property name="page-increment">50</property>
-              </object>
-            </property>
-            <property name="width-chars">4</property>
-            <property name="xalign">0.5</property>
-            <property name="value">100</property>
-            <style>
-              <class name="speed-spin" />
-            </style>
-          </object>
+        <object class="GtkSpinButton" id="speed_spin">
+          <property name="adjustment">
+            <object class="GtkAdjustment" id="speed_adjustment">
+              <property name="lower">50</property>
+              <property name="upper">550</property>
+              <property name="value">100</property>
+              <property name="step-increment">10</property>
+              <property name="page-increment">50</property>
+            </object>
+          </property>
+          <property name="width-chars">4</property>
+          <property name="xalign">0.5</property>
+          <property name="value">100</property>
+          <style>
+            <class name="speed-spin" />
+          </style>
+        </object>
         </child>
         <child>
           <object class="GtkLabel">

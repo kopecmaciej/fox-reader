@@ -106,8 +106,6 @@ glib::wrapper! {
 
 impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
-        use crate::ui::piper_installer::PiperInstaller;
-
         let window: Self = Object::builder().property("application", app).build();
 
         if let Err(e) = SpeechDispatcher::init() {
@@ -131,20 +129,6 @@ impl FoxReaderAppWindow {
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
         window.setup_search();
-
-        match PiperInstaller::check_piper() {
-            Ok(false) => {
-                let piper_window = PiperInstaller::new();
-                piper_window.present(Some(&window));
-            }
-            Err(e) => {
-                super::dialogs::show_error_dialog(
-                    &format!("Failed to check if piper was already added: {}", e),
-                    &window,
-                );
-            }
-            _ => {}
-        }
 
         window
     }

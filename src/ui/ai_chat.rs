@@ -425,12 +425,13 @@ impl AiChat {
             imp.status_label
                 .set_text(&format!("Speaking: {}", display_sentence));
 
-            let raw_audio = runtime()
-                .block_on(VoiceManager::generate_piper_raw_speech(&sentence, voice))
+            let source_audio = runtime()
+                .block_on(VoiceManager::generate_piper_raw_speech(
+                    &sentence, voice, None,
+                ))
                 .unwrap();
 
             let audio_player = self.imp().audio_player.clone();
-            let source_audio = AudioPlayer::generate_source(raw_audio, 1.2);
             let play_result = audio_player.play_audio(source_audio);
 
             if play_result.is_err() {

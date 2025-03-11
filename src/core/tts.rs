@@ -3,7 +3,6 @@ use crate::utils::{audio_player::AudioPlayer, highlighter::ReadingBlock};
 use std::{
     error::Error,
     fmt,
-    ops::Div,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -146,12 +145,14 @@ impl Tts {
                 let idx = idx_clone.load(Ordering::SeqCst);
                 let reading_block = &reading_blocks[idx];
 
-                let raw_audio =
-                    VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice)
-                        .await?;
-                let reading_speed = reading_speed.load(Ordering::SeqCst) as f32;
-                let source_audio =
-                    AudioPlayer::generate_source(raw_audio, reading_speed.div(100.0));
+                let reading_speed = reading_speed.load(Ordering::SeqCst);
+                let speed = Self::spin_value_to_rate_percent(reading_speed);
+                let source_audio = VoiceManager::generate_piper_raw_speech(
+                    &reading_block.get_text(),
+                    &voice,
+                    speed,
+                )
+                .await?;
 
                 let id = reading_block.get_id();
                 // if Prev occurse, we'll have diffrent idx so
@@ -305,5 +306,20 @@ impl Tts {
 
     pub fn set_speed(&self, speed: f64) {
         self.reading_speed.store(speed as usize, Ordering::SeqCst);
+    }
+
+    pub fn get_speed(&self) -> u8 {
+        let speed = self.reading_speed.load(Ordering::SeqCst);
+
+        ((speed as f32 / 200.0) * 100.0) as u8
+    }
+
+    fn spin_value_to_rate_percent(spin_value: usize) -> Option<u8> {
+        if spin_value == 100 {
+            return None;
+        }
+        // Map 50 to 0, 100 to ~9, 550 to 100
+        let normalized = (spin_value as f32 - 50.0) / 5.0;
+        Some(normalized.clamp(0.0, 100.0).round() as u8)
     }
 }

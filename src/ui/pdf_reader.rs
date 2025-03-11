@@ -7,7 +7,7 @@ use gtk::{
     gdk_pixbuf::{Colorspace, Pixbuf},
     glib::clone,
 };
-use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRenderConfig};
+use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRect, PdfRenderConfig};
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{config::UserConfig, core::tts::TTSEvent, utils::pdf_highlighter::PdfReadingBlock};
@@ -336,10 +336,20 @@ impl PdfReader {
                             rect.height().value as f64 * scale_factor,
                         );
 
-                        if x >= scaled_rect.0
-                            && x <= scaled_rect.0 + scaled_rect.2
-                            && y >= scaled_rect.1
-                            && y <= scaled_rect.1 + scaled_rect.3
+                        let margin_x = scaled_rect.2 * 0.05;
+                        let margin_y = scaled_rect.3 * 0.05;
+
+                        let hover_area = (
+                            scaled_rect.0 - margin_x,
+                            scaled_rect.1 - margin_y,
+                            scaled_rect.2 + (margin_x * 2.0),
+                            scaled_rect.3 + (margin_y * 2.0),
+                        );
+
+                        if x >= hover_area.0
+                            && x <= hover_area.0 + hover_area.2
+                            && y >= hover_area.1
+                            && y <= hover_area.1 + hover_area.3
                         {
                             Some(block.id)
                         } else {
@@ -365,45 +375,19 @@ impl PdfReader {
             .find(|block| block.id == reading_index)
             .cloned();
 
-        // Maybe not neccessary but usable following user cursor
-        motion_controller.connect_motion(clone!(
-            #[weak]
+        // 1. Set up click handler for text-to-speech
+        self.setup_click_handler(&page, drawing_area, &all_rect, scale_factor);
+
+        // 2. Set up hover tracking
+        self.setup_hover_handler(
             drawing_area,
-            move |_, x, y| {
-                let mut current_hover = hovered_rect_clone.borrow_mut();
-
-                let new_hover = hover_rect.iter().enumerate().find_map(|(index, block)| {
-                    let scale_factor = scale_factor as f64;
-                    block.rectangles.iter().find_map(|rect| {
-                        let scaled_rect = (
-                            rect.left().value as f64 * scale_factor,
-                            page_size.top().value as f64 * scale_factor
-                                - rect.top().value as f64 * scale_factor,
-                            rect.width().value as f64 * scale_factor,
-                            rect.height().value as f64 * scale_factor,
-                        );
-
-                        if x >= scaled_rect.0
-                            && x <= scaled_rect.0 + scaled_rect.2
-                            && y >= scaled_rect.1
-                            && y <= scaled_rect.1 + scaled_rect.3
-                        {
-                            Some(index)
-                        } else {
-                            None
-                        }
-                    })
-                });
-
-                if *current_hover != new_hover {
-                    *current_hover = new_hover;
-                    drawing_area.queue_draw();
-                }
-            }
-        ));
-        drawing_area.add_controller(motion_controller);
-
+            &all_rect,
+            hovered_rect.clone(),
+            scale_factor,
+            page_size,
+        );
         let (red, green, blue) = self.get_rgba_colors();
+
         drawing_area.set_draw_func(move |_, cr: &Context, _width, _height| {
             cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
             cr.paint().expect("Failed to paint PDF page");
@@ -440,6 +424,131 @@ impl PdfReader {
             }
             cr.fill().expect("Failed to fill base highlights");
         });
+    }
+    // Configure click handler to start reading PDF text blocks
+    fn setup_click_handler(
+        &self,
+        page: &PdfPage,
+        drawing_area: &gtk::DrawingArea,
+        reading_blocks: &[PdfReadingBlock],
+        scale_factor: f32,
+    ) {
+        let imp = self.imp();
+        let click_controller = gtk::GestureClick::new();
+        let page_size = page.page_size();
+        let click_rect = reading_blocks.to_vec();
+
+        click_controller.connect_pressed(clone!(
+            #[weak(rename_to=this)]
+            self,
+            #[weak]
+            imp,
+            move |_, _, x, y| {
+                let clicked_block = click_rect.iter().find_map(|block| {
+                    let scale_factor = scale_factor as f64;
+                    block.rectangles.iter().find_map(|rect| {
+                        let scaled_rect = (
+                            rect.left().value as f64 * scale_factor,
+                            page_size.top().value as f64 * scale_factor
+                                - rect.top().value as f64 * scale_factor,
+                            rect.width().value as f64 * scale_factor,
+                            rect.height().value as f64 * scale_factor,
+                        );
+
+                        let margin_x = scaled_rect.2 * 0.05;
+                        let margin_y = scaled_rect.3 * 0.05;
+
+                        let hover_area = (
+                            scaled_rect.0 - margin_x,
+                            scaled_rect.1 - margin_y,
+                            scaled_rect.2 + (margin_x * 2.0),
+                            scaled_rect.3 + (margin_y * 2.0),
+                        );
+
+                        if x >= hover_area.0
+                            && x <= hover_area.0 + hover_area.2
+                            && y >= hover_area.1
+                            && y <= hover_area.1 + hover_area.3
+                        {
+                            Some(block.id)
+                        } else {
+                            None
+                        }
+                    })
+                });
+
+                if let Some(block_id) = clicked_block {
+                    let reading_blocks = imp
+                        .pdf_highlighter
+                        .borrow()
+                        .get_reading_blocks_from_id(block_id);
+
+                    this.start_reading_pdf(reading_blocks);
+                }
+            }
+        ));
+
+        drawing_area.add_controller(click_controller);
+    }
+
+    fn setup_hover_handler(
+        &self,
+        drawing_area: &gtk::DrawingArea,
+        reading_blocks: &[PdfReadingBlock],
+        hovered_rect: Rc<RefCell<Option<usize>>>,
+        scale_factor: f32,
+        page_size: PdfRect,
+    ) {
+        let motion_controller = gtk::EventControllerMotion::new();
+        let hover_rect = reading_blocks.to_vec();
+
+        motion_controller.connect_motion(clone!(
+            #[weak]
+            drawing_area,
+            move |_, x, y| {
+                let mut current_hover = hovered_rect.borrow_mut();
+
+                let new_hover = hover_rect.iter().enumerate().find_map(|(index, block)| {
+                    let scale_factor = scale_factor as f64;
+                    block.rectangles.iter().find_map(|rect| {
+                        let scaled_rect = (
+                            rect.left().value as f64 * scale_factor,
+                            page_size.top().value as f64 * scale_factor
+                                - rect.top().value as f64 * scale_factor,
+                            rect.width().value as f64 * scale_factor,
+                            rect.height().value as f64 * scale_factor,
+                        );
+
+                        let margin_x = scaled_rect.2 * 0.05;
+                        let margin_y = scaled_rect.3 * 0.05;
+
+                        let hover_area = (
+                            scaled_rect.0 - margin_x,
+                            scaled_rect.1 - margin_y,
+                            scaled_rect.2 + (margin_x * 2.0),
+                            scaled_rect.3 + (margin_y * 2.0),
+                        );
+
+                        if x >= hover_area.0
+                            && x <= hover_area.0 + hover_area.2
+                            && y >= hover_area.1
+                            && y <= hover_area.1 + hover_area.3
+                        {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    })
+                });
+
+                if *current_hover != new_hover {
+                    *current_hover = new_hover;
+                    drawing_area.queue_draw();
+                }
+            }
+        ));
+
+        drawing_area.add_controller(motion_controller);
     }
 
     fn navigate_page(&self, delta: i32) {

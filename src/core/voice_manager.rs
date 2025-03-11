@@ -1,12 +1,13 @@
 use crate::core::file_handler::FileHandler;
-use crate::paths::{dispatcher_config, huggingface_config, PIPER_PATH};
+use crate::paths::{dispatcher_config, huggingface_config};
+use rodio::buffer::SamplesBuffer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
-use std::process::Stdio;
-use tokio::process::Command;
+
+use super::piper::PiperTTS;
 
 pub struct VoiceManager {}
 
@@ -123,33 +124,18 @@ impl VoiceManager {
 
     pub async fn generate_piper_raw_speech(
         text: &str,
-        voice: &str,
-    ) -> Result<Vec<u8>, Box<dyn Error + Sync + Send>> {
-        let cleaned_text = text.replace("\"", "'");
-        let cleaned_text = cleaned_text.replace("\n", " ... ");
-        let voice_path = format!("{}/{}", huggingface_config::get_download_path(), voice);
-        let piper_path = PIPER_PATH.get().ok_or("Path to piper was not found")?;
+        voice_path: &str,
+        rate: Option<u8>,
+    ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
+        let voice_full_path = format!(
+            "{}/{}.json",
+            huggingface_config::get_download_path(),
+            voice_path
+        );
 
-        let mut child = Command::new(piper_path)
-            .arg("--model")
-            .arg(voice_path)
-            .args(["-f", "-"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
+        let piper_tts = PiperTTS::new();
+        piper_tts.initialize(&voice_full_path, None).await?;
 
-        if let Some(mut stdin) = child.stdin.take() {
-            tokio::io::AsyncWriteExt::write_all(&mut stdin, cleaned_text.as_bytes()).await?;
-        }
-
-        let output = child.wait_with_output().await?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Piper TTS generation failed: {}", stderr).into());
-        }
-
-        Ok(output.stdout)
+        piper_tts.synthesize_speech(text, rate).await
     }
 }
