@@ -380,14 +380,6 @@ impl PdfHighlighter {
         self.current_blocks.to_vec()
     }
 
-    pub fn get_reading_blocks_from_id(&self, id: u32) -> Vec<PdfReadingBlock> {
-        self.current_blocks
-            .iter()
-            .filter(|b| b.id >= id)
-            .cloned()
-            .collect()
-    }
-
     pub fn clear_highlight(&mut self) {
         self.highlighted_blocks.clear();
         // TODO:clear pdf highlighter area

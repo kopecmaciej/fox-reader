@@ -1,9 +1,10 @@
-pub mod ai_chat;
-pub mod audio_controls;
-pub mod dialogs;
-pub mod pdf_reader;
+mod ai_chat;
+mod audio_controls;
+mod dialogs;
+mod pdf_reader;
 pub mod settings;
-pub mod text_reader;
-pub mod voice_list;
-pub mod voice_row;
+mod text_reader;
+mod voice_events;
+mod voice_list;
+mod voice_row;
 pub mod window;

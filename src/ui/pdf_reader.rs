@@ -10,7 +10,11 @@ use gtk::{
 use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRect, PdfRenderConfig};
 use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use crate::{config::UserConfig, core::tts::TTSEvent, utils::pdf_highlighter::PdfReadingBlock};
+use crate::{
+    config::UserConfig,
+    core::{runtime::runtime, tts::TTSEvent},
+    utils::pdf_highlighter::PdfReadingBlock,
+};
 
 use super::dialogs::{self, show_error_dialog};
 
@@ -307,68 +311,10 @@ impl PdfReader {
         let page_size = page.page_size();
 
         let hovered_rect = Rc::new(RefCell::new(Option::<usize>::None));
-        let hovered_rect_clone = Rc::clone(&hovered_rect);
-
-        let motion_controller = gtk::EventControllerMotion::new();
         let all_rect = imp.pdf_highlighter.borrow().get_reading_blocks();
-
-        // After user click from this point we'll start reading
-        let click_controller = gtk::GestureClick::new();
 
         let hover_rect = all_rect.to_vec();
         let hover_rect_clone = hover_rect.to_vec();
-        let click_rect = hover_rect.clone();
-
-        click_controller.connect_pressed(clone!(
-            #[weak(rename_to=this)]
-            self,
-            #[weak]
-            imp,
-            move |_, _, x, y| {
-                let clicked_block = click_rect.iter().find_map(|block| {
-                    let scale_factor = scale_factor as f64;
-                    block.rectangles.iter().find_map(|rect| {
-                        let scaled_rect = (
-                            rect.left().value as f64 * scale_factor,
-                            page_size.top().value as f64 * scale_factor
-                                - rect.top().value as f64 * scale_factor,
-                            rect.width().value as f64 * scale_factor,
-                            rect.height().value as f64 * scale_factor,
-                        );
-
-                        let margin_x = scaled_rect.2 * 0.05;
-                        let margin_y = scaled_rect.3 * 0.05;
-
-                        let hover_area = (
-                            scaled_rect.0 - margin_x,
-                            scaled_rect.1 - margin_y,
-                            scaled_rect.2 + (margin_x * 2.0),
-                            scaled_rect.3 + (margin_y * 2.0),
-                        );
-
-                        if x >= hover_area.0
-                            && x <= hover_area.0 + hover_area.2
-                            && y >= hover_area.1
-                            && y <= hover_area.1 + hover_area.3
-                        {
-                            Some(block.id)
-                        } else {
-                            None
-                        }
-                    })
-                });
-
-                if let Some(block_id) = clicked_block {
-                    let reading_blocks = imp
-                        .pdf_highlighter
-                        .borrow()
-                        .get_reading_blocks_from_id(block_id);
-
-                    this.start_reading_pdf(reading_blocks);
-                }
-            }
-        ));
-        drawing_area.add_controller(click_controller);
 
         let reading_block = all_rect
             .iter()
@@ -478,12 +424,9 @@ impl PdfReader {
                 });
 
                 if let Some(block_id) = clicked_block {
-                    let reading_blocks = imp
-                        .pdf_highlighter
-                        .borrow()
-                        .get_reading_blocks_from_id(block_id);
+                    let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
 
-                    this.start_reading_pdf(reading_blocks);
+                    this.start_reading_pdf(reading_blocks, block_id);
                 }
             }
         ));
@@ -653,13 +596,16 @@ impl PdfReader {
                     return;
                 }
                 let reading_blocks = imp.pdf_highlighter.borrow().get_reading_blocks();
-                this.start_reading_pdf(reading_blocks);
+                this.start_reading_pdf(reading_blocks, 0);
             }
         ));
     }
 
-    fn start_reading_pdf(&self, reading_blocks: Vec<PdfReadingBlock>) {
+    fn start_reading_pdf(&self, reading_blocks: Vec<PdfReadingBlock>, start_from: u32) {
         let imp = self.imp();
+        if imp.audio_controls.imp().tts.is_playing() {
+            let _ = runtime().block_on(imp.audio_controls.imp().tts.stop(true));
+        }
 
         glib::spawn_future_local(clone!(
             #[weak]
@@ -707,7 +653,7 @@ impl PdfReader {
                         .audio_controls
                         .imp()
                         .tts
-                        .read_blocks_by_voice(voice, reading_blocks.to_vec())
+                        .read_blocks_by_voice(voice, reading_blocks.to_vec(), start_from)
                         .await
                     {
                         let err_msg = format!("Error while reading text by given voice: {}", e);

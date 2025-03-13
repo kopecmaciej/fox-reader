@@ -36,7 +36,7 @@ mod imp {
         #[template_child]
         pub status_label: TemplateChild<gtk::Label>,
         #[template_child]
-        pub language_dropdown: TemplateChild<gtk::DropDown>,
+        pub voice_selector: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub button_icon: TemplateChild<gtk::Image>,
         #[template_child]
@@ -106,7 +106,7 @@ impl AiChat {
 
         imp.status_label.set_text("Ready to chat");
 
-        imp.language_dropdown.set_selected(0);
+        imp.voice_selector.set_selected(0);
     }
 
     // Method to reset the conversation history
@@ -148,7 +148,7 @@ impl AiChat {
 
     fn get_selected_language_code(&self) -> Option<&'static str> {
         let imp = self.imp();
-        let selected_index = imp.language_dropdown.selected();
+        let selected_index = imp.voice_selector.selected();
 
         match selected_index {
             0 => None,
@@ -370,7 +370,7 @@ impl AiChat {
         language_code: Option<&str>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let whisper_ctx = WhisperContext::new_with_params(
-            "/home/cieju/projects/rust/fox-reader/whisper.cpp/models/ggml-base.bin",
+            "/home/cieju/projects/rust/fox-reader/ggml-base.bin",
             WhisperContextParameters::default(),
         )
         .expect("failed to load model");

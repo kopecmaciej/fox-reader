@@ -22,17 +22,9 @@ impl PiperTTS {
         Self::default()
     }
 
-    pub async fn initialize(
-        &self,
-        model_path: &str,
-        speaker_id: Option<i64>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn initialize(&self, model_path: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         let model = piper_rs::from_config_path(Path::new(model_path))
             .map_err(|e| format!("Failed to load Piper model: {}", e))?;
-
-        if let Some(sid) = speaker_id {
-            model.set_speaker(sid);
-        }
 
         let synth = PiperSpeechSynthesizer::new(model)
             .map_err(|e| format!("Failed to initialize Piper synthesizer: {}", e))?;
@@ -42,8 +34,6 @@ impl PiperTTS {
         Ok(())
     }
 
-    // Rate should be from 5-50 as after some testing >50 start to be too fast for
-    // humand to process
     pub async fn synthesize_speech(
         &self,
         text: &str,

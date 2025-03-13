@@ -6,5 +6,5 @@ downloads
 event.json
 Dockerfile
 pdfium
-whisper.cpp
+ggml-base.bin
 

@@ -135,61 +135,16 @@ impl FoxReaderAppWindow {
 
     fn update_voice_selector_on_click(&self) {
         let imp = self.imp();
-        let voice_rows = imp.voice_list.get_downloaded_rows();
+        let voice_rows = imp.voice_list.get_all_rows();
         imp.text_reader
             .imp()
             .audio_controls
             .populate_voice_selector(&voice_rows);
+
         imp.pdf_reader
             .imp()
             .audio_controls
             .populate_voice_selector(&voice_rows);
-
-        let gesture_click_text = gtk::GestureClick::new();
-        gesture_click_text.connect_pressed(clone!(
-            #[weak]
-            imp,
-            move |_, _, _, _| {
-                let voice_rows = imp.voice_list.get_downloaded_rows();
-                imp.pdf_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-                imp.text_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-            }
-        ));
-
-        let gesture_click_pdf = gtk::GestureClick::new();
-        gesture_click_pdf.connect_pressed(clone!(
-            #[weak]
-            imp,
-            move |_, _, _, _| {
-                let voice_rows = imp.voice_list.get_downloaded_rows();
-                imp.pdf_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-                imp.text_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-            }
-        ));
-
-        imp.text_reader
-            .imp()
-            .audio_controls
-            .get_voice_selector()
-            .add_controller(gesture_click_text);
-
-        imp.pdf_reader
-            .imp()
-            .audio_controls
-            .get_voice_selector()
-            .add_controller(gesture_click_pdf);
     }
 
     fn setup_stack_switching(&self) {

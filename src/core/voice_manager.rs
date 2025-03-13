@@ -134,7 +134,7 @@ impl VoiceManager {
         );
 
         let piper_tts = PiperTTS::new();
-        piper_tts.initialize(&voice_full_path, None).await?;
+        piper_tts.initialize(&voice_full_path).await?;
 
         piper_tts.synthesize_speech(text, rate).await
     }

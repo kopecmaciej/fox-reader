@@ -123,6 +123,7 @@ impl Tts {
         &self,
         voice: String,
         reading_blocks: Vec<T>,
+        start_from: u32,
     ) -> Result<(), Box<dyn Error>>
     where
         T: ReadingBlock + Send + Sync + 'static,
@@ -132,8 +133,14 @@ impl Tts {
         }
         let reading_blocks_len = reading_blocks.len();
         let buffer = Arc::new(BoundedBuffer::new(2));
-        self.idx
-            .store(reading_blocks[0].get_id() as usize, Ordering::SeqCst);
+        println!("STARTS: {}", start_from);
+        for r in reading_blocks.iter() {
+            if r.get_id() == start_from {
+                println!("TEXT: {}", r.get_text());
+            }
+            println!("{}", r.get_id());
+        }
+        self.idx.store(start_from as usize, Ordering::SeqCst);
         let idx_clone = Arc::clone(&self.idx);
         let producer_buffer = buffer.clone();
         let last_id = reading_blocks[reading_blocks_len - 1].get_id();

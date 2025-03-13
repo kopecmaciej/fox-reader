@@ -40,7 +40,7 @@
               </object>
             </child>
 
-                <!-- Chat History -->
+            <!-- Chat History -->
             <child>
               <object class="GtkScrolledWindow" id="chat_history_scroll">
                 <property name="hscrollbar-policy">never</property>
@@ -82,28 +82,15 @@
 
                 <!-- Language dropdown -->
                 <child>
-                  <object class="GtkDropDown" id="language_dropdown">
-                    <property name="halign">start</property>
-                    <property name="tooltip-text">Select input language</property>
+                  <object class="GtkDropDown" id="voice_selector">
+                    <property name="enable-search">true</property>
+                    <property name="width-request">380</property>
                     <property name="model">
-                      <object class="GtkStringList" id="language_model">
-                        <items>
-                          <item>Auto-detect</item>
-                          <item>English</item>
-                          <item>Spanish</item>
-                          <item>French</item>
-                          <item>German</item>
-                          <item>Italian</item>
-                          <item>Japanese</item>
-                          <item>Chinese</item>
-                          <item>Russian</item>
-                          <item>Portuguese</item>
-                          <item>Polish</item>
-                        </items>
-                      </object>
+                      <object class="GtkStringList" />
                     </property>
                   </object>
                 </child>
+
               </object>
             </child>
 

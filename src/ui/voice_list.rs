@@ -206,18 +206,14 @@ impl VoiceList {
         };
     }
 
-    pub fn get_downloaded_rows(&self) -> Vec<VoiceRow> {
-        let downloaded_rows: Vec<VoiceRow> = self
+    pub fn get_all_rows(&self) -> Vec<VoiceRow> {
+        let all_rows: Vec<VoiceRow> = self
             .get_list_model()
             .into_iter()
-            .filter_map(|obj| {
-                obj.ok()
-                    .and_then(|o| o.downcast::<VoiceRow>().ok())
-                    .filter(|row| row.downloaded())
-            })
+            .filter_map(|obj| obj.ok().and_then(|o| o.downcast::<VoiceRow>().ok()))
             .collect();
 
-        downloaded_rows
+        all_rows
     }
 
     pub fn get_language_list(&self) -> Vec<String> {
