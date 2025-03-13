@@ -106,8 +106,6 @@ glib::wrapper! {
 
 impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
-        use crate::ui::piper_installer::PiperInstaller;
-
         let window: Self = Object::builder().property("application", app).build();
 
         if let Err(e) = SpeechDispatcher::init() {
@@ -132,80 +130,21 @@ impl FoxReaderAppWindow {
         window.update_voice_selector_on_click();
         window.setup_search();
 
-        match PiperInstaller::check_piper() {
-            Ok(false) => {
-                let piper_window = PiperInstaller::new();
-                piper_window.present(Some(&window));
-            }
-            Err(e) => {
-                super::dialogs::show_error_dialog(
-                    &format!("Failed to check if piper was already added: {}", e),
-                    &window,
-                );
-            }
-            _ => {}
-        }
-
         window
     }
 
     fn update_voice_selector_on_click(&self) {
         let imp = self.imp();
-        let voice_rows = imp.voice_list.get_downloaded_rows();
+        let voice_rows = imp.voice_list.get_all_rows();
         imp.text_reader
             .imp()
             .audio_controls
             .populate_voice_selector(&voice_rows);
+
         imp.pdf_reader
             .imp()
             .audio_controls
             .populate_voice_selector(&voice_rows);
-
-        let gesture_click_text = gtk::GestureClick::new();
-        gesture_click_text.connect_pressed(clone!(
-            #[weak]
-            imp,
-            move |_, _, _, _| {
-                let voice_rows = imp.voice_list.get_downloaded_rows();
-                imp.pdf_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-                imp.text_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-            }
-        ));
-
-        let gesture_click_pdf = gtk::GestureClick::new();
-        gesture_click_pdf.connect_pressed(clone!(
-            #[weak]
-            imp,
-            move |_, _, _, _| {
-                let voice_rows = imp.voice_list.get_downloaded_rows();
-                imp.pdf_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-                imp.text_reader
-                    .imp()
-                    .audio_controls
-                    .populate_voice_selector(&voice_rows);
-            }
-        ));
-
-        imp.text_reader
-            .imp()
-            .audio_controls
-            .get_voice_selector()
-            .add_controller(gesture_click_text);
-
-        imp.pdf_reader
-            .imp()
-            .audio_controls
-            .get_voice_selector()
-            .add_controller(gesture_click_pdf);
     }
 
     fn setup_stack_switching(&self) {

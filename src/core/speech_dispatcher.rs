@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use crate::{
-    paths::{dispatcher_config, huggingface_config, PIPER_PATH},
     core::file_handler::FileHandler,
+    paths::{dispatcher_config, huggingface_config},
 };
 
 const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
@@ -94,27 +94,6 @@ impl SpeechDispatcher {
             "DefaultVoice",
             default_voice,
         )
-    }
-
-    pub fn update_piper_path(piper_path: &str) -> Result<(), Box<dyn Error>> {
-        let _ = PIPER_PATH.set(piper_path.to_string());
-        FileHandler::update_env(
-            &dispatcher_config::get_module_config_path(),
-            "PIPER_PATH",
-            piper_path,
-        )
-    }
-
-    pub fn check_if_piper_already_added() -> Result<bool, Box<dyn Error>> {
-        let value =
-            FileHandler::get_env_value(&dispatcher_config::get_module_config_path(), "PIPER_PATH")?;
-        if let Some(piper_path) = value {
-            if piper_path != "$PIPER_PATH" {
-                let _ = PIPER_PATH.set(piper_path.to_string());
-                return Ok(true);
-            }
-        }
-        Ok(false)
     }
 }
 

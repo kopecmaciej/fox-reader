@@ -5,8 +5,6 @@ use std::io::Cursor;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use super::audio_processing::wsola_normalized;
-
 pub enum State {
     Idle,
     Paused,
@@ -81,35 +79,6 @@ impl AudioPlayer {
     fn clean(&self) {
         *self.sink.lock().unwrap() = None;
         *self.state.lock().unwrap() = State::Idle;
-    }
-
-    pub fn generate_source(audio_data: Vec<u8>, speed: f32) -> SamplesBuffer<f32> {
-        let pcm_data = if audio_data.starts_with(b"RIFF") && audio_data.len() > 44 {
-            &audio_data[44..]
-        } else {
-            audio_data.as_slice()
-        };
-
-        let samples = Self::process_audio(pcm_data, speed);
-
-        SamplesBuffer::new(1, 22050, samples)
-    }
-
-    /// Process audio data for playback, applying time-stretching if needed
-    fn process_audio(audio_data: &[u8], speed: f32) -> Vec<f32> {
-        let mut samples: Vec<f32> = audio_data
-            .chunks_exact(2)
-            .map(|chunk| {
-                let sample = i16::from_le_bytes([chunk[0], chunk[1]]);
-                sample as f32 / 32768.0
-            })
-            .collect();
-
-        if (speed - 1.0).abs() > 0.01 {
-            samples = wsola_normalized(&samples, speed, 60);
-        }
-
-        samples
     }
 
     pub fn pause(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
