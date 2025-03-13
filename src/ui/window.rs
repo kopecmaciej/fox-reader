@@ -145,6 +145,8 @@ impl FoxReaderAppWindow {
             .imp()
             .audio_controls
             .populate_voice_selector(&voice_rows);
+
+        imp.ai_chat.populate_voice_selector(&voice_rows);
     }
 
     fn setup_stack_switching(&self) {

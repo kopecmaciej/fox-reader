@@ -7,4 +7,5 @@ mod text_reader;
 mod voice_events;
 mod voice_list;
 mod voice_row;
+mod helpers;
 pub mod window;

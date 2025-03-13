@@ -15,6 +15,12 @@ use crate::{
     utils::audio_player::AudioPlayer,
 };
 
+use super::{
+    helpers::{populate_voice_selector, refresh_voice_selector},
+    voice_events::{voice_events, VoiceEvent},
+    voice_row::VoiceRow,
+};
+
 #[derive(Default)]
 pub enum State {
     #[default]
@@ -40,9 +46,9 @@ mod imp {
         #[template_child]
         pub button_icon: TemplateChild<gtk::Image>,
         #[template_child]
-        pub button_label: TemplateChild<gtk::Label>,
-        #[template_child]
         pub reset_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub chat_history_list: TemplateChild<gtk::ListBox>,
 
         pub state: RefCell<State>,
         pub audio_data: RefCell<Option<Vec<f32>>>,
@@ -107,9 +113,50 @@ impl AiChat {
         imp.status_label.set_text("Ready to chat");
 
         imp.voice_selector.set_selected(0);
+        self.connect_voice_events();
     }
 
-    // Method to reset the conversation history
+    pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
+        populate_voice_selector(&self.imp().voice_selector, voices);
+    }
+
+    fn connect_voice_events(&self) {
+        let voice_events = voice_events();
+
+        let voice_selector = &self.imp().voice_selector;
+        voice_events.connect_local(
+            "voice-downloaded",
+            false,
+            clone!(
+                #[weak]
+                voice_selector,
+                #[upgrade_or]
+                None,
+                move |args| {
+                    let voice_key = args[1].get::<String>().unwrap();
+                    refresh_voice_selector(&voice_selector, VoiceEvent::Downloaded(voice_key));
+                    None
+                }
+            ),
+        );
+
+        voice_events.connect_local(
+            "voice-deleted",
+            false,
+            clone!(
+                #[weak]
+                voice_selector,
+                #[upgrade_or]
+                None,
+                move |args| {
+                    let voice_key = args[1].get::<String>().unwrap();
+                    refresh_voice_selector(&voice_selector, VoiceEvent::Deleted(voice_key));
+                    None
+                }
+            ),
+        );
+    }
+
     fn reset_conversation(&self) {
         let imp = self.imp();
 
@@ -117,7 +164,6 @@ impl AiChat {
         llm_manager.reset_conversation();
         imp.status_label.set_text("Conversation reset");
 
-        // Show a temporary notification that fades out
         glib::timeout_add_seconds_local(
             2,
             clone!(
@@ -146,60 +192,41 @@ impl AiChat {
         imp.status_label.set_text("Ready");
     }
 
-    fn get_selected_language_code(&self) -> Option<&'static str> {
-        let imp = self.imp();
-        let selected_index = imp.voice_selector.selected();
-
-        match selected_index {
-            0 => None,
-            1 => Some("en"),
-            2 => Some("es"),
-            3 => Some("fr"),
-            4 => Some("de"),
-            5 => Some("it"),
-            6 => Some("ja"),
-            7 => Some("zh"),
-            8 => Some("ru"),
-            9 => Some("pt"),
-            10 => Some("pl"),
-            _ => None,
+    pub fn get_selected_language_code(&self) -> Option<String> {
+        if let Some(item) = self.imp().voice_selector.selected_item() {
+            if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
+                let voice = voice_row.language_code();
+                return Some(voice);
+            }
         }
+        None
     }
 
-    // Helper function to set the mic button state
     fn set_mic_button_recording_state(&self, is_recording: bool) {
         let imp = self.imp();
 
         if is_recording {
-            // Change to stop recording state
             imp.button_icon
                 .set_icon_name(Some("media-playback-stop-symbolic"));
-            imp.button_label.set_text("Stop");
             imp.mic_button.add_css_class("destructive-action");
             imp.mic_button.remove_css_class("suggested-action");
         } else {
-            // Change to start recording state
             imp.button_icon.set_icon_name(Some("microphone-symbolic"));
-            imp.button_label.set_text("Talk");
             imp.mic_button.remove_css_class("destructive-action");
             imp.mic_button.add_css_class("suggested-action");
         }
     }
 
-    // Helper function to set the mic button to speaking state
     fn set_mic_button_speaking_state(&self, is_speaking: bool) {
         let imp = self.imp();
 
         if is_speaking {
-            // Change to stop speaking state
             imp.button_icon
                 .set_icon_name(Some("media-playback-pause-symbolic"));
-            imp.button_label.set_text("Stop");
             imp.mic_button.add_css_class("warning");
             imp.mic_button.remove_css_class("suggested-action");
             imp.mic_button.remove_css_class("destructive-action");
         } else {
-            // Change to start recording state
             self.set_mic_button_recording_state(false);
             imp.mic_button.remove_css_class("warning");
         }
@@ -216,7 +243,6 @@ impl AiChat {
         let shared_audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
         let audio_data_clone = Arc::clone(&shared_audio_data);
 
-        // We'll store this Arc in our struct to access it later
         *imp.audio_data.borrow_mut() = Some(Vec::new());
 
         let host = cpal::host_from_id(
@@ -305,7 +331,6 @@ impl AiChat {
             return;
         };
 
-        // Process the audio data asynchronously
         let language = self.get_selected_language_code();
         glib::spawn_future_local(clone!(
             #[weak(rename_to=this)]
@@ -317,11 +342,7 @@ impl AiChat {
         ));
     }
 
-    async fn process_audio_and_get_response(
-        &self,
-        audio_data: Vec<f32>,
-        language: Option<&'static str>,
-    ) {
+    async fn process_audio_and_get_response(&self, audio_data: Vec<f32>, language: Option<String>) {
         let imp = self.imp();
 
         // Process the audio to get transcribed text
@@ -367,7 +388,7 @@ impl AiChat {
 
     fn process_audio(
         audio_data: Vec<f32>,
-        language_code: Option<&str>,
+        language_code: Option<String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let whisper_ctx = WhisperContext::new_with_params(
             "/home/cieju/projects/rust/fox-reader/ggml-base.bin",
@@ -377,7 +398,7 @@ impl AiChat {
 
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
 
-        params.set_language(language_code);
+        params.set_language(language_code.as_deref());
 
         params.set_print_progress(false);
         params.set_print_special(false);

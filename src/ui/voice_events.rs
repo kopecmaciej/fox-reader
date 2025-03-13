@@ -2,7 +2,7 @@
 pub enum VoiceEvent {
     Downloaded(String),
     Deleted(String),
-    SetDefault(String),
+    //SetDefault(String),
 }
 
 use gio::prelude::ObjectExt;
