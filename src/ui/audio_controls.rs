@@ -1,7 +1,5 @@
 use std::cell::RefCell;
 
-use super::helpers::{populate_voice_selector, refresh_voice_selector};
-
 use crate::core::{runtime::runtime, tts::Tts};
 use gtk::{
     glib::{self, clone},
@@ -11,6 +9,7 @@ use gtk::{
 
 use super::{
     dialogs,
+    helpers::voice_selector,
     voice_events::{voice_events, VoiceEvent},
     voice_row::VoiceRow,
 };
@@ -87,7 +86,10 @@ impl AudioControls {
                 None,
                 move |args| {
                     let voice_key = args[1].get::<String>().unwrap();
-                    refresh_voice_selector(&voice_selector, VoiceEvent::Downloaded(voice_key));
+                    voice_selector::refresh_voice_selector(
+                        &voice_selector,
+                        VoiceEvent::Downloaded(voice_key),
+                    );
                     None
                 }
             ),
@@ -103,7 +105,10 @@ impl AudioControls {
                 None,
                 move |args| {
                     let voice_key = args[1].get::<String>().unwrap();
-                    refresh_voice_selector(&voice_selector, VoiceEvent::Deleted(voice_key));
+                    voice_selector::refresh_voice_selector(
+                        &voice_selector,
+                        VoiceEvent::Deleted(voice_key),
+                    );
                     None
                 }
             ),
@@ -125,7 +130,7 @@ impl AudioControls {
     }
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
-        populate_voice_selector(&self.imp().voice_selector, voices);
+        voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
     }
 
     fn setup_signals(&self) {

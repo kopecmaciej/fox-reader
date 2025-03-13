@@ -70,7 +70,6 @@ impl VoiceEventEmitter {
     }
 }
 
-// Create a global instance for easy access
 pub fn voice_events() -> Arc<VoiceEventEmitter> {
     static INSTANCE: OnceLock<Arc<VoiceEventEmitter>> = OnceLock::new();
     INSTANCE

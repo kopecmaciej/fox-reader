@@ -10,9 +10,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::config::UserConfig;
 use crate::core::speech_dispatcher::SpeechDispatcher;
-use crate::ui::dialogs;
 
-use super::settings::Settings;
+use super::{dialogs, settings::Settings};
 
 mod imp {
 

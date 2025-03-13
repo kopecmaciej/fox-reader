@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::{
-    helpers::{populate_voice_selector, refresh_voice_selector},
+    helpers::voice_selector,
     voice_events::{voice_events, VoiceEvent},
     voice_row::VoiceRow,
 };
@@ -117,7 +117,7 @@ impl AiChat {
     }
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
-        populate_voice_selector(&self.imp().voice_selector, voices);
+        voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
     }
 
     fn connect_voice_events(&self) {
@@ -134,7 +134,10 @@ impl AiChat {
                 None,
                 move |args| {
                     let voice_key = args[1].get::<String>().unwrap();
-                    refresh_voice_selector(&voice_selector, VoiceEvent::Downloaded(voice_key));
+                    voice_selector::refresh_voice_selector(
+                        &voice_selector,
+                        VoiceEvent::Downloaded(voice_key),
+                    );
                     None
                 }
             ),
@@ -150,7 +153,10 @@ impl AiChat {
                 None,
                 move |args| {
                     let voice_key = args[1].get::<String>().unwrap();
-                    refresh_voice_selector(&voice_selector, VoiceEvent::Deleted(voice_key));
+                    voice_selector::refresh_voice_selector(
+                        &voice_selector,
+                        VoiceEvent::Deleted(voice_key),
+                    );
                     None
                 }
             ),
@@ -193,11 +199,8 @@ impl AiChat {
     }
 
     pub fn get_selected_language_code(&self) -> Option<String> {
-        if let Some(item) = self.imp().voice_selector.selected_item() {
-            if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
-                let voice = voice_row.language_code();
-                return Some(voice);
-            }
+        if let Some(voice_row) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
+            return Some(voice_row.language_code());
         }
         None
     }
@@ -435,28 +438,29 @@ impl AiChat {
                 continue;
             }
 
-            //let voice = "pl_PL-gosia-medium.onnx";
-            let voice = "en_GB-northern_english_male-medium.onnx";
+            if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
+                let display_sentence = if sentence.len() > 50 {
+                    format!("{}...", &sentence[0..47])
+                } else {
+                    sentence.clone()
+                };
+                imp.status_label
+                    .set_text(&format!("Speaking: {}", display_sentence));
 
-            let display_sentence = if sentence.len() > 50 {
-                format!("{}...", &sentence[0..47])
-            } else {
-                sentence.clone()
-            };
-            imp.status_label
-                .set_text(&format!("Speaking: {}", display_sentence));
+                let source_audio = runtime()
+                    .block_on(VoiceManager::generate_piper_raw_speech(
+                        &sentence,
+                        &voice.key(),
+                        None,
+                    ))
+                    .unwrap();
 
-            let source_audio = runtime()
-                .block_on(VoiceManager::generate_piper_raw_speech(
-                    &sentence, voice, None,
-                ))
-                .unwrap();
+                let audio_player = self.imp().audio_player.clone();
+                let play_result = audio_player.play_audio(source_audio);
 
-            let audio_player = self.imp().audio_player.clone();
-            let play_result = audio_player.play_audio(source_audio);
-
-            if play_result.is_err() {
-                println!("Error playing audio: {:?}", play_result.err());
+                if play_result.is_err() {
+                    println!("Error playing audio: {:?}", play_result.err());
+                }
             }
         }
 

@@ -1,11 +1,11 @@
 mod ai_chat;
 mod audio_controls;
 mod dialogs;
+mod helpers;
 mod pdf_reader;
 pub mod settings;
 mod text_reader;
 mod voice_events;
 mod voice_list;
 mod voice_row;
-mod helpers;
 pub mod window;
