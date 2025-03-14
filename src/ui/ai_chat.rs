@@ -5,7 +5,7 @@ use gtk::{
     prelude::*,
 };
 use std::{
-    cell::{RefCell, RefMut},
+    cell::RefCell,
     sync::{Arc, Mutex},
 };
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
@@ -16,13 +16,13 @@ use crate::{
 };
 
 use super::{
+    ai_chat_row::{ChatMessageRow, MessageType},
     helpers::voice_selector,
     voice_events::{voice_events, VoiceEvent},
     voice_row::VoiceRow,
 };
 
-// Import the ChatMessageRow component we defined
-use super::ai_chat_row::{ChatMessageRow, MessageType};
+const WELCOME_MESSAGE: &str = "Hello! I'm your AI voice assistant. Click the microphone button and start speaking to chat with me.";
 
 #[derive(Default, PartialEq)]
 pub enum State {
@@ -30,6 +30,7 @@ pub enum State {
     Idle,
     Recording,
     Speaking,
+    Stopped,
 }
 
 mod imp {
@@ -79,12 +80,19 @@ mod imp {
         #[template_callback]
         fn on_mic_button_clicked(&self, _button: &gtk::Button) {
             let obj = self.obj();
-            let state = self.state.borrow_mut();
+            let mut state = self.state.borrow_mut();
 
             match *state {
-                State::Idle => obj.start_recording(state),
-                State::Speaking => obj.stop_speaking(),
+                State::Idle => {
+                    *state = State::Recording;
+                    obj.start_recording()
+                }
                 State::Recording => obj.stop_recording(),
+                State::Speaking => {
+                    *state = State::Stopped;
+                    obj.stop_speaking()
+                }
+                _ => {}
             }
         }
 
@@ -110,15 +118,12 @@ impl AiChat {
         self.setup_chat_history();
     }
 
-    // Setup the chat history with a welcome message
     fn setup_chat_history(&self) {
         let imp = self.imp();
         imp.chat_history_list
             .set_selection_mode(gtk::SelectionMode::None);
 
-        // Add welcome message
-        let welcome_message = "Hello! I'm your AI voice assistant. Click the microphone button and start speaking to chat with me.";
-        self.add_message_to_chat(welcome_message, MessageType::Assistant);
+        self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
     }
 
     // Add message to chat history
@@ -194,14 +199,11 @@ impl AiChat {
         let llm_manager = &*imp.llm_manager.clone();
         llm_manager.reset_conversation();
 
-        // Clear chat history
         while let Some(child) = imp.chat_history_list.first_child() {
             imp.chat_history_list.remove(&child);
         }
 
-        // Add welcome message again
-        let welcome_message = "Conversation reset. How can I help you today?";
-        self.add_message_to_chat(welcome_message, MessageType::Assistant);
+        self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
 
         glib::spawn_future_local(clone!(
             #[weak]
@@ -218,10 +220,6 @@ impl AiChat {
         let imp = self.imp();
 
         imp.audio_player.stop();
-        imp.state.replace(State::Idle);
-
-        self.set_mic_button_recording_state(false);
-
         imp.status_label.set_text("Ready");
     }
 
@@ -232,43 +230,12 @@ impl AiChat {
         None
     }
 
-    fn set_mic_button_recording_state(&self, is_recording: bool) {
+    fn start_recording(&self) {
         let imp = self.imp();
 
-        if is_recording {
-            imp.button_icon
-                .set_icon_name(Some("media-playback-stop-symbolic"));
-            imp.mic_button.add_css_class("destructive-action");
-            imp.mic_button.remove_css_class("suggested-action");
-        } else {
-            imp.button_icon.set_icon_name(Some("microphone-symbolic"));
-            imp.mic_button.remove_css_class("destructive-action");
-            imp.mic_button.add_css_class("suggested-action");
-        }
-    }
-
-    fn set_mic_button_speaking_state(&self, is_speaking: bool) {
-        let imp = self.imp();
-
-        if is_speaking {
-            imp.button_icon
-                .set_icon_name(Some("media-playback-pause-symbolic"));
-            imp.mic_button.add_css_class("warning");
-            imp.mic_button.remove_css_class("suggested-action");
-            imp.mic_button.remove_css_class("destructive-action");
-        } else {
-            self.set_mic_button_recording_state(false);
-            imp.mic_button.remove_css_class("warning");
-        }
-    }
-
-    fn start_recording(&self, mut state: RefMut<State>) {
-        let imp = self.imp();
-
-        *state = State::Recording;
         imp.status_label.set_text("Listening...");
-
-        self.set_mic_button_recording_state(true);
+        imp.button_icon
+            .set_icon_name(Some("media-playback-stop-symbolic"));
 
         let shared_audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
         let audio_data_clone = Arc::clone(&shared_audio_data);
@@ -322,14 +289,14 @@ impl AiChat {
         stream.play().expect("Failed to start recording stream");
         *imp.recording_stream.borrow_mut() = Some(stream);
 
-        imp.shared_audio_buffer.replace(Some(shared_audio_data));
+        *imp.shared_audio_buffer.borrow_mut() = Some(shared_audio_data);
     }
 
     fn stop_recording(&self) {
         let imp = self.imp();
 
+        imp.button_icon.set_icon_name(Some("system-run"));
         imp.status_label.set_text("Processing speech...");
-        self.set_mic_button_recording_state(false);
 
         if let Some(stream) = imp.recording_stream.borrow_mut().take() {
             drop(stream);
@@ -377,8 +344,6 @@ impl AiChat {
 
         match transcription_result {
             Ok(Ok(text)) => {
-                // Add user text to chat conversation
-                println!("Transcribed text: {}", text);
                 self.add_message_to_chat(&text, MessageType::User);
 
                 imp.status_label.set_text("Sending to LLM...");
@@ -475,13 +440,14 @@ impl AiChat {
     async fn handle_ai_response(&self, response: &str) {
         let imp = self.imp();
 
-        // Add assistant response to chat history
         self.add_message_to_chat(response, MessageType::Assistant);
 
         imp.status_label.set_text("Speaking...");
-
-        imp.state.replace(State::Speaking);
-        self.set_mic_button_speaking_state(true);
+        {
+            *imp.state.borrow_mut() = State::Speaking;
+        }
+        imp.button_icon
+            .set_icon_name(Some("media-playback-stop-symbolic"));
 
         let sentences = self.split_into_sentences(response);
 
@@ -489,16 +455,15 @@ impl AiChat {
             if sentence.trim().is_empty() {
                 continue;
             }
+            {
+                let mut state = imp.state.borrow_mut();
+                if *state == State::Stopped {
+                    *state = State::Idle;
+                    break;
+                }
+            }
 
             if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
-                let display_sentence = if sentence.len() > 50 {
-                    format!("{}...", &sentence[0..47])
-                } else {
-                    sentence.clone()
-                };
-                imp.status_label
-                    .set_text(&format!("Speaking: {}", display_sentence));
-
                 let source_audio = runtime()
                     .block_on(VoiceManager::generate_piper_raw_speech(
                         &sentence,
@@ -508,17 +473,19 @@ impl AiChat {
                     .unwrap();
 
                 let audio_player = self.imp().audio_player.clone();
-                let play_result = audio_player.play_audio(source_audio);
-
-                if play_result.is_err() {
-                    eprintln!("Error playing audio: {:?}", play_result.err());
+                if let Err(e) = runtime()
+                    .spawn(async move { audio_player.play_audio(source_audio) })
+                    .await
+                {
+                    eprintln!("Error playing audio: {}", e);
                 }
             }
         }
 
-        imp.state.replace(State::Idle);
-        self.set_mic_button_speaking_state(false);
+        *imp.state.borrow_mut() = State::Idle;
         imp.status_label.set_text("Ready");
+        imp.button_icon
+            .set_icon_name(Some("microphone-sensitivity-high-symbolic"));
     }
 
     fn split_into_sentences(&self, text: &str) -> Vec<String> {

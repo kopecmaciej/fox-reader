@@ -72,12 +72,12 @@ impl ChatMessageRow {
         // Apply appropriate styling based on message type
         match message_type {
             MessageType::User => {
-                imp.message_box.set_halign(gtk::Align::Start);
                 imp.message_box.add_css_class("user-message");
+                imp.message_box.set_halign(gtk::Align::End);
             }
             MessageType::Assistant => {
-                imp.message_box.set_halign(gtk::Align::End);
                 imp.message_box.add_css_class("assistant-message");
+                imp.message_box.set_halign(gtk::Align::Start);
             }
         }
 

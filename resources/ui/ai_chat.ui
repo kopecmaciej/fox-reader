@@ -6,21 +6,40 @@
     <property name="child">
       <object class="GtkBox">
         <property name="orientation">vertical</property>
-        <property name="spacing">24</property>
-        <property name="valign">center</property>
+        <property name="spacing">0</property>
+        <property name="valign">fill</property>
+        <property name="vexpand">true</property>
         <property name="hexpand">true</property>
-        <property name="margin-start">24</property>
-        <property name="margin-end">24</property>
-        <property name="margin-top">24</property>
-        <property name="margin-bottom">24</property>
 
-        <!-- Title -->
+        <!-- Title and Subtitle Area -->
         <child>
-          <object class="GtkLabel">
-            <property name="label">AI Voice Assistant</property>
-            <style>
-              <class name="title-1" />
-            </style>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="valign">start</property>
+            <property name="halign">center</property>
+            <property name="margin-top">24</property>
+            <property name="margin-bottom">16</property>
+            <property name="spacing">4</property>
+
+            <!-- Title -->
+            <child>
+              <object class="GtkLabel">
+                <property name="label">AI Voice Assistant</property>
+                <style>
+                  <class name="app-title" />
+                </style>
+              </object>
+            </child>
+
+            <!-- Subtitle -->
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Ask me anything or give me commands</property>
+                <style>
+                  <class name="app-subtitle" />
+                </style>
+              </object>
+            </child>
           </object>
         </child>
 
@@ -30,22 +49,18 @@
             <property name="hscrollbar-policy">never</property>
             <property name="vexpand">true</property>
             <property name="hexpand">true</property>
-            <property name="min-content-height">300</property>
+            <property name="min-content-height">400</property>
+            <property name="margin-start">24</property>
+            <property name="margin-end">24</property>
             <style>
               <class name="chat-history-scroll" />
             </style>
             <child>
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="spacing">0</property>
-                <child>
-                  <object class="GtkListBox" id="chat_history_list">
-                    <property name="selection-mode">none</property>
-                    <style>
-                      <class name="chat-history" />
-                    </style>
-                  </object>
-                </child>
+              <object class="GtkListBox" id="chat_history_list">
+                <property name="selection-mode">none</property>
+                <style>
+                  <class name="chat-history" />
+                </style>
               </object>
             </child>
           </object>
@@ -58,6 +73,11 @@
             <property name="spacing">16</property>
             <property name="valign">end</property>
             <property name="halign">center</property>
+            <property name="margin-top">24</property>
+            <property name="margin-bottom">24</property>
+            <style>
+              <class name="controls-container" />
+            </style>
 
             <!-- Mic button -->
             <child>
@@ -70,22 +90,12 @@
                 <signal name="clicked" handler="on_mic_button_clicked" swapped="true" />
                 <style>
                   <class name="circular" />
-                  <class name="suggested-action" />
+                  <class name="mic-button" />
                 </style>
                 <child>
-                  <object class="GtkBox">
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">8</property>
-                    <property name="halign">center</property>
-                    <property name="valign">center</property>
-
-                    <!-- Mic icon -->
-                    <child>
-                      <object class="GtkImage" id="button_icon">
-                        <property name="icon-name">microphone-sensitivity-high-symbolic</property>
-                        <property name="pixel-size">32</property>
-                      </object>
-                    </child>
+                  <object class="GtkImage" id="button_icon">
+                    <property name="icon-name">microphone-sensitivity-high-symbolic</property>
+                    <property name="pixel-size">32</property>
                   </object>
                 </child>
               </object>
@@ -96,46 +106,49 @@
               <object class="GtkLabel" id="status_label">
                 <property name="label">Ready to chat</property>
                 <style>
-                  <class name="dim-label" />
+                  <class name="status-label" />
                 </style>
               </object>
             </child>
 
-            <!-- Reset button -->
-            <child>
-              <object class="GtkButton" id="reset_button">
-                <property name="halign">center</property>
-                <property name="valign">center</property>
-                <property name="width-request">120</property>
-                <property name="height-request">36</property>
-                <property name="label">Reset chat</property>
-                <signal name="clicked" handler="on_reset_button_clicked" swapped="true" />
-                <style>
-                  <class name="circular" />
-                  <class name="destructive-action" />
-                </style>
-              </object>
-            </child>
-
-            <!-- Language selection dropdown -->
+            <!-- Language and controls row -->
             <child>
               <object class="GtkBox">
                 <property name="orientation">horizontal</property>
                 <property name="spacing">12</property>
                 <property name="halign">center</property>
-                <property name="margin-top">8</property>
-                <property name="margin-bottom">8</property>
+                <property name="margin-top">16</property>
 
                 <!-- Language dropdown -->
                 <child>
                   <object class="GtkDropDown" id="voice_selector">
                     <property name="enable-search">true</property>
-                    <property name="width-request">380</property>
+                    <property name="width-request">200</property>
+                    <style>
+                      <class name="voice-selector" />
+                    </style>
                     <property name="model">
                       <object class="GtkStringList" />
                     </property>
                   </object>
                 </child>
+
+                <!-- Reset button -->
+                <child>
+                  <object class="GtkButton" id="reset_button">
+                    <property name="halign">center</property>
+                    <property name="valign">center</property>
+                    <property name="width-request">120</property>
+                    <property name="height-request">36</property>
+                    <property name="label">Reset chat</property>
+                    <signal name="clicked" handler="on_reset_button_clicked" swapped="true" />
+                    <style>
+                      <class name="circular" />
+                      <class name="destructive-action" />
+                    </style>
+                  </object>
+                </child>
+
               </object>
             </child>
 
