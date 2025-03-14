@@ -8,97 +8,64 @@
         <property name="orientation">vertical</property>
         <property name="spacing">24</property>
         <property name="valign">center</property>
-        <property name="halign">center</property>
-        <property name="vexpand">true</property>
         <property name="hexpand">true</property>
+        <property name="margin-start">24</property>
+        <property name="margin-end">24</property>
+        <property name="margin-top">24</property>
+        <property name="margin-bottom">24</property>
 
+        <!-- Title -->
         <child>
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <property name="spacing">32</property>
-            <property name="valign">center</property>
-            <property name="halign">center</property>
+          <object class="GtkLabel">
+            <property name="label">AI Voice Assistant</property>
+            <style>
+              <class name="title-1" />
+            </style>
+          </object>
+        </child>
 
-            <!-- Title -->
+        <!-- Chat History Area -->
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="vexpand">true</property>
+            <property name="hexpand">true</property>
+            <property name="min-content-height">300</property>
+            <style>
+              <class name="chat-history-scroll" />
+            </style>
             <child>
-              <object class="GtkLabel">
-                <property name="label">AI Voice Assistant</property>
-                <style>
-                  <class name="title-1" />
-                </style>
-              </object>
-            </child>
-
-            <!-- Description -->
-            <child>
-              <object class="GtkLabel">
-                <property name="label">Click the button below to start talking with the AI</property>
-                <style>
-                  <class name="dim-label" />
-                  <class name="title-4" />
-                </style>
-              </object>
-            </child>
-
-            <!-- Chat History -->
-            <child>
-              <object class="GtkScrolledWindow" id="chat_history_scroll">
-                <property name="hscrollbar-policy">never</property>
-                <property name="vscrollbar-policy">automatic</property>
-                <property name="hexpand">true</property>
-                <property name="vexpand">true</property>
-                <style>
-                  <class name="card" />
-                </style>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">0</property>
                 <child>
                   <object class="GtkListBox" id="chat_history_list">
                     <property name="selection-mode">none</property>
                     <style>
-                      <class name="boxed-list" />
+                      <class name="chat-history" />
                     </style>
                   </object>
                 </child>
               </object>
             </child>
+          </object>
+        </child>
 
-            <!-- Language selection dropdown -->
-            <child>
-              <object class="GtkBox">
-                <property name="orientation">horizontal</property>
-                <property name="spacing">12</property>
-                <property name="halign">center</property>
-                <property name="margin-top">8</property>
-                <property name="margin-bottom">8</property>
-
-                <!-- Language label -->
-                <child>
-                  <object class="GtkLabel">
-                    <property name="label">Language:</property>
-                    <property name="halign">end</property>
-                  </object>
-                </child>
-
-                <!-- Language dropdown -->
-                <child>
-                  <object class="GtkDropDown" id="voice_selector">
-                    <property name="enable-search">true</property>
-                    <property name="width-request">380</property>
-                    <property name="model">
-                      <object class="GtkStringList" />
-                    </property>
-                  </object>
-                </child>
-
-              </object>
-            </child>
+        <!-- Controls Area -->
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <property name="spacing">16</property>
+            <property name="valign">end</property>
+            <property name="halign">center</property>
 
             <!-- Mic button -->
             <child>
               <object class="GtkButton" id="mic_button">
                 <property name="halign">center</property>
                 <property name="valign">center</property>
-                <property name="width-request">120</property>
-                <property name="height-request">120</property>
+                <property name="width-request">80</property>
+                <property name="height-request">80</property>
                 <property name="tooltip-text">Start Voice Chat</property>
                 <signal name="clicked" handler="on_mic_button_clicked" swapped="true" />
                 <style>
@@ -115,11 +82,10 @@
                     <!-- Mic icon -->
                     <child>
                       <object class="GtkImage" id="button_icon">
-                        <property name="icon-name">microphone-symbolic</property>
-                        <property name="pixel-size">48</property>
+                        <property name="icon-name">microphone-sensitivity-high-symbolic</property>
+                        <property name="pixel-size">32</property>
                       </object>
                     </child>
-
                   </object>
                 </child>
               </object>
@@ -128,26 +94,51 @@
             <!-- Status indicator -->
             <child>
               <object class="GtkLabel" id="status_label">
-                <property name="label">Ready</property>
+                <property name="label">Ready to chat</property>
                 <style>
                   <class name="dim-label" />
                 </style>
               </object>
             </child>
 
+            <!-- Reset button -->
             <child>
               <object class="GtkButton" id="reset_button">
                 <property name="halign">center</property>
                 <property name="valign">center</property>
                 <property name="width-request">120</property>
                 <property name="height-request">36</property>
-                <property name="label">Reset history</property>
+                <property name="label">Reset chat</property>
+                <signal name="clicked" handler="on_reset_button_clicked" swapped="true" />
                 <style>
                   <class name="circular" />
                   <class name="destructive-action" />
                 </style>
               </object>
             </child>
+
+            <!-- Language selection dropdown -->
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">12</property>
+                <property name="halign">center</property>
+                <property name="margin-top">8</property>
+                <property name="margin-bottom">8</property>
+
+                <!-- Language dropdown -->
+                <child>
+                  <object class="GtkDropDown" id="voice_selector">
+                    <property name="enable-search">true</property>
+                    <property name="width-request">380</property>
+                    <property name="model">
+                      <object class="GtkStringList" />
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
           </object>
         </child>
       </object>

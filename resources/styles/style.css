@@ -1,3 +1,14 @@
+:root {
+  --primary-color: #4285F4;
+  --secondary-color: #34A853;
+  --dark-bg: #1E1E1E;
+  --card-bg: #2D2D2D;
+  --text-color: #FFFFFF;
+  --text-secondary: #B0B0B0;
+  --hover-color: #3367D6;
+  --animation-duration: 0.3s;
+}
+
 columnview.view {
   padding: 2px 6px;
 }
@@ -132,4 +143,31 @@ dropdown.voice-selector button {
 
 .speed-spin {
   min-width: 64px;
+}
+
+.mic-button:hover {
+  transform: scale(1.05);
+  background: var(--hover-color);
+}
+
+.mic-button.active {
+  animation: pulse 1.5s infinite;
+}
+
+
+.message {
+  padding: 12px 16px;
+  border-radius: 18px;
+  animation: fadeIn var(--animation-duration) ease;
+  line-height: 1.5;
+}
+
+.assistant-message {
+  background-color: var(--primary-color);
+  border-bottom-left-radius: 4px;
+}
+
+.user-message {
+  background-color: #444;
+  border-bottom-right-radius: 4px;
 }

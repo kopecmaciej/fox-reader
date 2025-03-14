@@ -5,7 +5,7 @@ use gtk::{
     prelude::*,
 };
 use std::{
-    cell::RefCell,
+    cell::{RefCell, RefMut},
     sync::{Arc, Mutex},
 };
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
@@ -21,7 +21,10 @@ use super::{
     voice_row::VoiceRow,
 };
 
-#[derive(Default)]
+// Import the ChatMessageRow component we defined
+use super::ai_chat_row::{ChatMessageRow, MessageType};
+
+#[derive(Default, PartialEq)]
 pub enum State {
     #[default]
     Idle,
@@ -46,12 +49,9 @@ mod imp {
         #[template_child]
         pub button_icon: TemplateChild<gtk::Image>,
         #[template_child]
-        pub reset_button: TemplateChild<gtk::Button>,
-        #[template_child]
         pub chat_history_list: TemplateChild<gtk::ListBox>,
 
         pub state: RefCell<State>,
-        pub audio_data: RefCell<Option<Vec<f32>>>,
         pub recording_stream: RefCell<Option<cpal::Stream>>,
         pub shared_audio_buffer: RefCell<Option<Arc<Mutex<Vec<f32>>>>>,
         pub llm_manager: Arc<LLMManager>,
@@ -79,20 +79,18 @@ mod imp {
         #[template_callback]
         fn on_mic_button_clicked(&self, _button: &gtk::Button) {
             let obj = self.obj();
+            let state = self.state.borrow_mut();
 
-            if matches!(*self.state.borrow(), State::Speaking) {
-                obj.stop_speaking();
-            } else if matches!(*self.state.borrow(), State::Recording) {
-                obj.stop_recording();
-            } else {
-                obj.start_recording();
+            match *state {
+                State::Idle => obj.start_recording(state),
+                State::Speaking => obj.stop_speaking(),
+                State::Recording => obj.stop_recording(),
             }
         }
 
         #[template_callback]
         fn on_reset_button_clicked(&self, _button: &gtk::Button) {
-            let obj = self.obj();
-            obj.reset_conversation();
+            self.obj().reset_conversation();
         }
     }
 
@@ -108,12 +106,39 @@ glib::wrapper! {
 
 impl AiChat {
     pub fn init(&self) {
+        self.connect_voice_events();
+        self.setup_chat_history();
+    }
+
+    // Setup the chat history with a welcome message
+    fn setup_chat_history(&self) {
+        let imp = self.imp();
+        imp.chat_history_list
+            .set_selection_mode(gtk::SelectionMode::None);
+
+        // Add welcome message
+        let welcome_message = "Hello! I'm your AI voice assistant. Click the microphone button and start speaking to chat with me.";
+        self.add_message_to_chat(welcome_message, MessageType::Assistant);
+    }
+
+    // Add message to chat history
+    pub fn add_message_to_chat(&self, message: &str, message_type: MessageType) {
         let imp = self.imp();
 
-        imp.status_label.set_text("Ready to chat");
+        let row = ChatMessageRow::new(message, message_type);
+        imp.chat_history_list.append(&row);
 
-        imp.voice_selector.set_selected(0);
-        self.connect_voice_events();
+        // Auto-scroll to the bottom
+        if let Some(scrolled_window) = imp
+            .chat_history_list
+            .ancestor(gtk::ScrolledWindow::static_type())
+        {
+            let adj = scrolled_window
+                .downcast_ref::<gtk::ScrolledWindow>()
+                .unwrap()
+                .vadjustment();
+            adj.set_value(adj.upper() - adj.page_size());
+        }
     }
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
@@ -168,23 +193,25 @@ impl AiChat {
 
         let llm_manager = &*imp.llm_manager.clone();
         llm_manager.reset_conversation();
-        imp.status_label.set_text("Conversation reset");
 
-        glib::timeout_add_seconds_local(
-            2,
-            clone!(
-                #[weak(rename_to=this)]
-                self,
-                #[upgrade_or]
-                glib::ControlFlow::Continue,
-                move || {
-                    if this.imp().status_label.text() == "Conversation reset" {
-                        this.imp().status_label.set_text("Ready to chat");
-                    }
-                    glib::ControlFlow::Continue
-                }
-            ),
-        );
+        // Clear chat history
+        while let Some(child) = imp.chat_history_list.first_child() {
+            imp.chat_history_list.remove(&child);
+        }
+
+        // Add welcome message again
+        let welcome_message = "Conversation reset. How can I help you today?";
+        self.add_message_to_chat(welcome_message, MessageType::Assistant);
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            imp,
+            async move {
+                imp.status_label.set_text("Conversation reset");
+                glib::timeout_future_seconds(1).await;
+                imp.status_label.set_text("Ready to chat");
+            }
+        ));
     }
 
     fn stop_speaking(&self) {
@@ -235,18 +262,16 @@ impl AiChat {
         }
     }
 
-    fn start_recording(&self) {
+    fn start_recording(&self, mut state: RefMut<State>) {
         let imp = self.imp();
 
-        imp.state.replace(State::Recording);
+        *state = State::Recording;
         imp.status_label.set_text("Listening...");
 
         self.set_mic_button_recording_state(true);
 
         let shared_audio_data = Arc::new(Mutex::new(Vec::<f32>::new()));
         let audio_data_clone = Arc::clone(&shared_audio_data);
-
-        *imp.audio_data.borrow_mut() = Some(Vec::new());
 
         let host = cpal::host_from_id(
             cpal::available_hosts()
@@ -263,7 +288,6 @@ impl AiChat {
         let device = input_devices
             .find(|d| {
                 if let Ok(name) = d.name() {
-                    println!("Found device: {}", name);
                     name.contains("pipewire") || name.contains("pulse")
                 } else {
                     false
@@ -271,8 +295,6 @@ impl AiChat {
             })
             .or_else(|| host.default_input_device())
             .expect("No working input device found");
-
-        println!("Selected device: {:?}", device.name());
 
         // Configure for 16kHz mono which is what Whisper expects
         let config = cpal::StreamConfig {
@@ -355,7 +377,10 @@ impl AiChat {
 
         match transcription_result {
             Ok(Ok(text)) => {
+                // Add user text to chat conversation
                 println!("Transcribed text: {}", text);
+                self.add_message_to_chat(&text, MessageType::User);
+
                 imp.status_label.set_text("Sending to LLM...");
 
                 let llm_manager = imp.llm_manager.clone();
@@ -369,22 +394,46 @@ impl AiChat {
                         self.handle_ai_response(&response).await;
                     }
                     Ok(Err(err)) => {
-                        println!("LLM response error: {:?}", err);
+                        eprintln!("LLM response error: {:?}", err);
                         imp.status_label.set_text("Error: LLM response failed");
+
+                        // Add error message to chat
+                        self.add_message_to_chat(
+                            "Sorry, I encountered an error processing your request.",
+                            MessageType::Assistant,
+                        );
                     }
                     Err(err) => {
-                        println!("Task join error: {:?}", err);
+                        eprintln!("Task join error: {:?}", err);
                         imp.status_label.set_text("Error: Task join failed");
+
+                        // Add error message to chat
+                        self.add_message_to_chat(
+                            "Sorry, I encountered an error while processing your request.",
+                            MessageType::Assistant,
+                        );
                     }
                 }
             }
             Ok(Err(err)) => {
                 eprintln!("process_audio error: {}", err);
                 imp.status_label.set_text("Error: Audio processing failed");
+
+                // Add error message to chat
+                self.add_message_to_chat(
+                    "Sorry, I had trouble understanding what you said. Could you try again?",
+                    MessageType::Assistant,
+                );
             }
             Err(join_err) => {
                 eprintln!("Tokio task failed: {}", join_err);
                 imp.status_label.set_text("Error: Task execution failed");
+
+                // Add error message to chat
+                self.add_message_to_chat(
+                    "Sorry, I encountered a technical error. Please try again.",
+                    MessageType::Assistant,
+                );
             }
         }
     }
@@ -426,6 +475,9 @@ impl AiChat {
     async fn handle_ai_response(&self, response: &str) {
         let imp = self.imp();
 
+        // Add assistant response to chat history
+        self.add_message_to_chat(response, MessageType::Assistant);
+
         imp.status_label.set_text("Speaking...");
 
         imp.state.replace(State::Speaking);
@@ -459,7 +511,7 @@ impl AiChat {
                 let play_result = audio_player.play_audio(source_audio);
 
                 if play_result.is_err() {
-                    println!("Error playing audio: {:?}", play_result.err());
+                    eprintln!("Error playing audio: {:?}", play_result.err());
                 }
             }
         }
@@ -470,7 +522,6 @@ impl AiChat {
     }
 
     fn split_into_sentences(&self, text: &str) -> Vec<String> {
-        // Split by common sentence terminators but keep the terminator with the sentence
         let sentence_regex = regex::Regex::new(r"[^.!?]+[.!?]").unwrap();
 
         let mut sentences: Vec<String> = sentence_regex
@@ -478,7 +529,6 @@ impl AiChat {
             .map(|m| m.as_str().to_string())
             .collect();
 
-        // If there's any remaining text without a terminator, add it as a final sentence
         let total_matched_len: usize = sentences.iter().map(|s| s.len()).sum();
         if total_matched_len < text.len() {
             let remaining = text[total_matched_len..].trim();
