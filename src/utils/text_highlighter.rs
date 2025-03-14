@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell};
+use std::{borrow::Borrow, collections::BTreeMap};
 
 use gtk::prelude::*;
 
@@ -29,7 +29,7 @@ pub struct TextHighlighter {
     buffer: gtk::TextBuffer,
     highlight_tag: gtk::TextTag,
     min_block_len: i32,
-    current_blocks: RefCell<Option<Vec<TextReadingBlock>>>,
+    current_blocks: Vec<TextReadingBlock>,
 }
 
 impl TextHighlighter {
@@ -45,7 +45,7 @@ impl TextHighlighter {
             buffer,
             highlight_tag,
             min_block_len,
-            current_blocks: RefCell::new(None),
+            current_blocks: Vec::new(),
         }
     }
 
@@ -85,7 +85,7 @@ impl TextHighlighter {
         cleaned_text
     }
 
-    pub fn generate_reading_blocks(&self) {
+    pub fn generate_reading_blocks(&mut self) {
         let mut reading_blocks = Vec::new();
         let full_text = self.get_text();
         let blocks = self.segment_text_blocks();
@@ -128,7 +128,7 @@ impl TextHighlighter {
             }
         }
 
-        self.current_blocks.replace(Some(reading_blocks));
+        self.current_blocks = reading_blocks;
     }
 
     pub fn segment_text_blocks(&self) -> Vec<String> {
@@ -189,24 +189,30 @@ impl TextHighlighter {
         result
     }
 
-    pub fn update_reading_blocks(&self, reading_block: Vec<TextReadingBlock>) {
-        self.current_blocks.replace(Some(reading_block));
+    pub fn update_reading_blocks(&mut self, reading_block: Vec<TextReadingBlock>) {
+        self.current_blocks = reading_block;
     }
 
-    pub fn get_reading_blocks(&self) -> Option<Vec<TextReadingBlock>> {
-        self.current_blocks.borrow().as_ref().cloned()
+    pub fn get_reading_blocks_map(&self) -> BTreeMap<u32, TextReadingBlock> {
+        let blocks = self.get_reading_blocks();
+        let btree_map: BTreeMap<u32, TextReadingBlock> =
+            blocks.into_iter().map(|b| (b.id, b)).collect();
+        btree_map
+    }
+
+    pub fn get_reading_blocks(&self) -> Vec<TextReadingBlock> {
+        self.current_blocks.to_vec()
     }
 
     pub fn highlight(&self, block_id: u32) {
-        if let Some(blocks) = self.current_blocks.borrow().as_ref() {
-            if let Some(block) = blocks.iter().find(|b| b.id == block_id) {
-                self.clear();
-                self.buffer.apply_tag(
-                    &self.highlight_tag,
-                    &self.buffer.iter_at_offset(block.start_offset),
-                    &self.buffer.iter_at_offset(block.end_offset),
-                );
-            }
+        let blocks = self.get_reading_blocks();
+        if let Some(block) = blocks.iter().find(|b| b.id == block_id) {
+            self.clear();
+            self.buffer.apply_tag(
+                &self.highlight_tag,
+                &self.buffer.iter_at_offset(block.start_offset),
+                &self.buffer.iter_at_offset(block.end_offset),
+            );
         }
     }
 
@@ -322,10 +328,10 @@ mod tests {
     #[gtk::test]
     fn test_convert_blocks_into_reading_block() {
         let text = "First sentence. Second sentence.";
-        let highlighter = create_test_highlighter(text);
+        let mut highlighter = create_test_highlighter(text);
 
         highlighter.generate_reading_blocks();
-        let blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let blocks = highlighter.current_blocks;
         assert!(!blocks.is_empty());
 
         if let Some(first_block) = blocks.first() {
@@ -369,9 +375,9 @@ mod tests {
     #[gtk::test]
     fn test_convert_blocks_into_reading_block_simple() {
         let text = "First sentence. Second sentence. Third sentence.";
-        let highlighter = create_test_highlighter(text);
+        let mut highlighter = create_test_highlighter(text);
         highlighter.generate_reading_blocks();
-        let blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let blocks = highlighter.current_blocks;
 
         assert!(!blocks.is_empty());
         assert!(blocks.len() == 1);
@@ -381,9 +387,9 @@ mod tests {
     #[gtk::test]
     fn test_convert_blocks_into_reading_block_complex() {
         let text = "First paragraph.\n\nSecond paragraph with multiple sentences. Another sentence here! And one more?";
-        let highlighter = create_test_highlighter(text);
+        let mut highlighter = create_test_highlighter(text);
         highlighter.generate_reading_blocks();
-        let blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let blocks = highlighter.current_blocks;
 
         assert!(blocks.len() > 1);
 
@@ -393,19 +399,19 @@ mod tests {
 
     #[gtk::test]
     fn test_convert_blocks_into_reading_block_edge_cases() {
-        let highlighter = create_test_highlighter("");
+        let mut highlighter = create_test_highlighter("");
         highlighter.generate_reading_blocks();
-        let empty_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let empty_blocks = highlighter.current_blocks.to_vec();
         assert!(empty_blocks.is_empty());
 
         highlighter.generate_reading_blocks();
-        let single_char_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let single_char_blocks = highlighter.current_blocks;
         assert!(!single_char_blocks.is_empty());
 
         let text = "Hello! @#$% World?\n\nSpecial chars: &*()";
-        let highlighter = create_test_highlighter(text);
+        let mut highlighter = create_test_highlighter(text);
         highlighter.generate_reading_blocks();
-        let special_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let special_blocks = highlighter.current_blocks;
         assert!(!special_blocks.is_empty());
     }
 
@@ -446,7 +452,7 @@ The victory fell on us.";
         assert!(blocks[5].contains("Curbing his lavish spirit"));
 
         highlighter.generate_reading_blocks();
-        let reading_blocks = highlighter.current_blocks.borrow_mut().take().unwrap();
+        let reading_blocks = highlighter.current_blocks;
         assert!(!reading_blocks.is_empty());
 
         assert_eq!(reading_blocks[0].start_offset, 0);

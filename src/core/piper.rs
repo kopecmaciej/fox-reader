@@ -22,7 +22,7 @@ impl PiperTTS {
         Self::default()
     }
 
-    pub async fn initialize(&self, model_path: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn initialize(&self, model_path: &str) -> Result<(), Box<dyn Error>> {
         let model = piper_rs::from_config_path(Path::new(model_path))
             .map_err(|e| format!("Failed to load Piper model: {}", e))?;
 
@@ -38,7 +38,7 @@ impl PiperTTS {
         &self,
         text: &str,
         rate: Option<u8>,
-    ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
+    ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
         let synth_guard = self.synthesizer.lock().await;
         let synth = synth_guard
             .as_ref()

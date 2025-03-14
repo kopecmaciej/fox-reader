@@ -104,14 +104,14 @@ impl TextReader {
             self,
             #[weak]
             imp,
-            move || {
+            move |id: u32| {
                 if imp.text_highlighter.borrow().is_buffer_empty() {
                     return;
                 }
                 imp.text_input.set_editable(false);
                 let cleaned = imp.text_highlighter.borrow_mut().normalize_text();
                 imp.text_input.buffer().set_text(&cleaned);
-                imp.text_highlighter.borrow().generate_reading_blocks();
+                imp.text_highlighter.borrow_mut().generate_reading_blocks();
 
                 glib::spawn_future_local(clone!(
                     #[weak]
@@ -150,14 +150,14 @@ impl TextReader {
                     imp,
                     async move {
                         let readings_blocks =
-                            imp.text_highlighter.borrow().get_reading_blocks().unwrap();
+                            imp.text_highlighter.borrow().get_reading_blocks_map();
 
-                        if let Some(voice) = imp.audio_controls.get_selected_voice() {
+                        if let Some(voice) = imp.audio_controls.get_selected_voice_key() {
                             if let Err(e) = imp
                                 .audio_controls
                                 .imp()
                                 .tts
-                                .read_blocks_by_voice(voice, readings_blocks, 0)
+                                .read_blocks_by_voice(voice, readings_blocks, id)
                                 .await
                             {
                                 let err_msg =

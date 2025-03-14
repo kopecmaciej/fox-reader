@@ -126,7 +126,7 @@ impl VoiceManager {
         text: &str,
         voice_path: &str,
         rate: Option<u8>,
-    ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
+    ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
         let voice_full_path = format!(
             "{}/{}.json",
             huggingface_config::get_download_path(),

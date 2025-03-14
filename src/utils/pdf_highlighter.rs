@@ -4,7 +4,7 @@ use pdfium_render::prelude::{
 };
 
 use crate::utils::highlighter::ReadingBlock;
-use std::error::Error;
+use std::{collections::BTreeMap, error::Error};
 
 #[derive(Debug, Clone)]
 pub struct PdfReadingBlock {
@@ -54,6 +54,13 @@ impl PdfHighlighter {
     pub fn is_pdf_page_empty(&self, page: &PdfPage) -> bool {
         let page_text = page.text().unwrap();
         page_text.all().trim().is_empty()
+    }
+
+    pub fn get_reading_blocks_map(&self) -> BTreeMap<u32, PdfReadingBlock> {
+        let blocks = self.get_reading_blocks();
+        let btree_map: BTreeMap<u32, PdfReadingBlock> =
+            blocks.into_iter().map(|b| (b.id, b)).collect();
+        btree_map
     }
 
     pub fn generate_reading_blocks(

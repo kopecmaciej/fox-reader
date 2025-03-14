@@ -14,6 +14,9 @@ use super::{
     voice_row::VoiceRow,
 };
 
+type PlayHandler = RefCell<Option<Box<dyn Fn(u32)>>>;
+type StopHandler = RefCell<Option<Box<dyn Fn()>>>;
+
 mod imp {
 
     use std::sync::Arc;
@@ -37,8 +40,8 @@ mod imp {
         #[template_child]
         pub speed_spin: TemplateChild<gtk::SpinButton>,
         pub tts: Arc<Tts>,
-        pub play_handler: RefCell<Option<Box<dyn Fn()>>>,
-        pub stop_handler: RefCell<Option<Box<dyn Fn()>>>,
+        pub play_handler: PlayHandler,
+        pub stop_handler: StopHandler,
     }
 
     #[glib::object_subclass]
@@ -70,6 +73,27 @@ impl AudioControls {
     pub fn init(&self) {
         self.setup_signals();
         self.connect_voice_events();
+    }
+
+    pub fn connect_pdf_audio_events(&self) {
+        let voice_events = voice_events();
+
+        voice_events.connect_local(
+            "pdf-audio-play",
+            false,
+            clone!(
+                #[weak(rename_to=this)]
+                self,
+                #[upgrade_or]
+                None,
+                move |args| {
+                    let id = args[1].get::<u32>().unwrap();
+                    this.start_audio(id);
+                    println!("EVENT handler {id}");
+                    None
+                }
+            ),
+        );
     }
 
     fn connect_voice_events(&self) {
@@ -115,9 +139,36 @@ impl AudioControls {
         );
     }
 
+    pub fn start_audio(&self, id: u32) {
+        let imp = self.imp();
+        println!("Start Audio {id}");
+        let button = &imp.play_button;
+        let was_paused = runtime().block_on(imp.tts.pause_if_playing());
+        if was_paused {
+            button.set_icon_name("media-playback-start-symbolic");
+            return;
+        }
+        let was_resumed = runtime().block_on(imp.tts.resume_if_paused());
+        if was_resumed {
+            button.set_icon_name("media-playback-pause-symbolic");
+            return;
+        }
+        button.set_icon_name("media-playback-pause-symbolic");
+
+        imp.stop_button.set_sensitive(true);
+
+        if let Some(handler) = imp.play_handler.borrow().as_ref() {
+            handler(id);
+        } else {
+            dialogs::show_error_dialog("No read handler configured", self);
+        }
+
+        button.set_icon_name("media-playback-start-symbolic");
+    }
+
     pub fn set_read_handler<F>(&self, handler: F)
     where
-        F: Fn() + 'static,
+        F: Fn(u32) + 'static,
     {
         self.imp().play_handler.replace(Some(Box::new(handler)));
     }
@@ -163,32 +214,10 @@ impl AudioControls {
         ));
 
         imp.play_button.connect_clicked(clone!(
-            #[weak]
-            imp,
-            #[weak]
-            tts,
-            move |button| {
-                let was_paused = runtime().block_on(tts.pause_if_playing());
-                if was_paused {
-                    button.set_icon_name("media-playback-start-symbolic");
-                    return;
-                }
-                let was_resumed = runtime().block_on(tts.resume_if_paused());
-                if was_resumed {
-                    button.set_icon_name("media-playback-pause-symbolic");
-                    return;
-                }
-                button.set_icon_name("media-playback-pause-symbolic");
-
-                imp.stop_button.set_sensitive(true);
-
-                if let Some(handler) = imp.play_handler.borrow().as_ref() {
-                    handler();
-                } else {
-                    dialogs::show_error_dialog("No read handler configured", button);
-                }
-
-                button.set_icon_name("media-playback-start-symbolic");
+            #[weak(rename_to=this)]
+            self,
+            move |_| {
+                this.start_audio(0);
             }
         ));
 
@@ -265,12 +294,9 @@ impl AudioControls {
         &self.imp().voice_selector
     }
 
-    pub fn get_selected_voice(&self) -> Option<String> {
-        if let Some(item) = self.imp().voice_selector.selected_item() {
-            if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
-                let voice = voice_row.key();
-                return Some(voice);
-            }
+    pub fn get_selected_voice_key(&self) -> Option<String> {
+        if let Some(voice_row) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
+            return Some(voice_row.key());
         }
         None
     }

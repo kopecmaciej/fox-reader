@@ -1,6 +1,7 @@
 use super::{runtime::runtime, voice_manager::VoiceManager};
 use crate::utils::{audio_player::AudioPlayer, highlighter::ReadingBlock};
 use std::{
+    collections::BTreeMap,
     error::Error,
     fmt,
     sync::{
@@ -8,80 +9,12 @@ use std::{
         Arc,
     },
 };
-use tokio::sync::{
-    broadcast::{self, Sender},
-    Mutex, Semaphore,
-};
-
-struct AudioData {
-    id: u32,
-    source_audio: rodio::buffer::SamplesBuffer<f32>,
-}
-
-struct BoundedBuffer<T> {
-    buffer: Mutex<Vec<T>>,
-    slots: Semaphore,
-    items: Semaphore,
-}
-
-impl<T> BoundedBuffer<T> {
-    fn new(capacity: usize) -> Self {
-        Self {
-            buffer: Mutex::new(Vec::with_capacity(capacity)),
-            slots: Semaphore::new(capacity),
-            items: Semaphore::new(0),
-        }
-    }
-
-    async fn wait_for_slots(&self) {
-        let permit = self.slots.acquire().await.unwrap();
-        permit.forget();
-    }
-
-    async fn push_to_start(&self, item: T) {
-        {
-            let mut buffer = self.buffer.lock().await;
-            buffer.insert(0, item);
-        }
-
-        self.items.add_permits(1);
-    }
-
-    async fn produce(&self, item: T) {
-        {
-            let mut buffer = self.buffer.lock().await;
-            buffer.push(item);
-        }
-
-        self.items.add_permits(1);
-    }
-
-    async fn purge_buffer(&self) {
-        self.buffer.lock().await.clear();
-        let all_perm = self.items.available_permits();
-        self.items.forget_permits(all_perm);
-        self.slots.add_permits(2);
-    }
-
-    async fn consume(&self) -> T {
-        let permit = self.items.acquire().await.unwrap();
-        permit.forget();
-
-        let item = {
-            let mut buffer = self.buffer.lock().await;
-            buffer.remove(0)
-        };
-
-        self.slots.add_permits(1);
-
-        item
-    }
-}
+use tokio::sync::broadcast::{self, Sender};
 
 #[derive(Clone)]
 pub struct Tts {
     pub sender: Arc<Sender<TTSEvent>>,
-    idx: Arc<AtomicUsize>,
+    current_id: Arc<AtomicUsize>,
     reading_speed: Arc<AtomicUsize>,
     audio_player: Arc<AudioPlayer>,
 }
@@ -113,7 +46,7 @@ impl Tts {
         let (sender, _) = broadcast::channel(4);
         Self {
             sender: Arc::new(sender),
-            idx: Arc::new(AtomicUsize::new(0)),
+            current_id: Arc::new(AtomicUsize::new(0)),
             reading_speed: Arc::new(AtomicUsize::new(100)),
             audio_player: Arc::new(AudioPlayer::default()),
         }
@@ -122,106 +55,61 @@ impl Tts {
     pub async fn read_blocks_by_voice<T>(
         &self,
         voice: String,
-        reading_blocks: Vec<T>,
+        blocks_map: BTreeMap<u32, T>,
         start_from: u32,
     ) -> Result<(), Box<dyn Error>>
     where
         T: ReadingBlock + Send + Sync + 'static,
     {
-        if reading_blocks.is_empty() {
+        if blocks_map.is_empty() {
             return Ok(());
         }
-        let reading_blocks_len = reading_blocks.len();
-        let buffer = Arc::new(BoundedBuffer::new(2));
-        println!("STARTS: {}", start_from);
-        for r in reading_blocks.iter() {
-            if r.get_id() == start_from {
-                println!("TEXT: {}", r.get_text());
-            }
-            println!("{}", r.get_id());
-        }
-        self.idx.store(start_from as usize, Ordering::SeqCst);
-        let idx_clone = Arc::clone(&self.idx);
-        let producer_buffer = buffer.clone();
-        let last_id = reading_blocks[reading_blocks_len - 1].get_id();
-        let reading_speed = self.reading_speed.clone();
 
-        let producer_handle = runtime().spawn(async move {
-            while idx_clone.load(Ordering::SeqCst) < reading_blocks_len {
-                producer_buffer.wait_for_slots().await;
-                let idx = idx_clone.load(Ordering::SeqCst);
-                let reading_block = &reading_blocks[idx];
+        self.current_id.store(start_from as usize, Ordering::SeqCst);
 
-                let reading_speed = reading_speed.load(Ordering::SeqCst);
-                let speed = Self::spin_value_to_rate_percent(reading_speed);
-                let source_audio = VoiceManager::generate_piper_raw_speech(
-                    &reading_block.get_text(),
-                    &voice,
-                    speed,
-                )
-                .await?;
+        while self.current_id.load(Ordering::SeqCst) < blocks_map.len() {
+            let current_idx = self.current_id.load(Ordering::SeqCst);
+            let reading_speed_value = self.reading_speed.load(Ordering::SeqCst);
+            let reading_block = &blocks_map.get(&(current_idx as u32)).unwrap();
+            let speed = Self::spin_value_to_rate_percent(reading_speed_value);
 
-                let id = reading_block.get_id();
-                // if Prev occurse, we'll have diffrent idx so
-                // we have to skip move to proper block
-                if idx_clone.load(Ordering::SeqCst) != idx {
-                    producer_buffer.slots.add_permits(1);
-                    continue;
-                }
-                producer_buffer
-                    .produce(AudioData { id, source_audio })
-                    .await;
-                idx_clone.fetch_add(1, Ordering::SeqCst);
-            }
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+            let source_audio =
+                VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice, speed)
+                    .await?;
 
-        loop {
-            let audio_data = buffer.consume().await;
-            let id = audio_data.id;
             self.sender.send(TTSEvent::Progress {
-                block_id: id as u32,
+                block_id: current_idx as u32,
             })?;
 
-            let event = self
-                .read_block_of_text(audio_data.source_audio.clone())
-                .await;
+            let event = self.read_block_of_text(source_audio).await;
 
             match event {
                 Ok(Some(TTSEvent::Stop)) => {
-                    self.idx.store(0, Ordering::SeqCst);
+                    self.current_id.store(0, Ordering::SeqCst);
                     break;
                 }
-                Ok(Some(TTSEvent::Repeat)) => {
-                    buffer.purge_buffer().await;
-                    buffer.push_to_start(audio_data).await;
-                    self.idx.store(id as usize, Ordering::SeqCst);
+                Ok(Some(TTSEvent::Next)) => {
+                    if current_idx + 1 < blocks_map.len() {
+                        self.current_id.store(current_idx + 1, Ordering::SeqCst);
+                    }
                     continue;
                 }
                 Ok(Some(TTSEvent::Prev)) => {
-                    if audio_data.id > 0 {
-                        buffer.purge_buffer().await;
-                        self.idx.store((id - 1) as usize, Ordering::SeqCst);
+                    if current_idx > 0 {
+                        self.current_id.store(current_idx - 1, Ordering::SeqCst);
                     }
                     continue;
                 }
                 Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
                 Err(e) => return Err(e),
                 _ => {
-                    if last_id == id {
-                        break;
-                    }
+                    self.current_id.fetch_add(1, Ordering::SeqCst);
                     continue;
                 }
             };
         }
 
-        if let Err(e) = producer_handle.await {
-            return Err(Box::new(e));
-        }
-
-        self.idx.store(0, Ordering::SeqCst);
-
+        self.current_id.store(0, Ordering::SeqCst);
         Ok(())
     }
 
