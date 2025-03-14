@@ -50,7 +50,7 @@
       <object class="GtkButton" id="stop_button">
         <property name="icon-name">media-playback-stop-symbolic</property>
         <property name="tooltip-text">Stop</property>
-        <property name="sensitive">false</property>
+        <property name="sensitive">true</property>
         <style>
           <class name="circular" />
           <class name="flat" />

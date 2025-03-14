@@ -600,7 +600,7 @@ impl PdfReader {
     fn start_reading_pdf(&self, reading_blocks: BTreeMap<u32, PdfReadingBlock>, start_from: u32) {
         let imp = self.imp();
         if imp.audio_controls.imp().tts.is_playing() {
-            let _ = runtime().block_on(imp.audio_controls.imp().tts.stop(false));
+            let _ = runtime().block_on(imp.audio_controls.imp().tts.stop(true));
         }
 
         glib::spawn_future_local(clone!(
@@ -624,7 +624,7 @@ impl PdfReader {
                             this.refresh_view();
                             break;
                         }
-                        TTSEvent::Next | TTSEvent::Prev | TTSEvent::Repeat => {
+                        TTSEvent::Next | TTSEvent::Prev => {
                             imp.pdf_highlighter.borrow_mut().clear_highlight();
                             this.refresh_view();
                         }

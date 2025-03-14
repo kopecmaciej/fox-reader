@@ -24,7 +24,6 @@ pub enum TTSEvent {
     Progress { block_id: u32 },
     Stop,
     Next,
-    Repeat,
     Prev,
     Error(String),
 }
@@ -186,7 +185,7 @@ impl Tts {
     }
 
     pub async fn repeat_block(&self) -> Result<(), Box<dyn Error>> {
-        self.sender.send(TTSEvent::Repeat)?;
+        self.current_id.fetch_sub(1, Ordering::SeqCst);
         self.stop(false).await?;
         Ok(())
     }

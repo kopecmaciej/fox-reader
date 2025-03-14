@@ -89,7 +89,6 @@ impl AudioControls {
                 move |args| {
                     let id = args[1].get::<u32>().unwrap();
                     this.start_audio(id);
-                    println!("EVENT handler {id}");
                     None
                 }
             ),
@@ -141,21 +140,8 @@ impl AudioControls {
 
     pub fn start_audio(&self, id: u32) {
         let imp = self.imp();
-        println!("Start Audio {id}");
         let button = &imp.play_button;
-        let was_paused = runtime().block_on(imp.tts.pause_if_playing());
-        if was_paused {
-            button.set_icon_name("media-playback-start-symbolic");
-            return;
-        }
-        let was_resumed = runtime().block_on(imp.tts.resume_if_paused());
-        if was_resumed {
-            button.set_icon_name("media-playback-pause-symbolic");
-            return;
-        }
         button.set_icon_name("media-playback-pause-symbolic");
-
-        imp.stop_button.set_sensitive(true);
 
         if let Some(handler) = imp.play_handler.borrow().as_ref() {
             handler(id);
@@ -214,9 +200,21 @@ impl AudioControls {
         ));
 
         imp.play_button.connect_clicked(clone!(
+            #[weak]
+            tts,
             #[weak(rename_to=this)]
             self,
-            move |_| {
+            move |button| {
+                let was_paused = runtime().block_on(tts.pause_if_playing());
+                if was_paused {
+                    button.set_icon_name("media-playback-start-symbolic");
+                    return;
+                }
+                let was_resumed = runtime().block_on(tts.resume_if_paused());
+                if was_resumed {
+                    button.set_icon_name("media-playback-pause-symbolic");
+                    return;
+                }
                 this.start_audio(0);
             }
         ));
