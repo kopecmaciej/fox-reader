@@ -1,4 +1,5 @@
 mod ai_chat;
+mod ai_chat_row;
 mod audio_controls;
 mod dialogs;
 mod helpers;

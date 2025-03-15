@@ -1,9 +1,39 @@
+:root {
+  --primary-color: #4285F4;
+  --secondary-color: #34A853;
+  --card-bg: #2D2D2D;
+  --text-secondary: #B0B0B0;
+  --hover-color: #3367D6;
+  --animation-duration: 0.3s;
+  --user-message-color: #444444;
+  --assistant-message-color: #4285F4;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+.app-subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.text_input {
+  padding: 4px 6px;
+  background: alpha(currentColor, 0.05);
+}
+
 columnview.view {
   padding: 2px 6px;
 }
 
-textview.card {
+card {
   padding: 6px;
+  background-color: transparent;
 }
 
 play-button {
@@ -132,4 +162,64 @@ dropdown.voice-selector button {
 
 .speed-spin {
   min-width: 64px;
+}
+
+.chat-history-scroll {
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.chat-history {
+  background-color: transparent;
+}
+
+row {
+  background: transparent;
+  padding: 4px 8px;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 18px;
+  animation: fadeIn var(--animation-duration) ease;
+  line-height: 1.5;
+  margin: 4px 0;
+}
+
+.assistant-message {
+  background-color: var(--assistant-message-color);
+  border-bottom-left-radius: 4px;
+  margin-right: 40px;
+  color: white;
+}
+
+.user-message {
+  background-color: var(--user-message-color);
+  border-bottom-right-radius: 4px;
+  margin-left: 40px;
+  color: white;
+}
+
+.mic-button {
+  background-color: var(--primary-color);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  min-width: 64px;
+  min-height: 64px;
+}
+
+.mic-button:hover {
+  transform: scale(1.15);
+  background-color: var(--hover-color);
+}
+
+.status-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.controls-container {
+  margin-top: 20px;
 }

@@ -210,7 +210,7 @@ impl VoiceList {
         let all_rows: Vec<VoiceRow> = self
             .get_list_model()
             .into_iter()
-            .filter_map(|obj| obj.ok().and_then(|o| o.downcast::<VoiceRow>().ok()))
+            .filter_map(|obj| obj.ok().and_downcast::<VoiceRow>())
             .collect();
 
         all_rows
@@ -220,7 +220,7 @@ impl VoiceList {
         let mut list: Vec<String> = self
             .get_list_model()
             .into_iter()
-            .filter_map(|obj| obj.ok().and_then(|o| o.downcast::<VoiceRow>().ok()))
+            .filter_map(|obj| obj.ok().and_downcast::<VoiceRow>())
             .map(|voice_row| voice_row.language())
             .collect::<HashSet<_>>()
             .into_iter()

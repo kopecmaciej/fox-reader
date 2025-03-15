@@ -10,10 +10,6 @@ use glib::subclass::Signal;
 use gtk::glib;
 use std::sync::{Arc, OnceLock};
 
-glib::wrapper! {
-    pub struct VoiceEventEmitter(ObjectSubclass<imp::VoiceEventEmitter>);
-}
-
 mod imp {
     use std::sync::OnceLock;
 
@@ -21,16 +17,16 @@ mod imp {
     use glib::subclass::prelude::*;
 
     #[derive(Default)]
-    pub struct VoiceEventEmitter;
+    pub struct EventEmmiter;
 
     #[glib::object_subclass]
-    impl ObjectSubclass for VoiceEventEmitter {
-        const NAME: &'static str = "VoiceEventEmitter";
-        type Type = super::VoiceEventEmitter;
+    impl ObjectSubclass for EventEmmiter {
+        const NAME: &'static str = "EventEmitter";
+        type Type = super::EventEmitter;
         type ParentType = glib::Object;
     }
 
-    impl ObjectImpl for VoiceEventEmitter {
+    impl ObjectImpl for EventEmmiter {
         fn signals() -> &'static [Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
@@ -54,13 +50,18 @@ mod imp {
     }
 }
 
-impl Default for VoiceEventEmitter {
+glib::wrapper! {
+    pub struct EventEmitter(ObjectSubclass<imp::EventEmmiter>);
+}
+
+
+impl Default for EventEmitter {
     fn default() -> Self {
         glib::Object::new()
     }
 }
 
-impl VoiceEventEmitter {
+impl EventEmitter {
     pub fn emit_voice_downloaded(&self, voice_key: String) {
         self.emit_by_name::<()>("voice-downloaded", &[&voice_key]);
     }
@@ -82,9 +83,9 @@ impl VoiceEventEmitter {
     }
 }
 
-pub fn voice_events() -> Arc<VoiceEventEmitter> {
-    static INSTANCE: OnceLock<Arc<VoiceEventEmitter>> = OnceLock::new();
+pub fn event_emiter() -> Arc<EventEmitter> {
+    static INSTANCE: OnceLock<Arc<EventEmitter>> = OnceLock::new();
     INSTANCE
-        .get_or_init(|| Arc::new(VoiceEventEmitter::default()))
+        .get_or_init(|| Arc::new(EventEmitter::default()))
         .clone()
 }

@@ -10,7 +10,7 @@ use gtk::{
 use super::{
     dialogs,
     helpers::voice_selector,
-    voice_events::{voice_events, VoiceEvent},
+    voice_events::{event_emiter, VoiceEvent},
     voice_row::VoiceRow,
 };
 
@@ -52,10 +52,79 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_callbacks();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
             obj.init_template();
+        }
+    }
+
+    #[gtk::template_callbacks]
+    impl AudioControls {
+        #[template_callback]
+        fn on_play_button_clicked(&self, button: &gtk::Button) {
+            let obj = self.obj();
+
+            let was_paused = runtime().block_on(obj.imp().tts.pause_if_playing());
+            if was_paused {
+                button.set_icon_name("media-playback-start-symbolic");
+                return;
+            }
+            let was_resumed = runtime().block_on(obj.imp().tts.resume_if_paused());
+            if was_resumed {
+                button.set_icon_name("media-playback-pause-symbolic");
+                return;
+            }
+            obj.start_audio(0);
+        }
+
+        #[template_callback]
+        fn on_stop_button_clicked(&self, button: &gtk::Button) {
+            let obj = self.obj();
+            let stoped = runtime().block_on(async {
+                if obj.imp().tts.is_playing() {
+                    if (obj.imp().tts.stop(true).await).is_err() {
+                        return false;
+                    }
+                    return true;
+                }
+                false
+            });
+            if stoped {
+                button.set_sensitive(false);
+                obj.imp().play_button.set_sensitive(true);
+                if let Some(handler) = obj.imp().stop_handler.borrow().as_ref() {
+                    handler();
+                }
+            }
+        }
+
+        #[template_callback]
+        fn on_prev_button_clicked(&self, button: &gtk::Button) {
+            let obj = self.obj();
+            if let Err(e) = runtime().block_on(async {
+                if obj.imp().tts.is_playing() {
+                    obj.imp().tts.next().await
+                } else {
+                    Ok(())
+                }
+            }) {
+                dialogs::show_error_dialog(&e.to_string(), button)
+            }
+        }
+        #[template_callback]
+        fn on_next_button_clicked(&self, button: &gtk::Button) {
+            let obj = self.obj();
+            if let Err(e) = runtime().block_on(async {
+                if obj.imp().tts.is_playing() {
+                    obj.imp().tts.prev().await
+                } else {
+                    Ok(())
+                }
+            }) {
+                dialogs::show_error_dialog(&e.to_string(), button)
+            }
         }
     }
 
@@ -76,7 +145,7 @@ impl AudioControls {
     }
 
     pub fn connect_pdf_audio_events(&self) {
-        let voice_events = voice_events();
+        let voice_events = event_emiter();
 
         voice_events.connect_local(
             "pdf-audio-play",
@@ -96,7 +165,7 @@ impl AudioControls {
     }
 
     fn connect_voice_events(&self) {
-        let voice_events = voice_events();
+        let voice_events = event_emiter();
 
         let voice_selector = &self.imp().voice_selector;
         voice_events.connect_local(
@@ -173,83 +242,6 @@ impl AudioControls {
     fn setup_signals(&self) {
         let imp = self.imp();
         let tts = imp.tts.clone();
-
-        imp.stop_button.connect_clicked(clone!(
-            #[weak]
-            imp,
-            #[weak]
-            tts,
-            move |button| {
-                let stoped = runtime().block_on(async {
-                    if tts.is_playing() {
-                        if (tts.stop(true).await).is_err() {
-                            return false;
-                        }
-                        return true;
-                    }
-                    false
-                });
-                if stoped {
-                    button.set_sensitive(false);
-                    imp.play_button.set_sensitive(true);
-                    if let Some(handler) = imp.stop_handler.borrow().as_ref() {
-                        handler();
-                    }
-                }
-            }
-        ));
-
-        imp.play_button.connect_clicked(clone!(
-            #[weak]
-            tts,
-            #[weak(rename_to=this)]
-            self,
-            move |button| {
-                let was_paused = runtime().block_on(tts.pause_if_playing());
-                if was_paused {
-                    button.set_icon_name("media-playback-start-symbolic");
-                    return;
-                }
-                let was_resumed = runtime().block_on(tts.resume_if_paused());
-                if was_resumed {
-                    button.set_icon_name("media-playback-pause-symbolic");
-                    return;
-                }
-                this.start_audio(0);
-            }
-        ));
-
-        imp.next_button.connect_clicked(clone!(
-            #[weak]
-            tts,
-            move |button| {
-                if let Err(e) = runtime().block_on(async {
-                    if tts.is_playing() {
-                        tts.next().await
-                    } else {
-                        Ok(())
-                    }
-                }) {
-                    dialogs::show_error_dialog(&e.to_string(), button)
-                }
-            }
-        ));
-
-        imp.prev_button.connect_clicked(clone!(
-            #[weak]
-            tts,
-            move |button| {
-                if let Err(e) = runtime().block_on(async {
-                    if tts.is_playing() {
-                        tts.prev().await
-                    } else {
-                        Ok(())
-                    }
-                }) {
-                    dialogs::show_error_dialog(&e.to_string(), button)
-                }
-            }
-        ));
 
         let debounce_duration = std::time::Duration::from_millis(300);
         let timeout_handle = RefCell::new(None::<glib::SourceId>);

@@ -17,8 +17,8 @@ use crate::{
 };
 
 use super::{
-    dialogs::{self, show_error_dialog},
-    voice_events::voice_events,
+    dialogs::{self, file_dialog, show_error_dialog},
+    voice_events::event_emiter,
 };
 
 mod imp {
@@ -331,7 +331,7 @@ impl PdfReader {
             .find(|block| block.id == reading_index)
             .cloned();
 
-        // 2. Set up hover tracking
+        // TODO: Move initialization out of the drawin function
         self.setup_hover_handler(
             drawing_area,
             &all_rect,
@@ -421,7 +421,7 @@ impl PdfReader {
             });
 
             if let Some(block_id) = clicked_block {
-                let events = voice_events();
+                let events = event_emiter();
                 events.emit_audio_play(block_id);
             }
         }));
@@ -523,21 +523,10 @@ impl PdfReader {
     }
 
     fn open_file_dialog(&self) {
-        let file_chooser = gtk::FileDialog::builder()
-            .title("Open PDF")
-            .accept_label("Open")
-            .build();
+        let file_dialog = file_dialog();
+        let parent = self.root().and_downcast::<gtk::Window>();
 
-        let filter = gtk::FileFilter::new();
-        filter.add_mime_type("application/pdf");
-        filter.set_name(Some("PDF files"));
-        file_chooser.set_default_filter(Some(&filter));
-
-        let parent = self
-            .root()
-            .and_then(|r| r.clone().downcast::<gtk::Window>().ok());
-
-        file_chooser.open(
+        file_dialog.open(
             parent.as_ref(),
             None::<&gio::Cancellable>,
             clone!(

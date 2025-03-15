@@ -7,22 +7,31 @@
         <property name="spacing">12</property>
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">Text to Speech Reader</property>
+            <!-- Subtitle -->
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Paste text and start reading</property>
+                <style>
+                  <class name="app-subtitle" />
+                </style>
+              </object>
+            </child>
+            <!--Text Input View-->
             <child>
               <object class="GtkScrolledWindow">
-                <property name="height-request">420</property>
-                <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
-                <style>
-                  <class name="card"></class>
-                </style>
+                <property name="hexpand">true</property>
+                <property name="min-content-height">400</property>
+                <property name="margin-start">24</property>
+                <property name="margin-end">24</property>
                 <child>
                   <object class="GtkTextView" id="text_input">
                     <property name="wrap-mode">word</property>
                     <property name="hexpand">true</property>
                     <property name="vexpand">true</property>
                     <style>
-                      <class name="text-input"></class>
+                      <class name="card" />
+                      <class name="text_input" />
                     </style>
                   </object>
                 </child>
