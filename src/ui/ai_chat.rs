@@ -18,7 +18,7 @@ use crate::{
 use super::{
     ai_chat_row::{ChatMessageRow, MessageType},
     helpers::voice_selector,
-    voice_events::{voice_events, VoiceEvent},
+    voice_events::{event_emiter, VoiceEvent},
     voice_row::VoiceRow,
 };
 
@@ -151,7 +151,7 @@ impl AiChat {
     }
 
     fn connect_voice_events(&self) {
-        let voice_events = voice_events();
+        let voice_events = event_emiter();
 
         let voice_selector = &self.imp().voice_selector;
         voice_events.connect_local(

@@ -12,7 +12,7 @@ use glib::Properties;
 use gtk::glib::{self, clone};
 use gtk::{prelude::*, Button};
 
-use super::voice_events::voice_events;
+use super::voice_events::event_emiter;
 
 pub const PLAY_ICON: &str = "media-playback-start-symbolic";
 pub const STOP_ICON: &str = "media-playback-stop-symbolic";
@@ -222,7 +222,7 @@ impl VoiceRow {
                         button.set_sensitive(false);
                         this.set_downloaded(true);
 
-                        voice_events().emit_voice_downloaded(this.key());
+                        event_emiter().emit_voice_downloaded(this.key());
                     }
                 ));
             }
@@ -250,7 +250,7 @@ impl VoiceRow {
                 button.set_sensitive(false);
                 this.set_downloaded(false);
 
-                voice_events().emit_voice_deleted(this.key());
+                event_emiter().emit_voice_deleted(this.key());
             }
         ));
     }

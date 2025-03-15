@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     dialogs::{self, file_dialog, show_error_dialog},
-    voice_events::voice_events,
+    voice_events::event_emiter,
 };
 
 mod imp {
@@ -331,7 +331,7 @@ impl PdfReader {
             .find(|block| block.id == reading_index)
             .cloned();
 
-        // 2. Set up hover tracking
+        // TODO: Move initialization out of the drawin function
         self.setup_hover_handler(
             drawing_area,
             &all_rect,
@@ -421,7 +421,7 @@ impl PdfReader {
             });
 
             if let Some(block_id) = clicked_block {
-                let events = voice_events();
+                let events = event_emiter();
                 events.emit_audio_play(block_id);
             }
         }));

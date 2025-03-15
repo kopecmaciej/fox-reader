@@ -10,7 +10,7 @@ use gtk::{
 use super::{
     dialogs,
     helpers::voice_selector,
-    voice_events::{voice_events, VoiceEvent},
+    voice_events::{event_emiter, VoiceEvent},
     voice_row::VoiceRow,
 };
 
@@ -145,7 +145,7 @@ impl AudioControls {
     }
 
     pub fn connect_pdf_audio_events(&self) {
-        let voice_events = voice_events();
+        let voice_events = event_emiter();
 
         voice_events.connect_local(
             "pdf-audio-play",
@@ -165,7 +165,7 @@ impl AudioControls {
     }
 
     fn connect_voice_events(&self) {
-        let voice_events = voice_events();
+        let voice_events = event_emiter();
 
         let voice_selector = &self.imp().voice_selector;
         voice_events.connect_local(
