@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0"></requires>
-  <requires lib="libadwaita" version="1.0"></requires>
   <template class="AiChat" parent="AdwBin">
     <property name="child">
       <object class="GtkBox">
         <property name="orientation">vertical</property>
-        <property name="spacing">0</property>
-        <property name="valign">fill</property>
-        <property name="vexpand">true</property>
-        <property name="hexpand">true</property>
-
         <!-- Title and Subtitle Area -->
         <child>
           <object class="GtkBox">
@@ -52,14 +45,11 @@
             <property name="min-content-height">400</property>
             <property name="margin-start">24</property>
             <property name="margin-end">24</property>
-            <style>
-              <class name="chat-history-scroll" />
-            </style>
             <child>
               <object class="GtkListBox" id="chat_history_list">
                 <property name="selection-mode">none</property>
                 <style>
-                  <class name="chat-history" />
+                  <class name="card"></class>
                 </style>
               </object>
             </child>
