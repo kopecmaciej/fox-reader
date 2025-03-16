@@ -5,6 +5,10 @@ use crate::core::piper::PiperTTS;
 use crate::utils::audio_player::AudioPlayer;
 
 pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
+    if !std::env::args().any(|arg| &arg == "--cli") {
+        return Ok(false);
+    }
+
     let matches = Command::new("fox-reader")
         .about("A text-to-speech application")
         .arg(
@@ -38,10 +42,6 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .value_parser(clap::value_parser!(u8)),
         )
         .get_matches();
-
-    if !matches.get_flag("cli") {
-        return Ok(false);
-    }
 
     let model_path = matches.get_one::<String>("model").unwrap();
     let text = matches.get_one::<String>("text").unwrap();

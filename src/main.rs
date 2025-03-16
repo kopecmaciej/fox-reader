@@ -19,7 +19,6 @@ fn main() -> glib::ExitCode {
         Ok(false) => (),
         Err(e) => {
             eprintln!("CLI error: {}", e);
-            return glib::ExitCode::FAILURE;
         }
     }
 
