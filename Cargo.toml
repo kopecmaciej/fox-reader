@@ -13,16 +13,15 @@ reqwest = { version = "0.12.9", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process"] }
-which = "7.0.1"
 flate2 = "1.0.35"
 tar = "0.4.43"
 regex = "1.11.1"
 rodio = "0.20.1"
-poppler-rs = "0.24.1"
 pdfium-render = "0.8.29"
 whisper-rs = "0.14.2"
 cpal = "0.15.3"
 piper-rs = "0.1.9"
+clap = "4.5.32"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"

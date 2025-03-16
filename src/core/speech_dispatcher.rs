@@ -27,12 +27,7 @@ impl SpeechDispatcher {
     }
 
     fn init_module_config() -> Result<(), Box<dyn Error>> {
-        let mut piper_path = "$PIPER_PATH";
-        for binary in ["piper", "piper-tts"] {
-            if which::which(binary).is_ok() {
-                piper_path = binary;
-            }
-        }
+        let piper_path = "$PIPER_PATH";
         let module_path = &dispatcher_config::get_module_config_path();
         if !FileHandler::does_file_exist(module_path) {
             FileHandler::save_bytes(module_path, module_template(piper_path).trim().as_bytes())?;

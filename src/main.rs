@@ -1,7 +1,10 @@
+use core::runtime::runtime;
+
 use gtk::gdk::Display;
 use gtk::{gio, glib};
 use gtk::{prelude::*, CssProvider};
 
+mod cli;
 mod config;
 mod core;
 mod paths;
@@ -11,6 +14,15 @@ mod utils;
 const APP_ID: &str = "org.fox-reader";
 
 fn main() -> glib::ExitCode {
+    match runtime().block_on(cli::run_cli()) {
+        Ok(true) => return glib::ExitCode::SUCCESS,
+        Ok(false) => (),
+        Err(e) => {
+            eprintln!("CLI error: {}", e);
+            return glib::ExitCode::FAILURE;
+        }
+    }
+
     gio::resources_register_include!("fox-reader.gresource")
         .expect("Failed to register resources.");
 
