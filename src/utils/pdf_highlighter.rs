@@ -33,7 +33,7 @@ impl ReadingBlock for PdfReadingBlock {
 pub struct PdfHighlighter {
     pub blocks_generated_for: Option<u16>,
     pub current_blocks: Vec<PdfReadingBlock>,
-    pub highlighted_blocks: Vec<u32>,
+    pub highlighted_block: Option<u32>,
 }
 
 impl Default for PdfHighlighter {
@@ -47,7 +47,7 @@ impl PdfHighlighter {
         Self {
             blocks_generated_for: None,
             current_blocks: Vec::new(),
-            highlighted_blocks: Vec::new(),
+            highlighted_block: None,
         }
     }
 
@@ -380,15 +380,25 @@ impl PdfHighlighter {
 
     pub fn highlight(&mut self, block_id: u32) {
         self.clear_highlight();
-        self.highlighted_blocks.push(block_id);
+        self.highlighted_block = Some(block_id);
     }
 
     pub fn get_reading_blocks(&self) -> Vec<PdfReadingBlock> {
         self.current_blocks.to_vec()
     }
 
+    pub fn get_highlighted_block(&self) -> Option<PdfReadingBlock> {
+        if let Some(highlighted) = self.highlighted_block {
+            return self
+                .get_reading_blocks()
+                .into_iter()
+                .find(|b| b.id == highlighted);
+        }
+        None
+    }
+
     pub fn clear_highlight(&mut self) {
-        self.highlighted_blocks.clear();
+        self.highlighted_block = None;
         // TODO:clear pdf highlighter area
     }
 }
