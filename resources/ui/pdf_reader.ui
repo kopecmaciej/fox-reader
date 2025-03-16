@@ -155,6 +155,7 @@
                         <property name="vexpand">true</property>
                         <child>
                           <object class="GtkDrawingArea" id="drawing_area">
+                            <property name="halign">center</property>
                           </object>
                         </child>
                       </object>

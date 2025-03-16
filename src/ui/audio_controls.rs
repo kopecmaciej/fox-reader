@@ -105,7 +105,7 @@ mod imp {
             let obj = self.obj();
             if let Err(e) = runtime().block_on(async {
                 if obj.imp().tts.is_playing() {
-                    obj.imp().tts.next().await
+                    obj.imp().tts.prev().await
                 } else {
                     Ok(())
                 }
@@ -118,7 +118,7 @@ mod imp {
             let obj = self.obj();
             if let Err(e) = runtime().block_on(async {
                 if obj.imp().tts.is_playing() {
-                    obj.imp().tts.prev().await
+                    obj.imp().tts.next().await
                 } else {
                     Ok(())
                 }
