@@ -351,7 +351,7 @@ impl AiChat {
                 let llm_manager = imp.llm_manager.clone();
 
                 let response = runtime()
-                    .spawn(async move { llm_manager.send_to_lm_studio(&text.clone()).await })
+                    .spawn(async move { llm_manager.send_to_llm(&text.clone()).await })
                     .await;
 
                 match response {
