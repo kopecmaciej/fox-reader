@@ -145,21 +145,16 @@
                 </child>
                 <!-- PDF Content Container -->
                 <child>
-                  <object class="GtkBox" id="pdf_content">
-                    <property name="orientation">vertical</property>
-                    <property name="vexpand">true</property>
+                  <!-- Scrolled Window wrapping the Drawing Area -->
+                  <object class="GtkScrolledWindow" id="scrolled_window">
                     <property name="hexpand">true</property>
+                    <property name="vexpand">true</property>
                     <child>
-                      <!-- Scrolled Window wrapping the Drawing Area -->
-                      <object class="GtkScrolledWindow" id="scrolled_window">
+                      <object class="GtkOverlay" id="overlay">
                         <property name="hexpand">true</property>
                         <property name="vexpand">true</property>
                         <child>
-                          <!-- Drawing Area for the PDF page -->
                           <object class="GtkDrawingArea" id="drawing_area">
-                            <!-- Optionally, set initial content dimensions -->
-                            <property name="hexpand">true</property>
-                            <property name="vexpand">true</property>
                           </object>
                         </child>
                       </object>
