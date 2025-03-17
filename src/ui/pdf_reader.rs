@@ -11,7 +11,7 @@ use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRenderConfig};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Debug, rc::Rc};
 
 use crate::{
-    config::UserConfig,
+    config::SharedConfig,
     core::{runtime::runtime, tts::TTSEvent},
     utils::pdf_highlighter::PdfReadingBlock,
 };
@@ -23,6 +23,7 @@ use super::{
 
 mod imp {
     use crate::{
+        config::SharedConfig,
         ui::audio_controls::AudioControls,
         utils::{pdf_highlighter::PdfHighlighter, pdfium::PdfiumWrapper},
     };
@@ -62,7 +63,7 @@ mod imp {
         pub audio_controls: TemplateChild<AudioControls>,
 
         //TODO: Find better way of sharing user_config
-        pub user_config: RefCell<Rc<RefCell<UserConfig>>>,
+        pub user_config: RefCell<SharedConfig>,
         pub scale_factor: RefCell<f32>,
         pub pdf_wrapper: RefCell<PdfiumWrapper>,
         pub current_page_num: RefCell<PdfPageIndex>,
@@ -188,7 +189,7 @@ impl Default for PdfReader {
 }
 
 impl PdfReader {
-    pub fn init(&self, user_config: Rc<RefCell<UserConfig>>) {
+    pub fn init(&self, user_config: SharedConfig) {
         let imp = self.imp();
         imp.audio_controls.init();
         imp.audio_controls.connect_pdf_audio_events();

@@ -6,7 +6,7 @@ use gtk::{
     glib::{self, clone},
     StringList,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use crate::config::UserConfig;
 use crate::core::speech_dispatcher::SpeechDispatcher;
@@ -16,7 +16,7 @@ use super::{dialogs, settings::Settings};
 mod imp {
 
     use crate::{
-        config::UserConfig,
+        config::SharedConfig,
         ui::{
             ai_chat::AiChat, pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList,
         },
@@ -46,7 +46,7 @@ mod imp {
         pub all_voices_container: TemplateChild<gtk::Box>,
         #[template_child]
         pub downloaded_container: TemplateChild<gtk::Box>,
-        pub user_config: Rc<RefCell<UserConfig>>,
+        pub user_config: SharedConfig,
     }
 
     #[glib::object_subclass]
@@ -116,6 +116,7 @@ impl FoxReaderAppWindow {
         }
 
         let imp = window.imp();
+
         imp.user_config.replace(UserConfig::new());
         let style_manager = adw::StyleManager::default();
         style_manager.set_color_scheme(window.imp().user_config.borrow().get_color_scheme());
@@ -123,7 +124,7 @@ impl FoxReaderAppWindow {
         imp.text_reader
             .init(imp.user_config.borrow().get_highlight_rgba());
         imp.pdf_reader.init(imp.user_config.clone());
-        imp.ai_chat.init();
+        imp.ai_chat.init(imp.user_config.clone());
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();

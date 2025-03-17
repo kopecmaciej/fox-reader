@@ -2,6 +2,8 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
+use crate::config::{LLMConfig, LLMProvider, ProviderConfig};
+
 #[derive(Debug, Clone)]
 pub struct Message {
     pub role: String,
@@ -31,36 +33,6 @@ impl Message {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum LLMProvider {
-    LMStudio,
-    OpenAI,
-    Anthropic,
-    Ollama,
-}
-
-pub struct LLMConfig {
-    pub provider: LLMProvider,
-    pub api_key: Option<String>,
-    pub base_url: Option<String>,
-    pub model: String,
-    pub temperature: f32,
-    pub max_tokens: u32,
-}
-
-impl Default for LLMConfig {
-    fn default() -> Self {
-        Self {
-            provider: LLMProvider::LMStudio,
-            api_key: None,
-            base_url: Some("http://localhost:1234/v1".to_string()),
-            model: "model-identifier".to_string(),
-            temperature: 0.7,
-            max_tokens: 300,
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct LLMManager {
     client: Client,
@@ -71,16 +43,8 @@ pub struct LLMManager {
 }
 
 impl LLMManager {
-    pub fn new(config: LLMConfig) -> Self {
-        let system_prompt = "You are a helpful voice assistant. Respond in a conversational, natural way. Use short, clear sentences and avoid complex formatting, lists, or code. Keep responses concise and easy to listen to. Speak as if you're having a casual conversation. Use simple language that's easy to follow when heard rather than read.".to_string();
-
-        Self {
-            client: Client::new(),
-            conversation_history: Arc::new(Mutex::new(vec![Message::system(&system_prompt)])),
-            system_prompt,
-            conversation_language: "en".to_string(),
-            config,
-        }
+    pub fn update_config(&mut self, config: LLMConfig) {
+        self.config = config;
     }
 
     pub fn reset_conversation(&self) {
@@ -103,20 +67,27 @@ impl LLMManager {
         self.conversation_language = language.to_string()
     }
 
-    pub fn set_provider(&mut self, provider: LLMProvider) {
-        self.config.provider = provider;
+    pub fn set_system_prompt(&mut self, prompt: &str) {
+        self.system_prompt = prompt.to_string();
+        self.reset_conversation(); // Initialize with the system prompt
     }
 
-    pub fn set_api_key(&mut self, api_key: &str) {
-        self.config.api_key = Some(api_key.to_string());
+    pub fn set_active_provider(&mut self, provider: LLMProvider) {
+        self.config.active_provider = provider.clone();
+
+        if !self.config.providers.contains_key(&provider) {
+            self.config
+                .providers
+                .insert(provider.clone(), ProviderConfig::default());
+        }
     }
 
-    pub fn set_base_url(&mut self, base_url: &str) {
-        self.config.base_url = Some(base_url.to_string());
-    }
-
-    pub fn set_model(&mut self, model: &str) {
-        self.config.model = model.to_string();
+    fn get_active_config(&self) -> ProviderConfig {
+        self.config
+            .providers
+            .get(&self.config.active_provider)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub async fn send_to_llm(
@@ -139,7 +110,7 @@ impl LLMManager {
             history_guard.clone()
         };
 
-        match self.config.provider {
+        match self.config.active_provider {
             LLMProvider::LMStudio => self.send_to_lm_studio(history).await,
             LLMProvider::OpenAI => self.send_to_openai(history).await,
             LLMProvider::Anthropic => self.send_to_anthropic(history).await,
@@ -151,6 +122,8 @@ impl LLMManager {
         &self,
         history: Vec<Message>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
         let messages = history
             .iter()
             .map(|msg| {
@@ -162,17 +135,13 @@ impl LLMManager {
             .collect::<Vec<_>>();
 
         let request_body = json!({
-            "model": self.config.model,
+            "model": provider_config.model,
             "messages": messages,
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
+            "temperature": provider_config.temperature,
+            "max_tokens": provider_config.max_tokens,
         });
 
-        let base_url = self
-            .config
-            .base_url
-            .clone()
-            .unwrap_or(String::from("http://localhost:1234/v1"));
+        let base_url = provider_config.base_url.clone();
         let url = format!("{}/chat/completions", base_url);
 
         let mut request = self
@@ -180,7 +149,7 @@ impl LLMManager {
             .post(url)
             .header("Content-Type", "application/json");
 
-        if let Some(api_key) = &self.config.api_key {
+        if let Some(api_key) = &provider_config.api_key {
             request = request.header("Authorization", format!("Bearer {}", api_key));
         }
 
@@ -201,6 +170,8 @@ impl LLMManager {
         &self,
         history: Vec<Message>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
         let messages = history
             .iter()
             .map(|msg| {
@@ -212,16 +183,15 @@ impl LLMManager {
             .collect::<Vec<_>>();
 
         let request_body = json!({
-            "model": self.config.model,
+            "model": provider_config.model,
             "messages": messages,
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
+            "temperature": provider_config.temperature,
+            "max_tokens": provider_config.max_tokens,
         });
 
         let url = "https://api.openai.com/v1/chat/completions";
 
-        let api_key = self
-            .config
+        let api_key = provider_config
             .api_key
             .as_ref()
             .ok_or("OpenAI API key is required")?;
@@ -251,6 +221,8 @@ impl LLMManager {
         &self,
         history: Vec<Message>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
         // Convert to Anthropic message format
         let mut messages = Vec::new();
         for msg in history {
@@ -287,16 +259,15 @@ impl LLMManager {
         }
 
         let request_body = json!({
-            "model": self.config.model,
+            "model": provider_config.model,
             "messages": messages,
-            "max_tokens": self.config.max_tokens,
-            "temperature": self.config.temperature,
+            "max_tokens": provider_config.max_tokens,
+            "temperature": provider_config.temperature,
         });
 
         let url = "https://api.anthropic.com/v1/messages";
 
-        let api_key = self
-            .config
+        let api_key = provider_config
             .api_key
             .as_ref()
             .ok_or("Anthropic API key is required")?;
@@ -327,6 +298,8 @@ impl LLMManager {
         &self,
         history: Vec<Message>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
         let messages = history
             .iter()
             .map(|msg| {
@@ -338,18 +311,14 @@ impl LLMManager {
             .collect::<Vec<_>>();
 
         let request_body = json!({
-            "model": self.config.model,
+            "model": provider_config.model,
             "messages": messages,
-            "temperature": self.config.temperature,
-            "num_predict": self.config.max_tokens,
+            "temperature": provider_config.temperature,
+            "num_predict": provider_config.max_tokens,
             "stream": false,
         });
 
-        let base_url = self
-            .config
-            .base_url
-            .clone()
-            .unwrap_or("http://localhost:11434/api".to_string());
+        let base_url = provider_config.base_url.clone();
 
         let url = format!("{}/chat", base_url);
 
