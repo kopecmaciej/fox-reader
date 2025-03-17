@@ -115,7 +115,7 @@ impl Default for LLMConfig {
         );
 
         Self {
-            active_provider: LLMProvider::Ollama,
+            active_provider: LLMProvider::LMStudio,
             providers,
         }
     }

@@ -141,8 +141,7 @@ impl LLMManager {
             "max_tokens": provider_config.max_tokens,
         });
 
-        let base_url = provider_config.base_url.clone();
-        let url = format!("{}/chat/completions", base_url);
+        let url = provider_config.base_url.clone();
 
         let mut request = self
             .client
@@ -189,7 +188,7 @@ impl LLMManager {
             "max_tokens": provider_config.max_tokens,
         });
 
-        let url = "https://api.openai.com/v1/chat/completions";
+        let url = provider_config.base_url.clone();
 
         let api_key = provider_config
             .api_key
@@ -265,7 +264,7 @@ impl LLMManager {
             "temperature": provider_config.temperature,
         });
 
-        let url = "https://api.anthropic.com/v1/messages";
+        let url = provider_config.base_url.clone();
 
         let api_key = provider_config
             .api_key
@@ -318,9 +317,7 @@ impl LLMManager {
             "stream": false,
         });
 
-        let base_url = provider_config.base_url.clone();
-
-        let url = format!("{}/chat", base_url);
+        let url = provider_config.base_url.clone();
 
         let response = self
             .client
