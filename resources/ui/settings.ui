@@ -3,13 +3,14 @@
   <template parent="AdwPreferencesDialog" class="Settings">
     <property name="title">Settings</property>
     <property name="width-request">500</property>
-    <property name="height-request">400</property>
+    <property name="height-request">600</property>
 
     <child>
       <object class="AdwPreferencesPage">
+        <!-- Text Reader Settings Group -->
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title">Text Reader</property>
+            <property name="title">Font and Highlight</property>
 
             <!-- Font settings -->
             <child>
@@ -45,6 +46,107 @@
                 </child>
               </object>
             </child>
+          </object>
+        </child>
+
+        <!-- Separator -->
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="margin-top">4</property>
+            <property name="margin-bottom">4</property>
+          </object>
+        </child>
+
+        <!-- LLM Settings Group -->
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">LLM Configuration</property>
+            
+            <!-- Provider Selection -->
+            <child>
+              <object class="AdwComboRow" id="provider_combo">
+                <property name="title">Provider</property>
+                <property name="model">
+                  <object class="GtkStringList">
+                    <items>
+                      <item>LM Studio</item>
+                      <item>OpenAI</item>
+                      <item>Anthropic</item>
+                      <item>Ollama</item>
+                    </items>
+                  </object>
+                </property>
+              </object>
+            </child>
+
+            <!-- API Key -->
+            <child>
+              <object class="AdwPasswordEntryRow" id="api_key_entry">
+                <property name="title">API Key</property>
+              </object>
+            </child>
+
+            <!-- Base URL -->
+            <child>
+              <object class="AdwEntryRow" id="base_url_entry">
+                <property name="title">Base URL</property>
+              </object>
+            </child>
+
+            <!-- Model -->
+            <child>
+              <object class="AdwEntryRow" id="model_entry">
+                <property name="title">Model</property>
+              </object>
+            </child>
+
+            <!-- Temperature -->
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Temperature</property>
+                <property name="subtitle">Controls randomness (0.0 - 1.0)</property>
+                <child>
+                  <object class="GtkScale" id="temperature_scale">
+                    <property name="valign">center</property>
+                    <property name="width-request">150</property>
+                    <property name="adjustment">
+                      <object class="GtkAdjustment">
+                        <property name="lower">0.0</property>
+                        <property name="upper">1.0</property>
+                        <property name="value">0.7</property>
+                        <property name="step-increment">0.1</property>
+                        <property name="page-increment">0.2</property>
+                      </object>
+                    </property>
+                    <property name="digits">1</property>
+                    <property name="draw-value">true</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <!-- Max Tokens -->
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Max Tokens</property>
+                <property name="subtitle">Maximum number of tokens to generate</property>
+                <child>
+                  <object class="GtkSpinButton" id="max_tokens_spin">
+                    <property name="valign">center</property>
+                    <property name="adjustment">
+                      <object class="GtkAdjustment">
+                        <property name="lower">50</property>
+                        <property name="upper">4000</property>
+                        <property name="value">300</property>
+                        <property name="step-increment">50</property>
+                        <property name="page-increment">100</property>
+                      </object>
+                    </property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
           </object>
         </child>
       </object>

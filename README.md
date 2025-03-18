@@ -13,8 +13,10 @@ wanted a little bit more, also non of them seems to work with firefox
 ## Key Features
 
 1. Text-to-speech with highlighting system
-2. Speech Dispatcher compatibility
-3. Firefox Read Aloud integration
+2. Pdf Reader 
+3. Abbility to talk to LLM's with your voice
+4. Speech Dispatcher compatibility
+5. Firefox Read Aloud integration
 
 ## Current UI:
 
@@ -26,6 +28,7 @@ wanted a little bit more, also non of them seems to work with firefox
 
 - GTK4 and its development libraries
 - Speech Dispatcher (optional)
+- Pdfium (optional - if missing will be installed)
 - Rust toolchain (for building from source)
 
 ## Installation

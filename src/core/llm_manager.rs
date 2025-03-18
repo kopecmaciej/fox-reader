@@ -2,6 +2,8 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
+use crate::config::{LLMConfig, LLMProvider, ProviderConfig};
+
 #[derive(Debug, Clone)]
 pub struct Message {
     pub role: String,
@@ -31,27 +33,20 @@ impl Message {
     }
 }
 
+#[derive(Default)]
 pub struct LLMManager {
     client: Client,
     conversation_history: Arc<Mutex<Vec<Message>>>,
     system_prompt: String,
     conversation_language: String,
-}
-
-impl Default for LLMManager {
-    fn default() -> Self {
-        let system_prompt = "You are a helpful voice assistant. Respond in a conversational, natural way. Use short, clear sentences and avoid complex formatting, lists, or code. Keep responses concise and easy to listen to. Speak as if you're having a casual conversation. Use simple language that's easy to follow when heard rather than read.".to_string();
-
-        Self {
-            client: Client::new(),
-            conversation_history: Arc::new(Mutex::new(vec![Message::system(&system_prompt)])),
-            system_prompt,
-            conversation_language: "en".to_string(),
-        }
-    }
+    config: LLMConfig,
 }
 
 impl LLMManager {
+    pub fn update_config(&mut self, config: LLMConfig) {
+        self.config = config;
+    }
+
     pub fn reset_conversation(&self) {
         let mut history = self.conversation_history.lock().unwrap();
         history.clear();
@@ -72,7 +67,30 @@ impl LLMManager {
         self.conversation_language = language.to_string()
     }
 
-    pub async fn send_to_lm_studio(
+    pub fn set_system_prompt(&mut self, prompt: &str) {
+        self.system_prompt = prompt.to_string();
+        self.reset_conversation(); // Initialize with the system prompt
+    }
+
+    pub fn set_active_provider(&mut self, provider: LLMProvider) {
+        self.config.active_provider = provider.clone();
+
+        if !self.config.providers.contains_key(&provider) {
+            self.config
+                .providers
+                .insert(provider.clone(), ProviderConfig::default());
+        }
+    }
+
+    fn get_active_config(&self) -> ProviderConfig {
+        self.config
+            .providers
+            .get(&self.config.active_provider)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    pub async fn send_to_llm(
         &self,
         prompt: &str,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -84,12 +102,27 @@ impl LLMManager {
                 );
             }
         }
+
         self.add_user_message(prompt);
 
         let history = {
             let history_guard = self.conversation_history.lock().unwrap();
             history_guard.clone()
         };
+
+        match self.config.active_provider {
+            LLMProvider::LMStudio => self.send_to_lm_studio(history).await,
+            LLMProvider::OpenAI => self.send_to_openai(history).await,
+            LLMProvider::Anthropic => self.send_to_anthropic(history).await,
+            LLMProvider::Ollama => self.send_to_ollama(history).await,
+        }
+    }
+
+    async fn send_to_lm_studio(
+        &self,
+        history: Vec<Message>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
 
         let messages = history
             .iter()
@@ -102,22 +135,201 @@ impl LLMManager {
             .collect::<Vec<_>>();
 
         let request_body = json!({
-            "model": "model-identifier",
+            "model": provider_config.model,
             "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 300,
+            "temperature": provider_config.temperature,
+            "max_tokens": provider_config.max_tokens,
         });
 
-        let request = self
-            .client
-            .post("http://localhost:1234/v1/chat/completions")
-            .header("Content-Type", "application/json")
-            .json(&request_body);
+        let url = provider_config.base_url.clone();
 
-        let response = request.send().await?;
+        let mut request = self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json");
+
+        if let Some(api_key) = &provider_config.api_key {
+            request = request.header("Authorization", format!("Bearer {}", api_key));
+        }
+
+        let response = request.json(&request_body).send().await?;
         let response_json: Value = response.json().await?;
 
         let content = response_json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("Failed to parse response")
+            .to_string();
+
+        self.add_assistant_message(&content);
+
+        Ok(content)
+    }
+
+    async fn send_to_openai(
+        &self,
+        history: Vec<Message>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
+        let messages = history
+            .iter()
+            .map(|msg| {
+                json!({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let request_body = json!({
+            "model": provider_config.model,
+            "messages": messages,
+            "temperature": provider_config.temperature,
+            "max_tokens": provider_config.max_tokens,
+        });
+
+        let url = provider_config.base_url.clone();
+
+        let api_key = provider_config
+            .api_key
+            .as_ref()
+            .ok_or("OpenAI API key is required")?;
+
+        let response = self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let response_json: Value = response.json().await?;
+
+        let content = response_json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("Failed to parse response")
+            .to_string();
+
+        self.add_assistant_message(&content);
+
+        Ok(content)
+    }
+
+    async fn send_to_anthropic(
+        &self,
+        history: Vec<Message>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
+        // Convert to Anthropic message format
+        let mut messages = Vec::new();
+        for msg in history {
+            match msg.role.as_str() {
+                "system" => {
+                    // Anthropic handles system prompts differently
+                    messages.push(json!({
+                        "role": "user",
+                        "content": format!("<system>\n{}\n</system>", msg.content)
+                    }));
+
+                    // Add a placeholder assistant response after the system prompt
+                    messages.push(json!({
+                        "role": "assistant",
+                        "content": ""
+                    }));
+                }
+                "user" | "assistant" => {
+                    messages.push(json!({
+                        "role": msg.role,
+                        "content": msg.content
+                    }));
+                }
+                _ => return Err("Invalid message role for Anthropic".into()),
+            }
+        }
+
+        // Remove the first empty assistant message if it exists
+        if messages.len() >= 2 {
+            let second_msg = &messages[1];
+            if second_msg["role"] == "assistant" && second_msg["content"] == "" {
+                messages.remove(1);
+            }
+        }
+
+        let request_body = json!({
+            "model": provider_config.model,
+            "messages": messages,
+            "max_tokens": provider_config.max_tokens,
+            "temperature": provider_config.temperature,
+        });
+
+        let url = provider_config.base_url.clone();
+
+        let api_key = provider_config
+            .api_key
+            .as_ref()
+            .ok_or("Anthropic API key is required")?;
+
+        let response = self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let response_json: Value = response.json().await?;
+
+        let content = response_json["content"][0]["text"]
+            .as_str()
+            .unwrap_or("Failed to parse response")
+            .to_string();
+
+        self.add_assistant_message(&content);
+
+        Ok(content)
+    }
+
+    async fn send_to_ollama(
+        &self,
+        history: Vec<Message>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let provider_config = self.get_active_config();
+
+        let messages = history
+            .iter()
+            .map(|msg| {
+                json!({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let request_body = json!({
+            "model": provider_config.model,
+            "messages": messages,
+            "temperature": provider_config.temperature,
+            "num_predict": provider_config.max_tokens,
+            "stream": false,
+        });
+
+        let url = provider_config.base_url.clone();
+
+        let response = self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let response_json: Value = response.json().await?;
+
+        let content = response_json["message"]["content"]
             .as_str()
             .unwrap_or("Failed to parse response")
             .to_string();

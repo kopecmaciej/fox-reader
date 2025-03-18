@@ -11,6 +11,7 @@ use std::{
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{
+    config::SharedConfig,
     core::{llm_manager::LLMManager, runtime::runtime, voice_manager::VoiceManager},
     utils::audio_player::AudioPlayer,
 };
@@ -57,6 +58,7 @@ mod imp {
         pub shared_audio_buffer: RefCell<Option<Arc<Mutex<Vec<f32>>>>>,
         pub llm_manager: Arc<LLMManager>,
         pub audio_player: Arc<AudioPlayer>,
+        pub user_config: RefCell<SharedConfig>,
     }
 
     #[glib::object_subclass]
@@ -113,7 +115,8 @@ glib::wrapper! {
 }
 
 impl AiChat {
-    pub fn init(&self) {
+    pub fn init(&self, user_config: SharedConfig) {
+        *self.imp().user_config.borrow_mut() = user_config;
         self.connect_voice_events();
         self.setup_chat_history();
     }
@@ -126,14 +129,17 @@ impl AiChat {
         self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
     }
 
-    // Add message to chat history
+    fn get_shared_config(&self) -> SharedConfig {
+        self.imp().user_config.borrow().clone()
+    }
+
     pub fn add_message_to_chat(&self, message: &str, message_type: MessageType) {
         let imp = self.imp();
 
         let row = ChatMessageRow::new(message, message_type);
         imp.chat_history_list.append(&row);
 
-        // Auto-scroll to the bottom
+        // TODO: fix Auto-scroll to the bottom
         if let Some(scrolled_window) = imp
             .chat_history_list
             .ancestor(gtk::ScrolledWindow::static_type())
@@ -351,7 +357,7 @@ impl AiChat {
                 let llm_manager = imp.llm_manager.clone();
 
                 let response = runtime()
-                    .spawn(async move { llm_manager.send_to_lm_studio(&text.clone()).await })
+                    .spawn(async move { llm_manager.send_to_llm(&text.clone()).await })
                     .await;
 
                 match response {

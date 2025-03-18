@@ -70,7 +70,7 @@
             <property name="child">
               <object class="GtkBox" id="pdf_view">
                 <property name="orientation">vertical</property>
-                <property name="spacing">12</property>
+                <property name="spacing">6</property>
                 <!-- PDF Toolbar -->
                 <child>
                   <object class="GtkBox" id="toolbar">
@@ -147,12 +147,8 @@
                 <child>
                   <!-- Scrolled Window wrapping the Drawing Area -->
                   <object class="GtkScrolledWindow" id="scrolled_window">
-                    <property name="hexpand">true</property>
-                    <property name="vexpand">true</property>
                     <child>
                       <object class="GtkOverlay" id="overlay">
-                        <property name="hexpand">true</property>
-                        <property name="vexpand">true</property>
                         <child>
                           <object class="GtkDrawingArea" id="drawing_area">
                             <property name="halign">center</property>
