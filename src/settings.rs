@@ -138,7 +138,6 @@ impl Settings {
         }
     }
 
-    // API Key
     pub fn get_api_key(&self) -> String {
         let active_provider = self.get_active_provider();
         let key = match active_provider {
@@ -203,7 +202,6 @@ impl Settings {
         self.set_string(key, model).expect("Failed to set model");
     }
 
-    // Temperature
     pub fn get_temperature(&self) -> f64 {
         let key = match self.get_active_provider() {
             LLMProvider::LMStudio => "lmstudio-temperature",
@@ -225,7 +223,6 @@ impl Settings {
             .expect("Failed to set temperature");
     }
 
-    // Max Tokens
     pub fn get_max_tokens(&self) -> u32 {
         let key = match self.get_active_provider() {
             LLMProvider::LMStudio => "lmstudio-max-tokens",
@@ -247,7 +244,6 @@ impl Settings {
             .expect("Failed to set max tokens");
     }
 
-    // Connect to change signals
     pub fn connect_theme_changed<F: Fn(&gio::Settings, &str) + 'static>(
         &self,
         f: F,

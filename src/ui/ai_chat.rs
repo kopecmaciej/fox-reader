@@ -262,7 +262,7 @@ impl AiChat {
             .or_else(|| host.default_input_device())
             .expect("No working input device found");
 
-        // Configure for 16kHz mono which is what Whisper expects
+        // 16kHz mono is what Whisper expects
         let config = cpal::StreamConfig {
             channels: 1,
             sample_rate: cpal::SampleRate(16000),
@@ -336,7 +336,6 @@ impl AiChat {
     async fn process_audio_and_get_response(&self, audio_data: Vec<f32>, language: Option<String>) {
         let imp = self.imp();
 
-        // Process the audio to get transcribed text
         let transcription_result = runtime()
             .spawn(async move { Self::process_audio(audio_data, language) })
             .await;
@@ -361,7 +360,6 @@ impl AiChat {
                         eprintln!("LLM response error: {:?}", err);
                         imp.status_label.set_text("Error: LLM response failed");
 
-                        // Add error message to chat
                         self.add_message_to_chat(
                             "Sorry, I encountered an error processing your request.",
                             MessageType::Assistant,
@@ -383,7 +381,6 @@ impl AiChat {
                 eprintln!("process_audio error: {}", err);
                 imp.status_label.set_text("Error: Audio processing failed");
 
-                // Add error message to chat
                 self.add_message_to_chat(
                     "Sorry, I had trouble understanding what you said. Could you try again?",
                     MessageType::Assistant,
@@ -393,7 +390,6 @@ impl AiChat {
                 eprintln!("Tokio task failed: {}", join_err);
                 imp.status_label.set_text("Error: Task execution failed");
 
-                // Add error message to chat
                 self.add_message_to_chat(
                     "Sorry, I encountered a technical error. Please try again.",
                     MessageType::Assistant,

@@ -108,22 +108,18 @@ impl VoiceRow {
             .css_name("delete-button")
             .build();
 
-        // on download delete btn becomes sensitive
         download_button
             .bind_property("sensitive", &delete_button, "sensitive")
             .invert_boolean()
             .sync_create()
             .build();
 
-        // on download set default btn becomes sensitive
         download_button
             .bind_property("sensitive", &set_default_button, "sensitive")
             .invert_boolean()
             .sync_create()
             .build();
 
-        // on delete set default btn becomes insensitive
-        // also default btn will become insensitive as it's inverted from download btn
         delete_button
             .bind_property("sensitive", &download_button, "sensitive")
             .invert_boolean()

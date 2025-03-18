@@ -64,7 +64,7 @@ impl LLMManager {
 
     pub fn set_system_prompt(&mut self, prompt: &str) {
         self.system_prompt = prompt.to_string();
-        self.reset_conversation(); // Initialize with the system prompt
+        self.reset_conversation();
     }
 
     pub fn set_active_provider(&mut self, provider: LLMProvider) {
@@ -210,18 +210,15 @@ impl LLMManager {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let provider_config = self.get_active_config();
 
-        // Convert to Anthropic message format
         let mut messages = Vec::new();
         for msg in history {
             match msg.role.as_str() {
                 "system" => {
-                    // Anthropic handles system prompts differently
                     messages.push(json!({
                         "role": "user",
                         "content": format!("<system>\n{}\n</system>", msg.content)
                     }));
 
-                    // Add a placeholder assistant response after the system prompt
                     messages.push(json!({
                         "role": "assistant",
                         "content": ""
@@ -237,7 +234,6 @@ impl LLMManager {
             }
         }
 
-        // Remove the first empty assistant message if it exists
         if messages.len() >= 2 {
             let second_msg = &messages[1];
             if second_msg["role"] == "assistant" && second_msg["content"] == "" {

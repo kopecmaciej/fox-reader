@@ -65,7 +65,6 @@ impl Default for SettingsDialog {
         let imp = obj.imp();
         let settings = &SETTINGS;
 
-        // Set up text reader settings
         let font_desc = settings.get_font_description();
         imp.font_button.set_font_desc(&font_desc);
 
@@ -111,7 +110,6 @@ impl SettingsDialog {
         let imp = self.imp();
         let settings = &SETTINGS;
 
-        // Initialize UI from the active provider's configuration
         self.update_ui_from_provider();
 
         imp.provider_combo.connect_selected_notify(clone!(
@@ -168,7 +166,7 @@ impl SettingsDialog {
         imp.temperature_scale.set_value(settings.get_temperature());
         imp.max_tokens_spin
             .set_value(settings.get_max_tokens() as f64);
-        // Update base URL
+
         match provider {
             LLMProvider::LMStudio => {
                 imp.base_url_entry.set_visible(true);

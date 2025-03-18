@@ -328,7 +328,6 @@ impl PdfReader {
         });
     }
 
-    // Configure click handler to start reading PDF text blocks
     fn setup_click_controller(&self, page: &PdfPage) {
         let imp = self.imp();
         let scale_factor = *imp.scale_factor.borrow();
@@ -552,7 +551,6 @@ impl PdfReader {
             #[weak(rename_to=this)]
             self,
             move |id: u32| {
-                // Get the current page
                 let current_page_num = *imp.current_page_num.borrow();
                 let page = match imp.pdf_wrapper.borrow().get_document() {
                     Some(page) => page.pages().get(current_page_num).unwrap(),
