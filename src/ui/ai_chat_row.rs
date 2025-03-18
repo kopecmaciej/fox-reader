@@ -5,7 +5,6 @@ use gtk::{
 };
 use std::cell::RefCell;
 
-// This enum will represent the different types of messages in the chat
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum MessageType {
     #[default]
@@ -66,10 +65,8 @@ impl ChatMessageRow {
             .set_wrap_mode(gtk::pango::WrapMode::WordChar);
         imp.message_label.set_max_width_chars(50);
 
-        // Set the message type
         *imp.message_type.borrow_mut() = message_type;
 
-        // Apply appropriate styling based on message type
         match message_type {
             MessageType::User => {
                 imp.message_box.add_css_class("user-message");

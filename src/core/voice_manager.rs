@@ -59,7 +59,6 @@ impl VoiceManager {
                     .files
                     .retain(|f, _| f.ends_with("json") || f.ends_with("onnx"));
 
-                // Mark as downloaded if in the list of downloaded voices
                 voice.downloaded = downloaded_voices.contains(&voice.key);
                 if let Some(ref default_voice) = default_voice {
                     voice.is_default = Some(default_voice == &voice.key);

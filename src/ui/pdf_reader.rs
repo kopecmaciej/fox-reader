@@ -11,8 +11,8 @@ use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRenderConfig};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Debug, rc::Rc};
 
 use crate::{
-    config::SharedConfig,
     core::{runtime::runtime, tts::TTSEvent},
+    settings::SETTINGS,
     utils::pdf_highlighter::PdfReadingBlock,
 };
 
@@ -23,7 +23,6 @@ use super::{
 
 mod imp {
     use crate::{
-        config::SharedConfig,
         ui::audio_controls::AudioControls,
         utils::{pdf_highlighter::PdfHighlighter, pdfium::PdfiumWrapper},
     };
@@ -62,8 +61,6 @@ mod imp {
         #[template_child]
         pub audio_controls: TemplateChild<AudioControls>,
 
-        //TODO: Find better way of sharing user_config
-        pub user_config: RefCell<SharedConfig>,
         pub scale_factor: RefCell<f32>,
         pub pdf_wrapper: RefCell<PdfiumWrapper>,
         pub current_page_num: RefCell<PdfPageIndex>,
@@ -189,7 +186,7 @@ impl Default for PdfReader {
 }
 
 impl PdfReader {
-    pub fn init(&self, user_config: SharedConfig) {
+    pub fn init(&self) {
         let imp = self.imp();
         imp.audio_controls.init();
         imp.audio_controls.connect_pdf_audio_events();
@@ -198,7 +195,13 @@ impl PdfReader {
         };
         self.init_audio_control_buttons();
         imp.scale_factor.replace(1.5);
-        imp.user_config.replace(user_config);
+        SETTINGS.connect_theme_changed(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |_settings, _key| {
+                this.refresh_view();
+            }
+        ));
     }
 
     pub fn refresh_view(&self) {
@@ -277,7 +280,7 @@ impl PdfReader {
         let dynamic_image = rendered.as_image();
         let mut rgba_image = dynamic_image.to_rgba8();
 
-        if imp.user_config.borrow().borrow().is_dark_color_scheme() {
+        if SETTINGS.is_dark_color_scheme() {
             for pixel in rgba_image.pixels_mut() {
                 if pixel[3] == 0 {
                     continue;
@@ -325,7 +328,6 @@ impl PdfReader {
         });
     }
 
-    // Configure click handler to start reading PDF text blocks
     fn setup_click_controller(&self, page: &PdfPage) {
         let imp = self.imp();
         let scale_factor = *imp.scale_factor.borrow();
@@ -549,7 +551,6 @@ impl PdfReader {
             #[weak(rename_to=this)]
             self,
             move |id: u32| {
-                // Get the current page
                 let current_page_num = *imp.current_page_num.borrow();
                 let page = match imp.pdf_wrapper.borrow().get_document() {
                     Some(page) => page.pages().get(current_page_num).unwrap(),
@@ -645,12 +646,7 @@ impl PdfReader {
     }
 
     fn get_rgba_colors(&self) -> (f32, f32, f32) {
-        let highlight_color = self
-            .imp()
-            .user_config
-            .borrow()
-            .borrow()
-            .get_highlight_rgba();
+        let highlight_color = SETTINGS.get_highlight_rgba();
         let (red, green, blue) = (
             highlight_color.red(),
             highlight_color.green(),

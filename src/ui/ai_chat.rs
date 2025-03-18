@@ -11,7 +11,6 @@ use std::{
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{
-    config::SharedConfig,
     core::{llm_manager::LLMManager, runtime::runtime, voice_manager::VoiceManager},
     utils::audio_player::AudioPlayer,
 };
@@ -58,7 +57,6 @@ mod imp {
         pub shared_audio_buffer: RefCell<Option<Arc<Mutex<Vec<f32>>>>>,
         pub llm_manager: Arc<LLMManager>,
         pub audio_player: Arc<AudioPlayer>,
-        pub user_config: RefCell<SharedConfig>,
     }
 
     #[glib::object_subclass]
@@ -115,8 +113,7 @@ glib::wrapper! {
 }
 
 impl AiChat {
-    pub fn init(&self, user_config: SharedConfig) {
-        *self.imp().user_config.borrow_mut() = user_config;
+    pub fn init(&self) {
         self.connect_voice_events();
         self.setup_chat_history();
     }
@@ -127,10 +124,6 @@ impl AiChat {
             .set_selection_mode(gtk::SelectionMode::None);
 
         self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
-    }
-
-    fn get_shared_config(&self) -> SharedConfig {
-        self.imp().user_config.borrow().clone()
     }
 
     pub fn add_message_to_chat(&self, message: &str, message_type: MessageType) {
@@ -269,7 +262,7 @@ impl AiChat {
             .or_else(|| host.default_input_device())
             .expect("No working input device found");
 
-        // Configure for 16kHz mono which is what Whisper expects
+        // 16kHz mono is what Whisper expects
         let config = cpal::StreamConfig {
             channels: 1,
             sample_rate: cpal::SampleRate(16000),
@@ -343,7 +336,6 @@ impl AiChat {
     async fn process_audio_and_get_response(&self, audio_data: Vec<f32>, language: Option<String>) {
         let imp = self.imp();
 
-        // Process the audio to get transcribed text
         let transcription_result = runtime()
             .spawn(async move { Self::process_audio(audio_data, language) })
             .await;
@@ -368,7 +360,6 @@ impl AiChat {
                         eprintln!("LLM response error: {:?}", err);
                         imp.status_label.set_text("Error: LLM response failed");
 
-                        // Add error message to chat
                         self.add_message_to_chat(
                             "Sorry, I encountered an error processing your request.",
                             MessageType::Assistant,
@@ -390,7 +381,6 @@ impl AiChat {
                 eprintln!("process_audio error: {}", err);
                 imp.status_label.set_text("Error: Audio processing failed");
 
-                // Add error message to chat
                 self.add_message_to_chat(
                     "Sorry, I had trouble understanding what you said. Could you try again?",
                     MessageType::Assistant,
@@ -400,13 +390,16 @@ impl AiChat {
                 eprintln!("Tokio task failed: {}", join_err);
                 imp.status_label.set_text("Error: Task execution failed");
 
-                // Add error message to chat
                 self.add_message_to_chat(
                     "Sorry, I encountered a technical error. Please try again.",
                     MessageType::Assistant,
                 );
             }
         }
+        *imp.state.borrow_mut() = State::Idle;
+        imp.status_label.set_text("Ready");
+        imp.button_icon
+            .set_icon_name(Some("microphone-sensitivity-high-symbolic"));
     }
 
     fn process_audio(
@@ -487,11 +480,6 @@ impl AiChat {
                 }
             }
         }
-
-        *imp.state.borrow_mut() = State::Idle;
-        imp.status_label.set_text("Ready");
-        imp.button_icon
-            .set_icon_name(Some("microphone-sensitivity-high-symbolic"));
     }
 
     fn split_into_sentences(&self, text: &str) -> Vec<String> {

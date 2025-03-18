@@ -147,6 +147,8 @@
                 <child>
                   <!-- Scrolled Window wrapping the Drawing Area -->
                   <object class="GtkScrolledWindow" id="scrolled_window">
+                    <property name="vexpand">true</property>
+                    <property name="hexpand">true</property>
                     <child>
                       <object class="GtkOverlay" id="overlay">
                         <child>

@@ -6,20 +6,15 @@ use gtk::{
     glib::{self, clone},
     StringList,
 };
-use std::rc::Rc;
 
-use crate::config::UserConfig;
-use crate::core::speech_dispatcher::SpeechDispatcher;
+use crate::{core::speech_dispatcher::SpeechDispatcher, settings::SETTINGS};
 
-use super::{dialogs, settings::Settings};
+use super::{dialogs, settings_dialog::SettingsDialog};
 
 mod imp {
 
-    use crate::{
-        config::SharedConfig,
-        ui::{
-            ai_chat::AiChat, pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList,
-        },
+    use crate::ui::{
+        ai_chat::AiChat, pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList,
     };
 
     use super::*;
@@ -46,7 +41,7 @@ mod imp {
         pub all_voices_container: TemplateChild<gtk::Box>,
         #[template_child]
         pub downloaded_container: TemplateChild<gtk::Box>,
-        pub user_config: SharedConfig,
+        pub settings_dialog: SettingsDialog,
     }
 
     #[glib::object_subclass]
@@ -69,24 +64,24 @@ mod imp {
     impl FoxReaderAppWindow {
         #[template_callback]
         fn on_theme_button_clicked(&self, _button: &gtk::Button) {
-            let style_manager = adw::StyleManager::default();
-            let is_dark = !style_manager.is_dark();
+            let settings = &SETTINGS;
+            let is_dark = !settings.is_dark_color_scheme();
 
+            let style_manager = adw::StyleManager::default();
             style_manager.set_color_scheme(if is_dark {
                 adw::ColorScheme::ForceDark
             } else {
                 adw::ColorScheme::ForceLight
             });
 
-            self.user_config.borrow_mut().set_theme(is_dark);
-            self.pdf_reader.refresh_view();
+            settings.set_theme(is_dark);
         }
 
         #[template_callback]
         fn on_settings_button_clicked(&self, button: &gtk::Button) {
-            let settings = Settings::new(Rc::clone(&self.user_config));
-            settings.setup_signals(&self.text_reader);
-            settings.present(Some(button));
+            let settings_dialog = &self.settings_dialog;
+            settings_dialog.setup_reader_signals();
+            settings_dialog.present(Some(button));
         }
     }
 
@@ -116,15 +111,16 @@ impl FoxReaderAppWindow {
         }
 
         let imp = window.imp();
+        let settings = &SETTINGS;
 
-        imp.user_config.replace(UserConfig::new());
+        // Apply theme settings
         let style_manager = adw::StyleManager::default();
-        style_manager.set_color_scheme(window.imp().user_config.borrow().get_color_scheme());
+        style_manager.set_color_scheme(settings.get_color_scheme());
+
         imp.voice_list.init();
-        imp.text_reader
-            .init(imp.user_config.borrow().get_highlight_rgba());
-        imp.pdf_reader.init(imp.user_config.clone());
-        imp.ai_chat.init(imp.user_config.clone());
+        imp.text_reader.init();
+        imp.pdf_reader.init();
+        imp.ai_chat.init();
         window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();

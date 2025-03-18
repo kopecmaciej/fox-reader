@@ -399,6 +399,5 @@ impl PdfHighlighter {
 
     pub fn clear_highlight(&mut self) {
         self.highlighted_block = None;
-        // TODO:clear pdf highlighter area
     }
 }

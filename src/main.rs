@@ -5,9 +5,9 @@ use gtk::{gio, glib};
 use gtk::{prelude::*, CssProvider};
 
 mod cli;
-mod config;
 mod core;
 mod paths;
+mod settings;
 mod ui;
 mod utils;
 
@@ -39,11 +39,9 @@ fn build_ui(app: &adw::Application) {
 }
 
 fn load_css() {
-    // Load the CSS file and add it to the provider
     let provider = CssProvider::new();
     provider.load_from_string(include_str!("../resources/styles/style.css"));
 
-    // Add the provider to the default screen
     gtk::style_context_add_provider_for_display(
         &Display::default().expect("Could not connect to a display."),
         &provider,

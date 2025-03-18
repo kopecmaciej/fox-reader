@@ -5,7 +5,7 @@ use gtk::{
 };
 use std::cell::RefCell;
 
-use crate::{core::tts::TTSEvent, utils::text_highlighter::TextHighlighter};
+use crate::{core::tts::TTSEvent, settings::SETTINGS, utils::text_highlighter::TextHighlighter};
 
 use super::dialogs;
 
@@ -52,13 +52,31 @@ glib::wrapper! {
 }
 
 impl TextReader {
-    pub fn init(&self, highlight_color: gtk::gdk::RGBA) {
+    pub fn init(&self) {
         let imp = self.imp();
         imp.audio_controls.init();
         imp.text_highlighter
             .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
-        self.set_highlight_color(highlight_color);
+
+        let settings = &SETTINGS;
+        self.set_highlight_color(settings.get_highlight_rgba());
         self.init_audio_control_buttons();
+
+        settings.connect_highlight_color_changed(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |_, _| {
+                this.set_highlight_color(SETTINGS.get_highlight_rgba());
+            }
+        ));
+
+        settings.connect_font_changed(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |_, _| {
+                this.set_text_font(SETTINGS.get_font_description());
+            }
+        ));
     }
 
     pub fn set_text_font(&self, font_desc: gtk::pango::FontDescription) {
