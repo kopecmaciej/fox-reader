@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.fox-reader" path="/org/fox-reader/">
+    <!-- UI Settings -->
+    <key name="font" type="s">
+      <default>''</default>
+      <summary>Font</summary>
+      <description>The font used for displaying text</description>
+    </key>
+    <key name="highlight-color" type="s">
+      <default>'rgba(255,255,0,0.3)'</default>
+      <summary>Highlight Color</summary>
+      <description>Color used for text highlighting</description>
+    </key>
+    <key name="theme" type="s">
+      <default>'light'</default>
+      <summary>Application Theme</summary>
+      <description>Light or dark application theme</description>
+    </key>
+    
+    <!-- LLM General Settings -->
+    <key name="active-provider" type="s">
+      <default>'LM Studio'</default>
+      <summary>Active LLM Provider</summary>
+      <description>The currently active LLM provider</description>
+    </key>
+    
+    <!-- Provider specific settings - for each provider, we create keys with prefixes -->
+    <!-- LM Studio -->
+    <key name="lmstudio-base-url" type="s">
+      <default>'http://localhost:1234/v1/chat/completions'</default>
+      <summary>LM Studio Base URL</summary>
+      <description>Base URL for LM Studio API</description>
+    </key>
+    <key name="lmstudio-model" type="s">
+      <default>''</default>
+      <summary>LM Studio Model</summary>
+      <description>Model for LM Studio</description>
+    </key>
+    <key name="lmstudio-temperature" type="d">
+      <default>0.7</default>
+      <summary>LM Studio Temperature</summary>
+      <description>Temperature for LM Studio generation</description>
+    </key>
+    <key name="lmstudio-max-tokens" type="u">
+      <default>1024</default>
+      <summary>LM Studio Max Tokens</summary>
+      <description>Maximum tokens for LM Studio generation</description>
+    </key>
+    
+    <!-- Ollama -->
+    <key name="ollama-base-url" type="s">
+      <default>'http://localhost:11434/api/chat'</default>
+      <summary>Ollama Base URL</summary>
+      <description>Base URL for Ollama API</description>
+    </key>
+    <key name="ollama-model" type="s">
+      <default>''</default>
+      <summary>Ollama Model</summary>
+      <description>Model for Ollama</description>
+    </key>
+    <key name="ollama-temperature" type="d">
+      <default>0.7</default>
+      <summary>Ollama Temperature</summary>
+      <description>Temperature for Ollama generation</description>
+    </key>
+    <key name="ollama-max-tokens" type="u">
+      <default>1024</default>
+      <summary>Ollama Max Tokens</summary>
+      <description>Maximum tokens for Ollama generation</description>
+    </key>
+    
+    <!-- OpenAI -->
+    <key name="openai-base-url" type="s">
+      <default>'https://api.openai.com/v1/chat/completions'</default>
+      <summary>OpenAI Base URL</summary>
+      <description>Base URL for OpenAI API</description>
+    </key>
+    <key name="openai-model" type="s">
+      <default>'gpt-4o-mini'</default>
+      <summary>OpenAI Model</summary>
+      <description>Model for OpenAI</description>
+    </key>
+    <key name="openai-temperature" type="d">
+      <default>0.7</default>
+      <summary>OpenAI Temperature</summary>
+      <description>Temperature for OpenAI generation</description>
+    </key>
+    <key name="openai-max-tokens" type="u">
+      <default>1024</default>
+      <summary>OpenAI Max Tokens</summary>
+      <description>Maximum tokens for OpenAI generation</description>
+    </key>
+    
+    <!-- Anthropic -->
+    <key name="anthropic-base-url" type="s">
+      <default>'https://api.anthropic.com/v1/messages'</default>
+      <summary>Anthropic Base URL</summary>
+      <description>Base URL for Anthropic API</description>
+    </key>
+    <key name="anthropic-model" type="s">
+      <default>'claude-3-5-haiku-latest'</default>
+      <summary>Anthropic Model</summary>
+      <description>Model for Anthropic</description>
+    </key>
+    <key name="anthropic-temperature" type="d">
+      <default>0.7</default>
+      <summary>Anthropic Temperature</summary>
+      <description>Temperature for Anthropic generation</description>
+    </key>
+    <key name="anthropic-max-tokens" type="u">
+      <default>1024</default>
+      <summary>Anthropic Max Tokens</summary>
+      <description>Maximum tokens for Anthropic generation</description>
+    </key>
+    
+  </schema>
+</schemalist>

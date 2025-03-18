@@ -8,6 +8,7 @@ mod cli;
 mod config;
 mod core;
 mod paths;
+mod settings;
 mod ui;
 mod utils;
 

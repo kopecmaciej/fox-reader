@@ -11,7 +11,6 @@ use std::{
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{
-    config::SharedConfig,
     core::{llm_manager::LLMManager, runtime::runtime, voice_manager::VoiceManager},
     utils::audio_player::AudioPlayer,
 };
@@ -58,7 +57,6 @@ mod imp {
         pub shared_audio_buffer: RefCell<Option<Arc<Mutex<Vec<f32>>>>>,
         pub llm_manager: Arc<LLMManager>,
         pub audio_player: Arc<AudioPlayer>,
-        pub user_config: RefCell<SharedConfig>,
     }
 
     #[glib::object_subclass]
@@ -115,8 +113,7 @@ glib::wrapper! {
 }
 
 impl AiChat {
-    pub fn init(&self, user_config: SharedConfig) {
-        *self.imp().user_config.borrow_mut() = user_config;
+    pub fn init(&self) {
         self.connect_voice_events();
         self.setup_chat_history();
     }
@@ -127,10 +124,6 @@ impl AiChat {
             .set_selection_mode(gtk::SelectionMode::None);
 
         self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
-    }
-
-    fn get_shared_config(&self) -> SharedConfig {
-        self.imp().user_config.borrow().clone()
     }
 
     pub fn add_message_to_chat(&self, message: &str, message_type: MessageType) {

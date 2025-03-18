@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
-use crate::config::{LLMConfig, LLMProvider, ProviderConfig};
+use crate::settings::{LLMProvider, ProviderConfig, SETTINGS};
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -39,14 +39,9 @@ pub struct LLMManager {
     conversation_history: Arc<Mutex<Vec<Message>>>,
     system_prompt: String,
     conversation_language: String,
-    config: LLMConfig,
 }
 
 impl LLMManager {
-    pub fn update_config(&mut self, config: LLMConfig) {
-        self.config = config;
-    }
-
     pub fn reset_conversation(&self) {
         let mut history = self.conversation_history.lock().unwrap();
         history.clear();
@@ -73,21 +68,13 @@ impl LLMManager {
     }
 
     pub fn set_active_provider(&mut self, provider: LLMProvider) {
-        self.config.active_provider = provider.clone();
-
-        if !self.config.providers.contains_key(&provider) {
-            self.config
-                .providers
-                .insert(provider.clone(), ProviderConfig::default());
-        }
+        let settings = &SETTINGS;
+        settings.set_active_provider(&provider.to_string());
     }
 
     fn get_active_config(&self) -> ProviderConfig {
-        self.config
-            .providers
-            .get(&self.config.active_provider)
-            .cloned()
-            .unwrap_or_default()
+        let settings = &SETTINGS;
+        settings.get_active_provider_config()
     }
 
     pub async fn send_to_llm(
@@ -110,7 +97,8 @@ impl LLMManager {
             history_guard.clone()
         };
 
-        match self.config.active_provider {
+        let settings = &SETTINGS;
+        match settings.get_active_provider() {
             LLMProvider::LMStudio => self.send_to_lm_studio(history).await,
             LLMProvider::OpenAI => self.send_to_openai(history).await,
             LLMProvider::Anthropic => self.send_to_anthropic(history).await,
