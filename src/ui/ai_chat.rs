@@ -400,6 +400,10 @@ impl AiChat {
                 );
             }
         }
+        *imp.state.borrow_mut() = State::Idle;
+        imp.status_label.set_text("Ready");
+        imp.button_icon
+            .set_icon_name(Some("microphone-sensitivity-high-symbolic"));
     }
 
     fn process_audio(
@@ -480,11 +484,6 @@ impl AiChat {
                 }
             }
         }
-
-        *imp.state.borrow_mut() = State::Idle;
-        imp.status_label.set_text("Ready");
-        imp.button_icon
-            .set_icon_name(Some("microphone-sensitivity-high-symbolic"));
     }
 
     fn split_into_sentences(&self, text: &str) -> Vec<String> {

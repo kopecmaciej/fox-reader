@@ -163,6 +163,7 @@ impl SettingsDialog {
         let provider = settings.get_active_provider();
 
         imp.base_url_entry.set_text(&settings.get_base_url());
+        imp.api_key_entry.set_text(&settings.get_api_key());
         imp.model_entry.set_text(&settings.get_model());
         imp.temperature_scale.set_value(settings.get_temperature());
         imp.max_tokens_spin

@@ -130,7 +130,7 @@ impl Settings {
 
     pub fn get_active_provider_config(&self) -> ProviderConfig {
         ProviderConfig {
-            api_key: self.get_api_key(),
+            api_key: Some(self.get_api_key()),
             base_url: self.get_base_url(),
             model: Some(self.get_model()),
             temperature: Some(self.get_temperature() as f32),
@@ -139,7 +139,7 @@ impl Settings {
     }
 
     // API Key
-    pub fn get_api_key(&self) -> Option<String> {
+    pub fn get_api_key(&self) -> String {
         let active_provider = self.get_active_provider();
         let key = match active_provider {
             LLMProvider::LMStudio => "lmstudio-api-key",
@@ -148,12 +148,7 @@ impl Settings {
             LLMProvider::Anthropic => "anthropic-api-key",
         };
 
-        let value = self.string(key).to_string();
-        if value.is_empty() {
-            None
-        } else {
-            Some(value)
-        }
+        self.string(key).to_string()
     }
 
     pub fn set_api_key(&self, api_key: &str) {
@@ -167,7 +162,6 @@ impl Settings {
             .expect("Failed to set API key");
     }
 
-    // Base URL
     pub fn get_base_url(&self) -> String {
         let key = match self.get_active_provider() {
             LLMProvider::LMStudio => "lmstudio-base-url",
@@ -188,7 +182,6 @@ impl Settings {
         self.set_string(key, url).expect("Failed to set base URL");
     }
 
-    // Model
     pub fn get_model(&self) -> String {
         let key = match self.get_active_provider() {
             LLMProvider::LMStudio => "lmstudio-model",
