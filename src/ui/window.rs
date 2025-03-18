@@ -13,11 +13,8 @@ use super::{dialogs, settings_dialog::SettingsDialog};
 
 mod imp {
 
-    use crate::{
-        config::SharedConfig,
-        ui::{
-            ai_chat::AiChat, pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList,
-        },
+    use crate::ui::{
+        ai_chat::AiChat, pdf_reader::PdfReader, text_reader::TextReader, voice_list::VoiceList,
     };
 
     use super::*;
@@ -45,7 +42,6 @@ mod imp {
         #[template_child]
         pub downloaded_container: TemplateChild<gtk::Box>,
         pub settings_dialog: SettingsDialog,
-        pub user_config: SharedConfig,
     }
 
     #[glib::object_subclass]

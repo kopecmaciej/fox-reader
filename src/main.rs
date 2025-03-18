@@ -5,7 +5,6 @@ use gtk::{gio, glib};
 use gtk::{prelude::*, CssProvider};
 
 mod cli;
-mod config;
 mod core;
 mod paths;
 mod settings;

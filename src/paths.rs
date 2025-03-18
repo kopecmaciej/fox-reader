@@ -20,10 +20,6 @@ fn build_path(base_path: &str, relative_path: &str) -> String {
     resolve_home(base_path).to_string() + "/" + relative_path
 }
 
-pub fn get_app_config_path() -> String {
-    resolve_home(&format!("{}/config.json", FOX_READER_BASE_PATH))
-}
-
 pub fn get_pdfium_path() -> String {
     build_path(FOX_READER_BASE_PATH, "pdfium")
 }
