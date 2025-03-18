@@ -79,13 +79,12 @@ mod imp {
             });
 
             settings.set_theme(is_dark);
-            self.pdf_reader.refresh_view();
         }
 
         #[template_callback]
         fn on_settings_button_clicked(&self, button: &gtk::Button) {
             let settings_dialog = &self.settings_dialog;
-            settings_dialog.setup_signals(&self.text_reader);
+            settings_dialog.setup_reader_signals();
             settings_dialog.present(Some(button));
         }
     }
@@ -124,7 +123,7 @@ impl FoxReaderAppWindow {
 
         imp.voice_list.init();
         imp.text_reader.init();
-        imp.pdf_reader.init(imp.user_config.clone());
+        imp.pdf_reader.init();
         imp.ai_chat.init();
         window.setup_stack_switching();
         window.filter_out_by_language();

@@ -68,13 +68,9 @@ pub struct Settings(gio::Settings);
 
 impl Settings {
     // UI Settings
-    pub fn get_font_description(&self) -> Option<FontDescription> {
+    pub fn get_font_description(&self) -> FontDescription {
         let font_str = self.string("font");
-        if font_str.is_empty() {
-            None
-        } else {
-            Some(FontDescription::from_string(&font_str))
-        }
+        FontDescription::from_string(&font_str)
     }
 
     pub fn set_font(&self, font_desc: &FontDescription) {
@@ -87,7 +83,7 @@ impl Settings {
         RGBA::parse(&color_str).unwrap_or_else(|_| RGBA::new(1.0, 1.0, 0.0, 0.3))
     }
 
-    pub fn set_highlight_color(&self, rgba: &RGBA) {
+    pub fn set_highlight_color(&self, rgba: &gtk::gdk::RGBA) {
         self.set_string("highlight-color", &rgba.to_string())
             .expect("Failed to set highlight color setting");
     }

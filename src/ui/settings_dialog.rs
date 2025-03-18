@@ -1,5 +1,4 @@
 use crate::settings::{LLMProvider, SETTINGS};
-use crate::ui::text_reader::TextReader;
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::glib::{self, clone};
@@ -67,9 +66,8 @@ impl Default for SettingsDialog {
         let settings = &SETTINGS;
 
         // Set up text reader settings
-        if let Some(font_desc) = settings.get_font_description() {
-            imp.font_button.set_font_desc(&font_desc);
-        }
+        let font_desc = settings.get_font_description();
+        imp.font_button.set_font_desc(&font_desc);
 
         let rgba = settings.get_highlight_rgba();
         imp.highlight_color_button.set_rgba(&rgba);
@@ -91,30 +89,22 @@ impl Default for SettingsDialog {
 }
 
 impl SettingsDialog {
-    pub fn setup_signals(&self, text_reader: &TextReader) {
+    pub fn setup_reader_signals(&self) {
         let imp = self.imp();
         let settings = &SETTINGS;
 
-        imp.font_button.connect_font_desc_notify(clone!(
-            #[weak]
-            text_reader,
-            move |button| {
+        imp.font_button
+            .connect_font_desc_notify(clone!(move |button| {
                 if let Some(font_desc) = button.font_desc() {
-                    text_reader.set_text_font(font_desc.clone());
                     settings.set_font(&font_desc);
                 }
-            }
-        ));
+            }));
 
-        imp.highlight_color_button.connect_rgba_notify(clone!(
-            #[weak]
-            text_reader,
-            move |button| {
+        imp.highlight_color_button
+            .connect_rgba_notify(clone!(move |button| {
                 let rgba = button.rgba();
-                text_reader.set_highlight_color(rgba);
                 settings.set_highlight_color(&rgba);
-            }
-        ));
+            }));
     }
 
     pub fn setup_llm_signals(&self) {

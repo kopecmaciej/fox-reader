@@ -32,6 +32,11 @@
       <summary>LM Studio Base URL</summary>
       <description>Base URL for LM Studio API</description>
     </key>
+    <key name="lmstudio-api-key" type="s">
+      <default>''</default>
+      <summary>LM studio API Key</summary>
+      <description>API Key for LM studio</description>
+    </key>
     <key name="lmstudio-model" type="s">
       <default>''</default>
       <summary>LM Studio Model</summary>
@@ -53,6 +58,11 @@
       <default>'http://localhost:11434/api/chat'</default>
       <summary>Ollama Base URL</summary>
       <description>Base URL for Ollama API</description>
+    </key>
+    <key name="ollama-api-key" type="s">
+      <default>''</default>
+      <summary>Ollama API Key</summary>
+      <description>API Key for Ollama Api</description>
     </key>
     <key name="ollama-model" type="s">
       <default>''</default>
@@ -76,6 +86,11 @@
       <summary>OpenAI Base URL</summary>
       <description>Base URL for OpenAI API</description>
     </key>
+    <key name="openai-api-key" type="s">
+      <default>''</default>
+      <summary>OpenAI API Key</summary>
+      <description>API Key for OpenAI</description>
+    </key>
     <key name="openai-model" type="s">
       <default>'gpt-4o-mini'</default>
       <summary>OpenAI Model</summary>
@@ -97,6 +112,11 @@
       <default>'https://api.anthropic.com/v1/messages'</default>
       <summary>Anthropic Base URL</summary>
       <description>Base URL for Anthropic API</description>
+    </key>
+    <key name="anthropic-api-key" type="s">
+      <default>''</default>
+      <summary>Anthropic API Key</summary>
+      <description>API Key for Anthropic</description>
     </key>
     <key name="anthropic-model" type="s">
       <default>'claude-3-5-haiku-latest'</default>
