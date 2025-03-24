@@ -17,14 +17,21 @@
       <summary>Application Theme</summary>
       <description>Light or dark application theme</description>
     </key>
-    
+
+    <!-- Whisper Settings -->
+    <key name="whisper-model" type="s">
+      <default>'tiny.en'</default>
+      <summary>Selected Whisper model</summary>
+      <description>The Whisper model to use for speech recognition</description>
+    </key>
+
     <!-- LLM General Settings -->
     <key name="active-provider" type="s">
       <default>'LM Studio'</default>
       <summary>Active LLM Provider</summary>
       <description>The currently active LLM provider</description>
     </key>
-    
+
     <!-- Provider specific settings - for each provider, we create keys with prefixes -->
     <!-- LM Studio -->
     <key name="lmstudio-base-url" type="s">
@@ -52,7 +59,7 @@
       <summary>LM Studio Max Tokens</summary>
       <description>Maximum tokens for LM Studio generation</description>
     </key>
-    
+
     <!-- Ollama -->
     <key name="ollama-base-url" type="s">
       <default>'http://localhost:11434/api/chat'</default>
@@ -79,7 +86,7 @@
       <summary>Ollama Max Tokens</summary>
       <description>Maximum tokens for Ollama generation</description>
     </key>
-    
+
     <!-- OpenAI -->
     <key name="openai-base-url" type="s">
       <default>'https://api.openai.com/v1/chat/completions'</default>
@@ -106,7 +113,7 @@
       <summary>OpenAI Max Tokens</summary>
       <description>Maximum tokens for OpenAI generation</description>
     </key>
-    
+
     <!-- Anthropic -->
     <key name="anthropic-base-url" type="s">
       <default>'https://api.anthropic.com/v1/messages'</default>
@@ -133,6 +140,6 @@
       <summary>Anthropic Max Tokens</summary>
       <description>Maximum tokens for Anthropic generation</description>
     </key>
-    
+
   </schema>
 </schemalist>

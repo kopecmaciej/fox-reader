@@ -113,7 +113,6 @@ impl FoxReaderAppWindow {
         let imp = window.imp();
         let settings = &SETTINGS;
 
-        // Apply theme settings
         let style_manager = adw::StyleManager::default();
         style_manager.set_color_scheme(settings.get_color_scheme());
 

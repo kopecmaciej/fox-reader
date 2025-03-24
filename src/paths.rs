@@ -6,6 +6,8 @@ const HF_BASE_URL: &str = "https://huggingface.co/rhasspy/piper-voices";
 const HF_VERSION: &str = "v1.0.0/";
 const HF_VOICES_JSON: &str = "voices.json";
 
+const WHISPER_BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp";
+
 const DISPATCHER_CONFIG_PATH: &str = "$HOME/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/fox-reader.conf";
@@ -41,6 +43,61 @@ pub mod huggingface_config {
 
     pub fn get_download_path() -> String {
         resolve_home(&format!("{}/voices", FOX_READER_BASE_PATH))
+    }
+}
+
+pub mod whisper_config {
+    use super::*;
+
+    pub fn get_whisper_models_path() -> String {
+        resolve_home(&format!("{}/whisper", FOX_READER_BASE_PATH))
+    }
+
+    pub fn get_model_path(model_name: &str) -> String {
+        build_path(
+            &format!("{}/whisper", FOX_READER_BASE_PATH),
+            &format!("ggml-{}.bin", model_name),
+        )
+    }
+
+    pub fn get_model_url(model_name: &str) -> String {
+        let base_url = format!("{}/resolve/main/ggml", WHISPER_BASE_URL);
+
+        format!("{}-{}.bin", base_url, model_name)
+    }
+
+    pub fn get_available_models() -> Vec<&'static str> {
+        vec![
+            "tiny",
+            "tiny.en",
+            "tiny-q5_1",
+            "tiny.en-q5_1",
+            "tiny-q8_0",
+            "base",
+            "base.en",
+            "base-q5_1",
+            "base.en-q5_1",
+            "base-q8_0",
+            "small",
+            "small.en",
+            "small-q5_1",
+            "small.en-q5_1",
+            "small-q8_0",
+            "medium",
+            "medium.en",
+            "medium-q5_0",
+            "medium.en-q5_0",
+            "medium-q8_0",
+            "large-v1",
+            "large-v2",
+            "large-v2-q5_0",
+            "large-v2-q8_0",
+            "large-v3",
+            "large-v3-q5_0",
+            "large-v3-turbo",
+            "large-v3-turbo-q5_0",
+            "large-v3-turbo-q8_0",
+        ]
     }
 }
 

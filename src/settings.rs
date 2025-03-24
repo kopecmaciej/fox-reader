@@ -2,10 +2,43 @@ use adw::ColorScheme;
 use gio::prelude::SettingsExt;
 use gtk::{gdk::RGBA, gio, glib, pango::FontDescription};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, ops::Deref, sync::LazyLock};
+use std::{fmt::Display, fs, ops::Deref, path::Path, sync::LazyLock};
 
 use crate::APP_ID;
 pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
+
+const WHISPER_MODELS: &[&str] = &[
+    "tiny",
+    "tiny.en",
+    "tiny-q5_1",
+    "tiny.en-q5_1",
+    "tiny-q8_0",
+    "base",
+    "base.en",
+    "base-q5_1",
+    "base.en-q5_1",
+    "base-q8_0",
+    "small",
+    "small.en",
+    "small.en-tdrz",
+    "small-q5_1",
+    "small.en-q5_1",
+    "small-q8_0",
+    "medium",
+    "medium.en",
+    "medium-q5_0",
+    "medium.en-q5_0",
+    "medium-q8_0",
+    "large-v1",
+    "large-v2",
+    "large-v2-q5_0",
+    "large-v2-q8_0",
+    "large-v3",
+    "large-v3-q5_0",
+    "large-v3-turbo",
+    "large-v3-turbo-q5_0",
+    "large-v3-turbo-q8_0",
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
@@ -63,11 +96,105 @@ impl Display for LLMProvider {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WhisperModelDownloadStatus {
+    NotDownloaded,
+    Downloading(u8),
+    Downloaded,
+    Error(String),
+}
+
+impl Default for WhisperModelDownloadStatus {
+    fn default() -> Self {
+        Self::NotDownloaded
+    }
+}
+
+impl Display for WhisperModelDownloadStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WhisperModelDownloadStatus::NotDownloaded => write!(f, "Not downloaded"),
+            WhisperModelDownloadStatus::Downloading(progress) => {
+                write!(f, "Downloading: {}%", progress)
+            }
+            WhisperModelDownloadStatus::Downloaded => write!(f, "Downloaded"),
+            WhisperModelDownloadStatus::Error(err) => write!(f, "Error: {}", err),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Settings(gio::Settings);
 
 impl Settings {
-    // UI Settings
+    pub fn get_available_whisper_models() -> Vec<String> {
+        WHISPER_MODELS.iter().map(|m| m.to_string()).collect()
+    }
+
+    pub fn get_whisper_model(&self) -> String {
+        self.string("whisper-model").to_string()
+    }
+
+    pub fn set_whisper_model(&self, model: &str) {
+        self.set_string("whisper-model", model)
+            .expect("Failed to set Whisper model");
+    }
+
+    pub fn get_whisper_models_path(&self) -> String {
+        let path = self.string("whisper-models-path").to_string();
+        if path.is_empty() {
+            let data_dir = glib::user_data_dir();
+            let default_path = data_dir.join("whisper-models");
+
+            if !default_path.exists() {
+                let _ = fs::create_dir_all(&default_path);
+            }
+
+            let path_str = default_path.to_str().unwrap_or("").to_string();
+            self.set_whisper_models_path(&path_str);
+            return path_str;
+        }
+        path
+    }
+
+    pub fn set_whisper_models_path(&self, path: &str) {
+        self.set_string("whisper-models-path", path)
+            .expect("Failed to set Whisper models path");
+    }
+
+    pub fn get_whisper_model_path(&self) -> Option<String> {
+        let model = self.get_whisper_model();
+        let models_path = self.get_whisper_models_path();
+
+        let model_path = Path::new(&models_path).join(format!("ggml-{}.bin", model));
+        if model_path.exists() {
+            return model_path.to_str().map(String::from);
+        }
+        None
+    }
+
+    pub fn is_whisper_model_downloaded(&self) -> bool {
+        self.get_whisper_model_path().is_some()
+    }
+
+    pub fn connect_whisper_model_changed<F: Fn(&gio::Settings, &str) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_changed(Some("whisper-model"), move |s, key| {
+            f(s, key);
+        })
+    }
+
+    pub fn connect_whisper_models_path_changed<F: Fn(&gio::Settings, &str) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_changed(Some("whisper-models-path"), move |s, key| {
+            f(s, key);
+        })
+    }
+
     pub fn get_font_description(&self) -> FontDescription {
         let font_str = self.string("font");
         FontDescription::from_string(&font_str)
@@ -106,7 +233,6 @@ impl Settings {
             .expect("Failed to set theme setting");
     }
 
-    // LLM Provider Settings
     pub fn get_active_provider_index(&self) -> usize {
         LLMProvider::get_all()
             .iter()
