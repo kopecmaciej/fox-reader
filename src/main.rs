@@ -1,8 +1,9 @@
 use core::runtime::runtime;
-
 use gtk::gdk::Display;
 use gtk::{gio, glib};
 use gtk::{prelude::*, CssProvider};
+use settings::Settings;
+use std::sync::LazyLock;
 
 mod cli;
 mod core;
@@ -12,6 +13,8 @@ mod ui;
 mod utils;
 
 const APP_ID: &str = "org.fox-reader";
+
+pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
 
 fn main() -> glib::ExitCode {
     match runtime().block_on(cli::run_cli()) {

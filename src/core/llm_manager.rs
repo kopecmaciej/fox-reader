@@ -2,7 +2,10 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
-use crate::settings::{LLMProvider, ProviderConfig, SETTINGS};
+use crate::{
+    settings::{LLMProvider, ProviderConfig},
+    SETTINGS,
+};
 
 #[derive(Debug, Clone)]
 pub struct Message {

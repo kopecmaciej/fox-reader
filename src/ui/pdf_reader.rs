@@ -12,8 +12,8 @@ use std::{cell::RefCell, collections::BTreeMap, fmt::Debug, rc::Rc};
 
 use crate::{
     core::{runtime::runtime, tts::TTSEvent},
-    settings::SETTINGS,
     utils::pdf_highlighter::PdfReadingBlock,
+    SETTINGS,
 };
 
 use super::{

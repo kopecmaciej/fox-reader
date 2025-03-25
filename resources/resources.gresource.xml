@@ -8,7 +8,7 @@
     <file compressed="true" preprocess="xml-stripblanks">ui/ai_chat_row.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/piper_installer.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/voice_list.ui</file>
-    <file compressed="true" preprocess="xml-stripblanks">ui/settings.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">ui/settings_dialog.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/audio_controls.ui</file>
   </gresource>
 </gresources>

@@ -1,4 +1,3 @@
-pub mod file_handler;
 pub mod llm_manager;
 pub mod piper;
 pub mod runtime;

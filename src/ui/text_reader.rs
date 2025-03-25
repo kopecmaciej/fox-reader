@@ -5,7 +5,7 @@ use gtk::{
 };
 use std::cell::RefCell;
 
-use crate::{core::tts::TTSEvent, settings::SETTINGS, utils::text_highlighter::TextHighlighter};
+use crate::{core::tts::TTSEvent, utils::text_highlighter::TextHighlighter, SETTINGS};
 
 use super::dialogs;
 

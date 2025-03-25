@@ -1,14 +1,22 @@
-use crate::settings::{LLMProvider, SETTINGS};
+use crate::{
+    core::runtime::runtime,
+    paths::whisper_config::get_whisper_models,
+    settings::LLMProvider,
+    utils::whisper_downloader::{download_model, is_model_downloaded, remove_model},
+    SETTINGS,
+};
 use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gtk::glib::{self, clone};
+
+use super::dialogs::show_error_dialog;
 
 mod imp {
     use super::*;
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/settings.ui")]
+    #[template(resource = "/org/fox-reader/ui/settings_dialog.ui")]
     pub struct SettingsDialog {
         // Font/highlight settings
         #[template_child]
@@ -18,7 +26,7 @@ mod imp {
 
         // LLM Settings
         #[template_child]
-        pub provider_combo: TemplateChild<adw::ComboRow>,
+        pub provider_list: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub api_key_entry: TemplateChild<adw::PasswordEntryRow>,
         #[template_child]
@@ -29,6 +37,12 @@ mod imp {
         pub temperature_scale: TemplateChild<gtk::Scale>,
         #[template_child]
         pub max_tokens_spin: TemplateChild<gtk::SpinButton>,
+
+        // Whisper settings
+        #[template_child]
+        pub whisper_models: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub whisper_download_button: TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -71,48 +85,43 @@ impl Default for SettingsDialog {
         let rgba = settings.get_highlight_rgba();
         imp.highlight_color_button.set_rgba(&rgba);
 
-        let model = gtk::StringList::new(
+        let provider_model = gtk::StringList::new(
             &LLMProvider::get_all_str()
                 .iter()
                 .map(String::as_str)
                 .collect::<Vec<_>>(),
         );
-        imp.provider_combo.set_model(Some(&model));
+        imp.provider_list.set_model(Some(&provider_model));
 
         let provider_index = settings.get_active_provider_index();
-        imp.provider_combo.set_selected(provider_index as u32);
+        imp.provider_list.set_selected(provider_index as u32);
 
-        obj.setup_llm_signals();
+        let whisper_model = gtk::StringList::new(&get_whisper_models());
+        imp.whisper_models.set_model(Some(&whisper_model));
+
+        obj.setup_signals();
+        obj.update_ui_from_provider();
         obj
     }
 }
 
 impl SettingsDialog {
-    pub fn setup_reader_signals(&self) {
+    pub fn setup_signals(&self) {
         let imp = self.imp();
         let settings = &SETTINGS;
 
-        imp.font_button
-            .connect_font_desc_notify(clone!(move |button| {
-                if let Some(font_desc) = button.font_desc() {
-                    settings.set_font(&font_desc);
-                }
-            }));
+        imp.font_button.connect_font_desc_notify(|button| {
+            if let Some(font_desc) = button.font_desc() {
+                settings.set_font(&font_desc);
+            }
+        });
 
-        imp.highlight_color_button
-            .connect_rgba_notify(clone!(move |button| {
-                let rgba = button.rgba();
-                settings.set_highlight_color(&rgba);
-            }));
-    }
+        imp.highlight_color_button.connect_rgba_notify(|button| {
+            let rgba = button.rgba();
+            settings.set_highlight_color(&rgba);
+        });
 
-    pub fn setup_llm_signals(&self) {
-        let imp = self.imp();
-        let settings = &SETTINGS;
-
-        self.update_ui_from_provider();
-
-        imp.provider_combo.connect_selected_notify(clone!(
+        imp.provider_list.connect_selected_notify(clone!(
             #[weak(rename_to=this)]
             self,
             move |combo| {
@@ -126,32 +135,91 @@ impl SettingsDialog {
             }
         ));
 
-        imp.base_url_entry.connect_changed(clone!(move |entry| {
+        imp.base_url_entry.connect_changed(|entry| {
             let base_url = entry.text();
             settings.set_base_url(&base_url);
-        }));
+        });
 
-        imp.model_entry.connect_changed(clone!(move |entry| {
+        imp.model_entry.connect_changed(|entry| {
             let model = entry.text();
             settings.set_model(&model);
-        }));
+        });
 
-        imp.api_key_entry.connect_changed(clone!(move |entry| {
+        imp.api_key_entry.connect_changed(|entry| {
             let api_key = entry.text();
             settings.set_api_key(&api_key);
-        }));
+        });
 
-        imp.temperature_scale
-            .connect_value_changed(clone!(move |scale| {
-                let temperature = scale.value();
-                settings.set_temperature(temperature);
-            }));
+        imp.temperature_scale.connect_value_changed(|scale| {
+            let temperature = scale.value();
+            settings.set_temperature(temperature);
+        });
 
-        imp.max_tokens_spin
-            .connect_value_changed(clone!(move |spin| {
-                let max_tokens = spin.value() as u32;
-                settings.set_max_tokens(max_tokens);
-            }));
+        imp.max_tokens_spin.connect_value_changed(|spin| {
+            let max_tokens = spin.value() as u32;
+            settings.set_max_tokens(max_tokens);
+        });
+
+        imp.whisper_models.connect_selected_notify(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |combo| {
+                if let Some(item) = combo.selected_item() {
+                    if let Ok(model) = item.downcast::<gtk::StringObject>() {
+                        SETTINGS.set_whisper_model(model.string().as_ref());
+                        this.set_whisper_button_ui(model.string().as_ref())
+                    }
+                }
+            }
+        ));
+
+        imp.whisper_models.connect_realize(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |_| {
+                if let Some(item) = this.imp().whisper_models.selected_item() {
+                    if let Ok(model) = item.downcast::<gtk::StringObject>() {
+                        this.set_whisper_button_ui(model.string().as_ref())
+                    }
+                }
+            }
+        ));
+
+        imp.whisper_download_button.connect_clicked(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |button| {
+                if let Some(item) = this.imp().whisper_models.selected_item() {
+                    if let Ok(model) = item.downcast::<gtk::StringObject>() {
+                        let model_str = model.string().to_string();
+                        let model_str_clone = model_str.clone();
+
+                        if button.has_css_class("destructive-action") {
+                            if let Err(e) = remove_model(&model_str) {
+                                show_error_dialog(&format!("Failed to remove file, {}", e), button);
+                            }
+                            this.set_whisper_button_ui(&model_str);
+                            return;
+                        }
+                        glib::spawn_future_local(clone!(
+                            #[weak]
+                            button,
+                            async move {
+                                let result = runtime()
+                                    .spawn(async move { download_model(&model_str_clone).await })
+                                    .await;
+                                match result {
+                                    Ok(Ok(_)) => {}
+                                    Ok(Err(e)) => show_error_dialog(&format!("{}", e), &button),
+                                    Err(e) => show_error_dialog(&format!("{}", e), &button),
+                                };
+                                this.set_whisper_button_ui(&model_str);
+                            }
+                        ));
+                    }
+                }
+            }
+        ));
     }
 
     fn update_ui_from_provider(&self) {
@@ -180,6 +248,19 @@ impl SettingsDialog {
             LLMProvider::Anthropic => {
                 imp.base_url_entry.set_visible(false);
             }
+        }
+    }
+
+    fn set_whisper_button_ui(&self, model_name: &str) {
+        let imp = self.imp();
+        if is_model_downloaded(model_name) {
+            imp.whisper_download_button.set_label("Remove");
+            imp.whisper_download_button
+                .set_css_classes(&["destructive-action"]);
+        } else {
+            imp.whisper_download_button.set_label("Download");
+            imp.whisper_download_button
+                .set_css_classes(&["suggested-action"]);
         }
     }
 }

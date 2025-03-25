@@ -34,7 +34,9 @@ impl FileHandler {
     }
 
     pub fn remove_file(path: &str) -> Result<(), Box<dyn Error>> {
-        remove_file(path)?;
+        if Self::does_file_exist(path) {
+            remove_file(path)?;
+        }
         Ok(())
     }
 

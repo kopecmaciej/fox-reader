@@ -54,8 +54,9 @@ pub mod whisper_config {
     }
 
     pub fn get_model_path(model_name: &str) -> String {
+        let whisper_path = get_whisper_models_path();
         build_path(
-            &format!("{}/whisper", FOX_READER_BASE_PATH),
+            &whisper_path,
             &format!("ggml-{}.bin", model_name),
         )
     }
@@ -66,7 +67,7 @@ pub mod whisper_config {
         format!("{}-{}.bin", base_url, model_name)
     }
 
-    pub fn get_available_models() -> Vec<&'static str> {
+    pub fn get_whisper_models() -> Vec<&'static str> {
         vec![
             "tiny",
             "tiny.en",

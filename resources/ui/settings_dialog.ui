@@ -49,68 +49,6 @@
           </object>
         </child>
 
-        <!-- Whisper Model Settings Group -->
-        <child>
-          <object class="AdwPreferencesGroup">
-            <property name="title">Whisper Model Configuration</property>
-
-            <!-- Model Selection -->
-            <child>
-              <object class="AdwComboRow" id="whisper_model_combo">
-                <property name="title">Model</property>
-                <property name="subtitle">Select a Whisper model to use for speech recognition</property>
-              </object>
-            </child>
-
-            <!-- Download Status -->
-            <child>
-              <object class="AdwActionRow" id="whisper_download_status">
-                <property name="title">Status</property>
-                <property name="subtitle">Not downloaded</property>
-                <child>
-                  <object class="GtkButton" id="whisper_download_button">
-                    <property name="valign">center</property>
-                    <property name="label">Download</property>
-                    <style>
-                      <class name="suggested-action" />
-                    </style>
-                  </object>
-                </child>
-              </object>
-            </child>
-
-            <!-- Download Progress -->
-            <child>
-              <object class="AdwActionRow">
-                <property name="title">Download Progress</property>
-                <child>
-                  <object class="GtkProgressBar" id="whisper_download_progress">
-                    <property name="valign">center</property>
-                    <property name="width-request">150</property>
-                    <property name="visible">false</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <!-- Separator -->
-        <child>
-          <object class="AdwPreferencesGroup">
-            <property name="margin-top">4</property>
-            <property name="margin-bottom">4</property>
-          </object>
-        </child>
-
-        <!-- Separator -->
-        <child>
-          <object class="AdwPreferencesGroup">
-            <property name="margin-top">4</property>
-            <property name="margin-bottom">4</property>
-          </object>
-        </child>
-
         <!-- LLM Settings Group -->
         <child>
           <object class="AdwPreferencesGroup">
@@ -118,16 +56,10 @@
 
             <!-- Provider Selection -->
             <child>
-              <object class="AdwComboRow" id="provider_combo">
+              <object class="AdwComboRow" id="provider_list">
                 <property name="title">Provider</property>
                 <property name="model">
                   <object class="GtkStringList">
-                    <items>
-                      <item>LM Studio</item>
-                      <item>OpenAI</item>
-                      <item>Anthropic</item>
-                      <item>Ollama</item>
-                    </items>
                   </object>
                 </property>
               </object>
@@ -200,9 +132,59 @@
                 </child>
               </object>
             </child>
-
           </object>
         </child>
+
+        <!-- Whisper Model Settings Group -->
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title">Whisper Model Configuration</property>
+
+            <child>
+              <!-- Model Selection -->
+              <object class="AdwComboRow" id="whisper_models">
+                <property name="title">Whisper Model</property>
+                <property name="subtitle">Select a Whisper model to use for speech recognition</property>
+                <property name="model">
+                  <object class="GtkStringList">
+                  </object>
+                </property>
+              </object>
+            </child>
+
+            <!-- Download Status -->
+            <child>
+              <object class="AdwActionRow" id="whisper_download_status">
+                <property name="title">Status</property>
+                <property name="subtitle">Not downloaded</property>
+                <child>
+                  <object class="GtkButton" id="whisper_download_button">
+                    <property name="valign">center</property>
+                    <property name="label">Download</property>
+                    <style>
+                      <class name="suggested-action" />
+                    </style>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <!-- Download Progress -->
+            <child>
+              <object class="AdwActionRow">
+                <property name="title">Download Progress</property>
+                <child>
+                  <object class="GtkProgressBar" id="whisper_download_progress">
+                    <property name="valign">center</property>
+                    <property name="width-request">150</property>
+                    <property name="visible">false</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+
       </object>
     </child>
   </template>

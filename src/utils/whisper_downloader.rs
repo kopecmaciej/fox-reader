@@ -1,19 +1,17 @@
-use std::fs::{self, File};
-use std::io::Write;
+use std::error::Error;
+use std::fs::{self};
 use std::path::Path;
 
-use crate::paths::whisper_config;
+use crate::paths::whisper_config::{self};
 
-/// Downloads a Whisper model in the background and reports progress
+use super::file_handler::FileHandler;
 
-/// Checks if a model is already downloaded
 pub fn is_model_downloaded(model_name: &str) -> bool {
     let model_path = whisper_config::get_model_path(model_name);
     Path::new(&model_path).exists()
 }
 
-/// Lists all downloaded models
-pub fn get_downloaded_models() -> Vec<String> {
+pub fn _get_downloaded_models() -> Vec<String> {
     let models_dir = whisper_config::get_whisper_models_path();
     let models_path = Path::new(&models_dir);
 
@@ -43,4 +41,22 @@ pub fn get_downloaded_models() -> Vec<String> {
     }
 
     downloaded_models
+}
+
+pub async fn download_model(model_name: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let url = whisper_config::get_model_url(model_name);
+    let path = whisper_config::get_model_path(model_name);
+
+    match FileHandler::fetch_file_async(url).await {
+        Ok(file) => match FileHandler::save_bytes(&path, &file) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(format!("Error while saving whisper model: {}", e).into()),
+        },
+        Err(e) => Err(format!("Error while downloading whisper model: {}", e).into()),
+    }
+}
+
+pub fn remove_model(model_name: &str) -> Result<(), Box<dyn Error>> {
+    let path = whisper_config::get_model_path(model_name);
+    FileHandler::remove_file(&path)
 }
