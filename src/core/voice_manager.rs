@@ -1,5 +1,5 @@
-use crate::core::file_handler::FileHandler;
 use crate::paths::{dispatcher_config, huggingface_config};
+use crate::utils::file_handler::FileHandler;
 use rodio::buffer::SamplesBuffer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

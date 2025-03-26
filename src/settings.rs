@@ -2,10 +2,9 @@ use adw::ColorScheme;
 use gio::prelude::SettingsExt;
 use gtk::{gdk::RGBA, gio, glib, pango::FontDescription};
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, ops::Deref, sync::LazyLock};
+use std::{fmt::Display, ops::Deref};
 
 use crate::APP_ID;
-pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
@@ -67,7 +66,6 @@ impl Display for LLMProvider {
 pub struct Settings(gio::Settings);
 
 impl Settings {
-    // UI Settings
     pub fn get_font_description(&self) -> FontDescription {
         let font_str = self.string("font");
         FontDescription::from_string(&font_str)
@@ -106,7 +104,6 @@ impl Settings {
             .expect("Failed to set theme setting");
     }
 
-    // LLM Provider Settings
     pub fn get_active_provider_index(&self) -> usize {
         LLMProvider::get_all()
             .iter()
@@ -276,6 +273,34 @@ impl Settings {
         f: F,
     ) -> glib::SignalHandlerId {
         self.connect_changed(Some("active-provider"), move |s, key| {
+            f(s, key);
+        })
+    }
+
+    // Whisper
+    pub fn get_whisper_model(&self) -> String {
+        self.string("whisper-model").to_string()
+    }
+
+    pub fn set_whisper_model(&self, model: &str) {
+        self.set_string("whisper-model", model)
+            .expect("Failed to set Whisper model");
+    }
+
+    pub fn connect_whisper_model_changed<F: Fn(&gio::Settings, &str) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_changed(Some("whisper-model"), move |s, key| {
+            f(s, key);
+        })
+    }
+
+    pub fn connect_whisper_models_path_changed<F: Fn(&gio::Settings, &str) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_changed(Some("whisper-models-path"), move |s, key| {
             f(s, key);
         })
     }

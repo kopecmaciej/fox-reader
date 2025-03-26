@@ -3,7 +3,6 @@
   <schema id="org.fox-reader" path="/org/fox-reader/">
     <!-- UI Settings -->
     <key name="font" type="s">
-      <default>''</default>
       <summary>Font</summary>
       <description>The font used for displaying text</description>
     </key>
@@ -17,15 +16,19 @@
       <summary>Application Theme</summary>
       <description>Light or dark application theme</description>
     </key>
-    
+
+    <!-- Whisper Settings -->
+    <key name="whisper-model" type="s">
+      <summary>Selected Whisper model</summary>
+      <description>The Whisper model to use for speech recognition</description>
+    </key>
+
     <!-- LLM General Settings -->
     <key name="active-provider" type="s">
-      <default>'LM Studio'</default>
       <summary>Active LLM Provider</summary>
       <description>The currently active LLM provider</description>
     </key>
-    
-    <!-- Provider specific settings - for each provider, we create keys with prefixes -->
+
     <!-- LM Studio -->
     <key name="lmstudio-base-url" type="s">
       <default>'http://localhost:1234/v1/chat/completions'</default>
@@ -33,12 +36,10 @@
       <description>Base URL for LM Studio API</description>
     </key>
     <key name="lmstudio-api-key" type="s">
-      <default>''</default>
       <summary>LM studio API Key</summary>
       <description>API Key for LM studio</description>
     </key>
     <key name="lmstudio-model" type="s">
-      <default>''</default>
       <summary>LM Studio Model</summary>
       <description>Model for LM Studio</description>
     </key>
@@ -52,7 +53,7 @@
       <summary>LM Studio Max Tokens</summary>
       <description>Maximum tokens for LM Studio generation</description>
     </key>
-    
+
     <!-- Ollama -->
     <key name="ollama-base-url" type="s">
       <default>'http://localhost:11434/api/chat'</default>
@@ -60,12 +61,10 @@
       <description>Base URL for Ollama API</description>
     </key>
     <key name="ollama-api-key" type="s">
-      <default>''</default>
       <summary>Ollama API Key</summary>
       <description>API Key for Ollama Api</description>
     </key>
     <key name="ollama-model" type="s">
-      <default>''</default>
       <summary>Ollama Model</summary>
       <description>Model for Ollama</description>
     </key>
@@ -79,7 +78,7 @@
       <summary>Ollama Max Tokens</summary>
       <description>Maximum tokens for Ollama generation</description>
     </key>
-    
+
     <!-- OpenAI -->
     <key name="openai-base-url" type="s">
       <default>'https://api.openai.com/v1/chat/completions'</default>
@@ -106,7 +105,7 @@
       <summary>OpenAI Max Tokens</summary>
       <description>Maximum tokens for OpenAI generation</description>
     </key>
-    
+
     <!-- Anthropic -->
     <key name="anthropic-base-url" type="s">
       <default>'https://api.anthropic.com/v1/messages'</default>
@@ -114,7 +113,6 @@
       <description>Base URL for Anthropic API</description>
     </key>
     <key name="anthropic-api-key" type="s">
-      <default>''</default>
       <summary>Anthropic API Key</summary>
       <description>API Key for Anthropic</description>
     </key>
@@ -133,6 +131,6 @@
       <summary>Anthropic Max Tokens</summary>
       <description>Maximum tokens for Anthropic generation</description>
     </key>
-    
+
   </schema>
 </schemalist>

@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use crate::{
-    core::file_handler::FileHandler,
     paths::{dispatcher_config, huggingface_config},
+    utils::file_handler::FileHandler,
 };
 
 const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");

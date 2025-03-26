@@ -7,7 +7,7 @@ use gtk::{
     StringList,
 };
 
-use crate::{core::speech_dispatcher::SpeechDispatcher, settings::SETTINGS};
+use crate::{core::speech_dispatcher::SpeechDispatcher, SETTINGS};
 
 use super::{dialogs, settings_dialog::SettingsDialog};
 
@@ -80,7 +80,6 @@ mod imp {
         #[template_callback]
         fn on_settings_button_clicked(&self, button: &gtk::Button) {
             let settings_dialog = &self.settings_dialog;
-            settings_dialog.setup_reader_signals();
             settings_dialog.present(Some(button));
         }
     }
@@ -113,7 +112,6 @@ impl FoxReaderAppWindow {
         let imp = window.imp();
         let settings = &SETTINGS;
 
-        // Apply theme settings
         let style_manager = adw::StyleManager::default();
         style_manager.set_color_scheme(settings.get_color_scheme());
 
