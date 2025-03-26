@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use crate::core::runtime::runtime;
+use crate::core::runtime::{runtime, spawn_tokio};
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::core::voice_manager::{Voice, VoiceManager};
 use crate::ui::dialogs;
@@ -155,16 +155,12 @@ impl VoiceRow {
                         let file_paths = this.imp().files.borrow().clone().into_keys().collect();
                         match runtime().block_on(VoiceManager::download_voice_samples(file_paths)) {
                             Ok(audio_data) => {
-                                let _ = runtime()
-                                    .spawn(clone!(async move {
-                                        if let Err(e) = audio_player.play_mp3(audio_data) {
-                                            eprintln!(
-                                                "Failed to play voice sample. \nDetails: {}",
-                                                e
-                                            );
-                                        };
-                                    }))
-                                    .await;
+                                if let Err(e) =
+                                    spawn_tokio(async move { audio_player.play_mp3(audio_data) })
+                                        .await
+                                {
+                                    dialogs::show_error_dialog(&e.to_string(), &button)
+                                }
                             }
                             Err(e) => dialogs::show_error_dialog(&e.to_string(), &button),
                         }
@@ -194,21 +190,26 @@ impl VoiceRow {
                             grid.attach(&spinner, 1, 0, 1, 1);
                         }
                         let file_paths = this.imp().files.borrow().clone().into_keys().collect();
-                        let _ = runtime()
-                            .spawn(clone!(async move {
-                                if let Err(e) = VoiceManager::download_voice(file_paths).await {
-                                    eprintln!("Failed to download voice: {}", e);
-                                }
-                            }))
-                            .await;
+                        if let Err(e) = spawn_tokio(async move {
+                            if let Err(e) = VoiceManager::download_voice(file_paths).await {
+                                return Err(format!("{}", e));
+                            }
+                            Ok(())
+                        })
+                        .await
+                        {
+                            dialogs::show_error_dialog(
+                                &format!("Failed to download voice: {}", e),
+                                &button,
+                            );
+                        }
 
                         if let Err(e) = SpeechDispatcher::add_new_voice_to_config(
                             &this.language_code(),
                             &this.name(),
                             &this.key(),
                         ) {
-                            let err_msg =
-                                format!("Failed to add voice to config. \nDetails: {}", e);
+                            let err_msg = format!("Failed to add voice to config: {}", e);
                             dialogs::show_error_dialog(&err_msg, &button);
                         }
                         if let Some(grid) = grid {
@@ -232,7 +233,7 @@ impl VoiceRow {
             move |button| {
                 let files = this.imp().files.borrow().clone().into_keys().collect();
                 if let Err(e) = VoiceManager::delete_voice(files) {
-                    let err_msg = format!("Failed to delete voice. \nDetails: {}", e);
+                    let err_msg = format!("Failed to delete voice: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
                 }
                 if let Err(e) = SpeechDispatcher::delete_voice_from_config(
@@ -240,7 +241,7 @@ impl VoiceRow {
                     &this.name(),
                     &this.key(),
                 ) {
-                    let err_msg = format!("Failed to update config file. \nDetails: {}", e);
+                    let err_msg = format!("Failed to update config file: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
                 };
                 button.set_sensitive(false);
@@ -257,7 +258,7 @@ impl VoiceRow {
             self,
             move |button| {
                 if let Err(e) = SpeechDispatcher::set_default_voice(&this.key()) {
-                    let err_msg = format!("Failed to set voice as default. \nDetails: {}", e);
+                    let err_msg = format!("Failed to set voice as default: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
                 }
                 this.set_is_default(true);

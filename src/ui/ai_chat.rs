@@ -11,7 +11,12 @@ use std::{
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{
-    core::{llm_manager::LLMManager, runtime::runtime, voice_manager::VoiceManager},
+    core::{
+        llm_manager::LLMManager,
+        runtime::{runtime, spawn_tokio},
+        voice_manager::VoiceManager,
+    },
+    ui::dialogs::show_error_dialog,
     utils::audio_player::AudioPlayer,
 };
 
@@ -336,64 +341,30 @@ impl AiChat {
     async fn process_audio_and_get_response(&self, audio_data: Vec<f32>, language: Option<String>) {
         let imp = self.imp();
 
-        let transcription_result = runtime()
-            .spawn(async move { Self::process_audio(audio_data, language) })
-            .await;
-
+        let transcription_result =
+            spawn_tokio(async move { Self::process_audio(audio_data, language) }).await;
         match transcription_result {
-            Ok(Ok(text)) => {
+            Ok(text) => {
                 self.add_message_to_chat(&text, MessageType::User);
 
                 imp.status_label.set_text("Sending to LLM...");
 
                 let llm_manager = imp.llm_manager.clone();
-
-                let response = runtime()
-                    .spawn(async move { llm_manager.send_to_llm(&text.clone()).await })
-                    .await;
-
+                let response =
+                    spawn_tokio(async move { llm_manager.send_to_llm(&text.clone()).await }).await;
                 match response {
-                    Ok(Ok(response)) => {
+                    Ok(response) => {
                         self.handle_ai_response(&response).await;
                     }
-                    Ok(Err(err)) => {
-                        eprintln!("LLM response error: {:?}", err);
+                    Err(e) => {
+                        show_error_dialog(&format!("LLM response error: {}", e), self);
                         imp.status_label.set_text("Error: LLM response failed");
-
-                        self.add_message_to_chat(
-                            "Sorry, I encountered an error processing your request.",
-                            MessageType::Assistant,
-                        );
-                    }
-                    Err(err) => {
-                        eprintln!("Task join error: {:?}", err);
-                        imp.status_label.set_text("Error: Task join failed");
-
-                        // Add error message to chat
-                        self.add_message_to_chat(
-                            "Sorry, I encountered an error while processing your request.",
-                            MessageType::Assistant,
-                        );
                     }
                 }
             }
-            Ok(Err(err)) => {
-                eprintln!("process_audio error: {}", err);
+            Err(e) => {
+                show_error_dialog(&format!("Process audio error: {}", e), self);
                 imp.status_label.set_text("Error: Audio processing failed");
-
-                self.add_message_to_chat(
-                    "Sorry, I had trouble understanding what you said. Could you try again?",
-                    MessageType::Assistant,
-                );
-            }
-            Err(join_err) => {
-                eprintln!("Tokio task failed: {}", join_err);
-                imp.status_label.set_text("Error: Task execution failed");
-
-                self.add_message_to_chat(
-                    "Sorry, I encountered a technical error. Please try again.",
-                    MessageType::Assistant,
-                );
             }
         }
         *imp.state.borrow_mut() = State::Idle;
@@ -472,11 +443,10 @@ impl AiChat {
                     .unwrap();
 
                 let audio_player = self.imp().audio_player.clone();
-                if let Err(e) = runtime()
-                    .spawn(async move { audio_player.play_audio(source_audio) })
-                    .await
+                if let Err(e) =
+                    spawn_tokio(async move { audio_player.play_audio(source_audio) }).await
                 {
-                    eprintln!("Error playing audio: {}", e);
+                    show_error_dialog(&format!("Error playing audio: {}", e), self);
                 }
             }
         }

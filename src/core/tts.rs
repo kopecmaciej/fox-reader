@@ -1,5 +1,8 @@
 use super::{runtime::runtime, voice_manager::VoiceManager};
-use crate::utils::{audio_player::AudioPlayer, highlighter::ReadingBlock};
+use crate::{
+    core::runtime::spawn_tokio,
+    utils::{audio_player::AudioPlayer, highlighter::ReadingBlock},
+};
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -121,14 +124,12 @@ impl Tts {
 
         let result = runtime()
             .spawn(async move {
-                let play_handle =
-                    tokio::spawn(async move { audio_player.play_audio(source_audio) });
+                let play_handle = spawn_tokio(async move { audio_player.play_audio(source_audio) });
 
                 tokio::select! {
                     play_result = play_handle => {
                         match play_result {
-                            Ok(Ok(_)) => None,
-                            Ok(Err(e)) => Some(TTSEvent::Error(e.to_string())),
+                            Ok(_) => None,
                             Err(e) => Some(TTSEvent::Error(e.to_string())),
                         }
                     }

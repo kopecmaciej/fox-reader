@@ -1,5 +1,5 @@
 use crate::{
-    core::runtime::runtime,
+    core::runtime::spawn_tokio,
     paths::whisper_config::get_whisper_models,
     settings::LLMProvider,
     utils::whisper_downloader::{download_model, is_model_downloaded, remove_model},
@@ -205,15 +205,15 @@ impl SettingsDialog {
                             #[weak]
                             button,
                             async move {
-                                let result = runtime()
-                                    .spawn(async move { download_model(&model_str_clone).await })
+                                let result =
+                                    spawn_tokio(
+                                        async move { download_model(&model_str_clone).await },
+                                    )
                                     .await;
                                 match result {
-                                    Ok(Ok(_)) => {}
-                                    Ok(Err(e)) => show_error_dialog(&format!("{}", e), &button),
+                                    Ok(_) => this.set_whisper_button_ui(&model_str),
                                     Err(e) => show_error_dialog(&format!("{}", e), &button),
                                 };
-                                this.set_whisper_button_ui(&model_str);
                             }
                         ));
                     }
