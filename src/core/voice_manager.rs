@@ -53,8 +53,8 @@ impl VoiceManager {
             .map(|(mut key, mut voice)| {
                 voice.language.code = voice.language.code.replace("_", "-");
                 // we want key to be as voice.onnx for dispatcher config
-                voice.key = format!("{}.onnx", voice.key);
-                key = format!("{}.onnx", key);
+                voice.key = format!("{}.onnx.json", voice.key);
+                key = format!("{}.onnx.json", key);
                 voice
                     .files
                     .retain(|f, _| f.ends_with("json") || f.ends_with("onnx"));

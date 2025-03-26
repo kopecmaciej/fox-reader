@@ -17,11 +17,18 @@ const APP_ID: &str = "org.fox-reader";
 pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
 
 fn main() -> glib::ExitCode {
-    match runtime().block_on(cli::run_cli()) {
-        Ok(true) => return glib::ExitCode::SUCCESS,
-        Ok(false) => (),
-        Err(e) => {
-            eprintln!("CLI error: {}", e);
+    let is_cli_mode = std::env::args().any(|arg| &arg == "--cli");
+
+    if is_cli_mode {
+        match runtime().block_on(cli::run_cli()) {
+            Ok(true) => return glib::ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("{}", e);
+                return glib::ExitCode::FAILURE;
+            }
+            _ => {
+                return glib::ExitCode::FAILURE;
+            }
         }
     }
 

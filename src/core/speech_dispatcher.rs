@@ -27,10 +27,9 @@ impl SpeechDispatcher {
     }
 
     fn init_module_config() -> Result<(), Box<dyn Error>> {
-        let piper_path = "$PIPER_PATH";
         let module_path = &dispatcher_config::get_module_config_path();
         if !FileHandler::does_file_exist(module_path) {
-            FileHandler::save_bytes(module_path, module_template(piper_path).trim().as_bytes())?;
+            FileHandler::save_bytes(module_path, module_template().trim().as_bytes())?;
         }
         Ok(())
     }
@@ -116,11 +115,10 @@ DefaultModule "fox-reader""#,
     )
 }
 
-fn module_template(piper_path: &str) -> String {
+fn module_template() -> String {
     format!(
         r#"
-GenericExecuteSynth "export DATA='$DATA'; export RATE='$RATE'; export VOICE='$VOICE';export PIPER_PATH='{}'; export VOICE_PATH='{}';{}""#,
-        piper_path,
+GenericExecuteSynth "export DATA='$DATA';export RATE='$RATE';export VOICE='$VOICE';export VOICE_PATH='{}';{}""#,
         huggingface_config::get_download_path(),
         dispatcher_config::get_script_path()
     )

@@ -12,17 +12,17 @@ pub fn runtime() -> &'static Runtime {
     })
 }
 
-pub async fn spawn_tokio<F, T, E>(fut: F) -> Result<T, Box<dyn std::error::Error + Send + Sync>>
+pub async fn spawn_tokio<F, T, E>(fut: F) -> Result<T, Box<dyn std::error::Error + Send>>
 where
     F: std::future::Future<Output = Result<T, E>> + Send + 'static,
     T: Send + 'static,
     E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static + Send,
 {
     match runtime().spawn(fut).await {
-        Ok(inner_result) => match inner_result {
+        Ok(res) => match res {
             Ok(value) => Ok(value),
-            Err(task_error) => Err(task_error.into()),
+            Err(e) => Err(e.into()),
         },
-        Err(join_error) => Err(Box::new(join_error)),
+        Err(e) => Err(Box::new(e)),
     }
 }

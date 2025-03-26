@@ -23,6 +23,9 @@ impl PiperTTS {
     }
 
     pub async fn initialize(&self, model_path: &str) -> Result<(), Box<dyn Error>> {
+        if !model_path.ends_with("json") {
+            return Err("Voice model should be loaded as .json file".into());
+        }
         let model = piper_rs::from_config_path(Path::new(model_path))
             .map_err(|e| format!("Failed to load Piper model: {}", e))?;
 

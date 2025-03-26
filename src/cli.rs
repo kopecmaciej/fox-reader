@@ -1,5 +1,6 @@
 use clap::{Arg, Command};
 use std::error::Error;
+use std::path::Path;
 
 use crate::core::piper::PiperTTS;
 use crate::utils::audio_player::AudioPlayer;
@@ -21,7 +22,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             Arg::new("model")
                 .short('m')
                 .long("model")
-                .help("Path to the Piper model directory")
+                .help("Path to the Piper model directory (.onnx.json file)")
                 .value_name("MODEL_PATH")
                 .required(true),
         )
@@ -37,25 +38,64 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             Arg::new("rate")
                 .short('r')
                 .long("rate")
-                .help("Speech rate (5-55)")
+                .help("Speech rate (-100:100)")
                 .value_name("RATE")
-                .value_parser(clap::value_parser!(u8)),
+                .allow_negative_numbers(true)
+                .value_parser(clap::value_parser!(f32)),
         )
         .get_matches();
 
     let model_path = matches.get_one::<String>("model").unwrap();
     let text = matches.get_one::<String>("text").unwrap();
-    let rate = matches.get_one::<u8>("rate").copied();
+    let rate = matches.get_one::<f32>("rate").copied();
+
+    let mut calculated_rate = 0;
+    if let Some(r) = rate {
+        calculated_rate = speech_dispatcher_to_piper_percentage(r);
+    }
+
+    if !Path::new(model_path).exists() {
+        let err_msg = format!("Error: Model path does not exist: {}", model_path);
+        return Err(err_msg.into());
+    }
 
     let piper = PiperTTS::new();
-    piper.initialize(model_path).await?;
+    match piper.initialize(model_path).await {
+        Ok(_) => {}
+        Err(e) => {
+            let err_msg = "Error: Failed to initialize Piper TTS engine";
+            let err_msg = format!("{}\nModel path: {}", err_msg, model_path);
+            let err_msg = format!("{}\nDetails: {}", err_msg, e);
+            return Err(err_msg.into());
+        }
+    }
 
-    let audio_buffer = piper.synthesize_speech(text, rate).await?;
+    let audio_buffer = match piper.synthesize_speech(text, Some(calculated_rate)).await {
+        Ok(buffer) => buffer,
+        Err(e) => {
+            let err_msg = "Error: Failed to synthesize speech";
+            let err_msg = format!("{}\nDetails: {}", err_msg, e);
+            return Err(err_msg.into());
+        }
+    };
 
     let player = AudioPlayer::default();
-    player
-        .play_audio(audio_buffer)
-        .expect("Error while playing audio");
+    match player.play_audio(audio_buffer) {
+        Ok(_) => {}
+        Err(e) => {
+            let err_msg = "Error: Failed to play audio";
+            let err_msg = format!("{}\nDetails: {}", err_msg, e);
+            return Err(err_msg.into());
+        }
+    }
 
     Ok(true)
+}
+
+fn speech_dispatcher_to_piper_percentage(sd_rate: f32) -> u8 {
+    if sd_rate < 0.0 {
+        (sd_rate + 100.0 / 10.0).round() as u8
+    } else {
+        (10.0 + (sd_rate * 0.4)).round() as u8
+    }
 }
