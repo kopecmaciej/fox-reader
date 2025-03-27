@@ -126,11 +126,7 @@ impl VoiceManager {
         voice_path: &str,
         rate: Option<u8>,
     ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
-        let voice_full_path = format!(
-            "{}/{}.json",
-            huggingface_config::get_download_path(),
-            voice_path
-        );
+        let voice_full_path = format!("{}/{}", huggingface_config::get_download_path(), voice_path);
 
         let piper_tts = PiperTTS::new();
         piper_tts.initialize(&voice_full_path).await?;
