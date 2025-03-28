@@ -1,6 +1,6 @@
 use pdfium_render::prelude::{
-    PdfPage, PdfPageObject, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPageTextObject,
-    PdfPoints, PdfQuadPoints, PdfRect, PdfSearchDirection, PdfSearchOptions,
+    PdfPage, PdfPageTextSegment, PdfPoints, PdfQuadPoints, PdfRect, PdfSearchDirection,
+    PdfSearchOptions,
 };
 
 use crate::utils::highlighter::ReadingBlock;
@@ -11,7 +11,6 @@ pub struct PdfReadingBlock {
     pub text: String,
     pub rectangles: Vec<PdfRect>,
     pub id: u32,
-    pub font_size: f32,
 }
 
 // TODO: test thresholds
@@ -31,7 +30,7 @@ impl ReadingBlock for PdfReadingBlock {
 
 #[derive(Debug)]
 pub struct PdfHighlighter {
-    pub blocks_generated_for: Option<u16>,
+    pub current_page_num: Option<u16>,
     pub current_blocks: Vec<PdfReadingBlock>,
     pub highlighted_block: Option<u32>,
 }
@@ -45,7 +44,7 @@ impl Default for PdfHighlighter {
 impl PdfHighlighter {
     pub fn new() -> Self {
         Self {
-            blocks_generated_for: None,
+            current_page_num: None,
             current_blocks: Vec::new(),
             highlighted_block: None,
         }
@@ -68,88 +67,103 @@ impl PdfHighlighter {
         page: &PdfPage,
         curr_page_num: u16,
     ) -> Result<(), Box<dyn Error>> {
-        // 1. Filter out objects that are not valid text objects
-        if let Some(page_num) = self.blocks_generated_for {
+        if let Some(page_num) = self.current_page_num {
             if curr_page_num != page_num {
-                self.blocks_generated_for = Some(curr_page_num)
+                self.current_page_num = Some(curr_page_num)
             }
         };
 
         //TODO: change to page.text() as objects() don't return all the text
-        let valid_text_objects: Vec<_> = page
-            .objects()
-            .iter()
-            .filter(|object| Self::is_valid_text_object(object))
-            .collect();
+        let text = page.text()?;
 
         let mut reading_blocks: Vec<PdfReadingBlock> = Vec::new();
 
-        for object in valid_text_objects.iter() {
-            let text_obj = match object.as_text_object() {
-                Some(obj) => obj,
-                None => continue,
-            };
-
-            let bounds = match text_obj.bounds() {
-                Ok(bounds) => bounds,
-                Err(_) => continue,
-            };
-
+        for segment in text.segments().iter() {
             // Process text and create reading blocks
-            self.process_text_into_blocks(&mut reading_blocks, text_obj, bounds)?;
+            self.process_text_into_blocks(&mut reading_blocks, segment)?;
         }
 
         if reading_blocks.is_empty() {
             return Err(String::from("Empty reading blocks").into());
         }
 
+        Self::merge_blocks_on_same_level(reading_blocks.as_mut());
         self.current_blocks = reading_blocks;
         Ok(())
     }
 
-    fn _search_for_text_rect(
-        &self,
-        page: &PdfPage,
-        text: &str,
-        bounds: &PdfQuadPoints,
-    ) -> Result<Option<PdfRect>, Box<dyn Error>> {
-        let search_opt = &PdfSearchOptions::new()
-            .match_case(true)
-            .match_whole_word(true);
-        let pdf_text = page.text()?;
-        let pdf_text_search = pdf_text.search(text, search_opt);
-        if pdf_text_search.find_next().is_none() {
-            // for some reason sometimes if sentence is move to another line hyphen is missing
-            //pdf_text_search = pdf_text.search(&format!("{text}-"), search_opt);
-            if pdf_text_search.find_next().is_none() {
-                return Ok(None);
+    pub fn merge_blocks_on_same_level(blocks: &mut [PdfReadingBlock]) {
+        // Define a tolerance for vertical alignment
+        // This value may need adjustment based on your PDF's font size and layout
+        const VERTICAL_TOLERANCE: f32 = 2.0;
+
+        for block in blocks.iter_mut() {
+            // We need at least 2 rectangles to merge
+            if block.rectangles.len() <= 1 {
+                continue;
             }
-        }
-        for pdf_text_iter in pdf_text_search.iter(PdfSearchDirection::SearchForward) {
-            for text_segment in pdf_text_iter.iter() {
-                if text_segment.bounds().top() == bounds.top() {
-                    return Ok(Some(text_segment.bounds()));
+
+            // Sort rectangles by their vertical position (using the middle point)
+            // This helps ensure we're comparing rectangles on similar lines
+            block.rectangles.sort_by(|a, b| {
+                let a_mid = (a.top() + a.bottom()) / 2.0;
+                let b_mid = (b.top() + b.bottom()) / 2.0;
+                a_mid
+                    .partial_cmp(&b_mid)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            let mut i = 0;
+            while i < block.rectangles.len() - 1 {
+                let current = &block.rectangles[i];
+                let next = &block.rectangles[i + 1];
+
+                // Calculate vertical midpoints
+                let current_mid_y = (current.top() + current.bottom()) / 2.0;
+                let next_mid_y = (next.top() + next.bottom()) / 2.0;
+
+                // Check if rectangles are on approximately the same line
+                // and if the next rectangle is to the right of the current one
+                if (current_mid_y.value - next_mid_y.value).abs() <= VERTICAL_TOLERANCE
+                    && current.right() <= next.left()
+                {
+                    // Create merged rectangle that encompasses both
+                    // Use the min/max of coordinates to handle varying heights properly
+                    let bottom = current.bottom().min(next.bottom());
+                    let left = current.left();
+                    let top = current.top().max(next.top());
+                    let right = next.right();
+
+                    let merged_rect = PdfRect::new(bottom, left, top, right);
+
+                    block.rectangles[i] = merged_rect;
+                    block.rectangles.remove(i + 1);
+
+                    // Don't increment i since we need to check the newly merged rectangle
+                    // against the next one
+                } else {
+                    i += 1;
                 }
             }
         }
-        Ok(None)
     }
 
     // Helper method to process text and add to reading blocks
     fn process_text_into_blocks(
         &self,
         reading_blocks: &mut Vec<PdfReadingBlock>,
-        text_obj: &PdfPageTextObject,
-        bounds: PdfQuadPoints,
+        segment: PdfPageTextSegment,
     ) -> Result<(), Box<dyn Error>> {
+        let text = segment.text();
+
+        let bounds = segment.bounds();
         // 2. Clean the text from special characters at the beginning
-        let cleaned_text = text_obj
-            .text()
+        let cleaned_text = text
             .trim()
             .trim_start_matches(|c: char| !c.is_alphanumeric())
             .to_string();
         // Extract text properties
-        let font_size = text_obj.unscaled_font_size().value;
+
         let rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
 
         let sentence_end_index = self.find_sentence_end_index(&cleaned_text);
@@ -168,12 +182,7 @@ impl PdfHighlighter {
             let right = PdfPoints::new(bounds.left().value + move_by);
             let current_rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), right);
 
-            self.add_text_to_blocks(
-                reading_blocks,
-                current_sentence.to_string(),
-                current_rect,
-                font_size,
-            );
+            self.add_text_to_blocks(reading_blocks, current_sentence.to_string(), current_rect);
 
             let left = PdfPoints::new(right.value + char_length);
             let next_rect = PdfRect::new(bounds.bottom(), left, bounds.top(), bounds.right());
@@ -183,13 +192,12 @@ impl PdfHighlighter {
                 text: next_sentence.to_string(),
                 rectangles: vec![next_rect],
                 id,
-                font_size,
             };
 
             reading_blocks.push(new_block);
         } else {
             // Add entire text as single block or merge with previous
-            self.add_text_to_blocks(reading_blocks, cleaned_text, rect, font_size);
+            self.add_text_to_blocks(reading_blocks, cleaned_text, rect);
         }
         Ok(())
     }
@@ -200,10 +208,9 @@ impl PdfHighlighter {
         reading_blocks: &mut Vec<PdfReadingBlock>,
         text: String,
         rect: PdfRect,
-        font_size: f32,
     ) {
         if let Some(last_block) = reading_blocks.last_mut() {
-            if self.should_merge_with_last_block(last_block, &rect, font_size) {
+            if self.should_merge_with_last_block(last_block, &rect) {
                 // Merge with the last block
                 last_block.text.push_str(&format!(" {}", text));
                 last_block.rectangles.push(rect);
@@ -218,7 +225,6 @@ impl PdfHighlighter {
             text,
             rectangles: vec![rect],
             id,
-            font_size,
         };
 
         reading_blocks.push(new_block);
@@ -228,38 +234,15 @@ impl PdfHighlighter {
         &self,
         last_block: &PdfReadingBlock,
         current_rect: &PdfRect,
-        current_font_size: f32,
     ) -> bool {
-        let last_font_size = last_block.font_size;
-        let same_font_size = (current_font_size - last_font_size).abs() < f32::EPSILON;
-
         if let Some(last_rect) = last_block.rectangles.last() {
             let vertical_distance = (last_rect.bottom() - current_rect.top()).abs();
             let horizontal_distance = (last_rect.right() - current_rect.left()).abs();
             let last_dot = last_block.text.trim().ends_with(".");
 
-            // Check font size and spatial positioning
-            same_font_size
-                && !last_dot
+            !last_dot
                 && (vertical_distance.value <= VERTICAL_THRESHOLD.into()
                     || horizontal_distance.value <= HORIZONTAL_THRESHOLD.into())
-        } else {
-            false
-        }
-    }
-
-    /// Checks if the provided PDF object is a valid text object.
-    /// A valid text object must have non-empty text (not only numbers or special characters)
-    /// and a non-zero scaled font size.
-    fn is_valid_text_object(object: &PdfPageObject) -> bool {
-        if let Some(text_obj) = object.as_text_object() {
-            let text = text_obj.text().to_string();
-            let font_size = text_obj.scaled_font_size();
-            !(text
-                .trim()
-                .chars()
-                .all(|c| c.is_numeric() || !c.is_alphanumeric())
-                || font_size.value == 0.0)
         } else {
             false
         }
@@ -399,5 +382,33 @@ impl PdfHighlighter {
 
     pub fn clear_highlight(&mut self) {
         self.highlighted_block = None;
+    }
+
+    fn _search_for_text_rect(
+        &self,
+        page: &PdfPage,
+        text: &str,
+        bounds: &PdfQuadPoints,
+    ) -> Result<Option<PdfRect>, Box<dyn Error>> {
+        let search_opt = &PdfSearchOptions::new()
+            .match_case(true)
+            .match_whole_word(true);
+        let pdf_text = page.text()?;
+        let pdf_text_search = pdf_text.search(text, search_opt);
+        if pdf_text_search.find_next().is_none() {
+            // for some reason sometimes if sentence is move to another line hyphen is missing
+            //pdf_text_search = pdf_text.search(&format!("{text}-"), search_opt);
+            if pdf_text_search.find_next().is_none() {
+                return Ok(None);
+            }
+        }
+        for pdf_text_iter in pdf_text_search.iter(PdfSearchDirection::SearchForward) {
+            for text_segment in pdf_text_iter.iter() {
+                if text_segment.bounds().top() == bounds.top() {
+                    return Ok(Some(text_segment.bounds()));
+                }
+            }
+        }
+        Ok(None)
     }
 }
