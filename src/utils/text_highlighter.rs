@@ -33,13 +33,12 @@ pub struct TextHighlighter {
 }
 
 impl TextHighlighter {
-    pub fn new(buffer: gtk::TextBuffer, min_block_len: i32) -> Self {
-        let initial_rgba = gtk::gdk::RGBA::new(1.0, 1.0, 0.0, 0.3);
+    pub fn new(buffer: gtk::TextBuffer, min_block_len: i32, initial_color: gtk::gdk::RGBA) -> Self {
         let highlight_tag = buffer
             .create_tag(Some(HIGHLIGHTED_TAG), &[])
             .expect("Failed to create tag");
 
-        highlight_tag.set_background_rgba(Some(&initial_rgba));
+        highlight_tag.set_background_rgba(Some(&initial_color));
 
         Self {
             buffer,
@@ -232,7 +231,7 @@ mod tests {
     fn create_test_highlighter(text: &str) -> TextHighlighter {
         let buffer = gtk::TextBuffer::new(None::<&gtk::TextTagTable>);
         buffer.set_text(text);
-        TextHighlighter::new(buffer, 50)
+        TextHighlighter::new(buffer, 50, gtk::gdk::RGBA::new(255.0, 255.0, 0.0, 0.3))
     }
 
     #[gtk::test]
@@ -248,7 +247,8 @@ mod tests {
         let buffer = gtk::TextBuffer::new(None::<&gtk::TextTagTable>);
         buffer.set_text("Highlighted text");
 
-        let highlighter = TextHighlighter::new(buffer, 150);
+        let highlighter =
+            TextHighlighter::new(buffer, 150, gtk::gdk::RGBA::new(255.0, 255.0, 0.0, 0.3));
 
         highlighter.highlight(0);
 

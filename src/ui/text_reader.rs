@@ -54,13 +54,14 @@ glib::wrapper! {
 impl TextReader {
     pub fn init(&self) {
         let imp = self.imp();
-        imp.audio_controls.init();
-        imp.text_highlighter
-            .replace(TextHighlighter::new(imp.text_input.buffer(), 100));
 
         let settings = &SETTINGS;
         self.set_highlight_color(settings.get_highlight_rgba());
         self.init_audio_control_buttons();
+
+        imp.audio_controls.init();
+        *imp.text_highlighter.borrow_mut() =
+            TextHighlighter::new(imp.text_input.buffer(), 100, settings.get_highlight_rgba());
 
         settings.connect_highlight_color_changed(clone!(
             #[weak(rename_to=this)]
