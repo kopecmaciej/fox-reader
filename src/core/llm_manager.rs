@@ -70,11 +70,6 @@ impl LLMManager {
         self.reset_conversation();
     }
 
-    pub fn set_active_provider(&mut self, provider: LLMProvider) {
-        let settings = &SETTINGS;
-        settings.set_active_provider(&provider.to_string());
-    }
-
     fn get_active_config(&self) -> ProviderConfig {
         let settings = &SETTINGS;
         settings.get_active_provider_config()

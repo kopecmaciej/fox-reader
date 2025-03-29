@@ -166,7 +166,9 @@ impl SettingsDialog {
             move |combo| {
                 if let Some(item) = combo.selected_item() {
                     if let Ok(model) = item.downcast::<gtk::StringObject>() {
-                        SETTINGS.set_whisper_model(model.string().as_ref());
+                        if is_model_downloaded(model.string().as_ref()) {
+                            SETTINGS.set_whisper_model(model.string().as_ref());
+                        }
                         this.set_whisper_button_ui(model.string().as_ref())
                     }
                 }

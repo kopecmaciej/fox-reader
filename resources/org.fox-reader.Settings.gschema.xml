@@ -3,6 +3,7 @@
   <schema id="org.fox-reader" path="/org/fox-reader/">
     <!-- UI Settings -->
     <key name="font" type="s">
+      <default>''</default>
       <summary>Font</summary>
       <description>The font used for displaying text</description>
     </key>
@@ -19,12 +20,14 @@
 
     <!-- Whisper Settings -->
     <key name="whisper-model" type="s">
+      <default>''</default>
       <summary>Selected Whisper model</summary>
       <description>The Whisper model to use for speech recognition</description>
     </key>
 
     <!-- LLM General Settings -->
     <key name="active-provider" type="s">
+      <default>'Ollama'</default>
       <summary>Active LLM Provider</summary>
       <description>The currently active LLM provider</description>
     </key>
@@ -36,10 +39,12 @@
       <description>Base URL for LM Studio API</description>
     </key>
     <key name="lmstudio-api-key" type="s">
+      <default>''</default>
       <summary>LM studio API Key</summary>
       <description>API Key for LM studio</description>
     </key>
     <key name="lmstudio-model" type="s">
+      <default>''</default>
       <summary>LM Studio Model</summary>
       <description>Model for LM Studio</description>
     </key>
@@ -61,10 +66,12 @@
       <description>Base URL for Ollama API</description>
     </key>
     <key name="ollama-api-key" type="s">
+      <default>''</default>
       <summary>Ollama API Key</summary>
       <description>API Key for Ollama Api</description>
     </key>
     <key name="ollama-model" type="s">
+      <default>''</default>
       <summary>Ollama Model</summary>
       <description>Model for Ollama</description>
     </key>
@@ -113,6 +120,7 @@
       <description>Base URL for Anthropic API</description>
     </key>
     <key name="anthropic-api-key" type="s">
+      <default>''</default>
       <summary>Anthropic API Key</summary>
       <description>API Key for Anthropic</description>
     </key>

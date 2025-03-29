@@ -11,7 +11,7 @@ pub fn is_model_downloaded(model_name: &str) -> bool {
     Path::new(&model_path).exists()
 }
 
-pub fn _get_downloaded_models() -> Vec<String> {
+pub fn get_downloaded_models() -> Vec<String> {
     let models_dir = whisper_config::get_whisper_models_path();
     let models_path = Path::new(&models_dir);
 

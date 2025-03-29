@@ -40,6 +40,8 @@ pub enum State {
 
 mod imp {
 
+    use crate::utils::whisper_downloader;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -86,6 +88,23 @@ mod imp {
         fn on_mic_button_clicked(&self, _button: &gtk::Button) {
             let obj = self.obj();
             let mut state = self.state.borrow_mut();
+
+            if whisper_downloader::get_downloaded_models().is_empty() {
+                glib::spawn_future_local(clone!(
+                    #[weak]
+                    obj,
+                    async move {
+                        obj.imp()
+                            .status_label
+                            .set_text("No whisper model available");
+                        obj.imp().mic_button.add_css_class("destructive-action");
+                        glib::timeout_future_seconds(1).await;
+                        obj.imp().status_label.set_text("Ready to chat");
+                        obj.imp().mic_button.remove_css_class("destructive-action");
+                    }
+                ));
+                return;
+            }
 
             match *state {
                 State::Idle => {
