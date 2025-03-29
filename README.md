@@ -12,9 +12,9 @@ wanted a little bit more, also non of them seems to work with firefox
 
 ## Key Features
 
-1. Text-to-speech with highlighting system
-2. Pdf Reader 
-3. Abbility to talk to LLM's with your voice
+1. PdfReader with highlighting system
+2. Text-to-speech with highlighting system
+3. AI Chat with LLM's via api key or locally (Ollama/LM Studio)
 4. Speech Dispatcher compatibility
 5. Firefox Read Aloud integration
 
@@ -25,11 +25,11 @@ wanted a little bit more, also non of them seems to work with firefox
 ![Voice List](assets/voice_list.png)
 
 ## Prerequisites
-
 - GTK4 and its development libraries
-- Speech Dispatcher (optional)
-- Pdfium (optional - if missing will be installed)
-- Rust toolchain (for building from source)
+- Rust toolchain (building from source)
+- Speech Dispatcher for reading via spd-say or browser (optional)
+- Pdfium for Pdf Reader (optional - if missing will be installed)
+- Whisper model for AI Chat (optional - if missing will be installed)
 
 ## Installation
 
@@ -87,20 +87,13 @@ or paplay). The script handles:
 - Volume control and audio processing
 - Raw audio stream handling from Piper TTS
 
-### Audio Player Support
-
-The script automatically selects the first available player in this order:
-
-- mpv (recommended) - Supports speed control and volume adjustment
-- ffplay - Basic playback with volume control
-- sox - Advanced audio processing with tempo adjustment
-- aplay/paplay - Basic audio output
+### Cli
 
 ## Development Status
 
-- Audio processor improvements for better voice quality at higher speeds
-- PDF file support (experimental)
-- Move to other GUI rust library for better support on Macos/Windows (probably
+- Improve performance for better user experience on slow PC's
+- (To consider) Experiment with better-quality voices
+- (To consider) Move to other GUI rust library for better support on Macos/Windows (probably
   as separate project)
 
 ## Contributing
@@ -113,3 +106,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
   TTS voices
 - [GTK4 team for the UI framework](https://www.gtk.org/)
 - [Speech Dispatcher project](https://freebsoft.org/speechd)
+- [Pdfium-render](https://github.com/ajrcarey/pdfium-render) After using multiple crates that works with PDF's this one seems the best
+- [Piper-rs](https://github.com/thewh1teagle/piper-rs) for simple integration with Piper voices
+- [Whisper-rs](https://github.com/tazz4843/whisper-rs) seamless integration with Whisper models.
+
+
+
+
+
+
+
+
+
+

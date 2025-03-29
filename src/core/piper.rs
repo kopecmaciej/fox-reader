@@ -66,4 +66,29 @@ impl PiperTTS {
 
         Ok(SamplesBuffer::new(1, 22050, samples))
     }
+
+    pub async fn synthesize_speech_to_wav(
+        &self,
+        text: &str,
+        output_path: &str,
+        rate: Option<u8>,
+    ) -> Result<(), Box<dyn Error>> {
+        let synth_guard = self.synthesizer.lock().await;
+        let synth = synth_guard
+            .as_ref()
+            .ok_or_else(|| "Piper synthesizer not initialized".to_string())?;
+
+        let option = AudioOutputConfig {
+            rate,
+            volume: None,
+            pitch: None,
+            appended_silence_ms: None,
+        };
+
+        synth
+            .synthesize_to_file(Path::new(output_path), text.to_string(), Some(option))
+            .map_err(|e| format!("Failed to save speech to file: {}", e))?;
+
+        Ok(())
+    }
 }

@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::core::piper::PiperTTS;
 use crate::utils::audio_player::AudioPlayer;
+use crate::utils::file_handler::FileHandler;
 
 pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
     if !std::env::args().any(|arg| &arg == "--cli") {
@@ -43,11 +44,19 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .allow_negative_numbers(true)
                 .value_parser(clap::value_parser!(f32)),
         )
+        .arg(
+            Arg::new("output")
+                .short('o')
+                .long("output")
+                .help("Path to save audio output (WAV format)")
+                .value_name("OUTPUT_PATH"),
+        )
         .get_matches();
 
     let model_path = matches.get_one::<String>("model").unwrap();
     let text = matches.get_one::<String>("text").unwrap();
     let rate = matches.get_one::<f32>("rate").copied();
+    let output_path = matches.get_one::<String>("output");
 
     let mut calculated_rate = 0;
     if let Some(r) = rate {
@@ -70,22 +79,44 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         }
     }
 
-    let audio_buffer = match piper.synthesize_speech(text, Some(calculated_rate)).await {
-        Ok(buffer) => buffer,
-        Err(e) => {
-            let err_msg = "Error: Failed to synthesize speech";
-            let err_msg = format!("{}\nDetails: {}", err_msg, e);
+    if let Some(output_path) = output_path {
+        if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
+            let err_msg = format!("Error: Failed to create output directory: {}", e);
             return Err(err_msg.into());
         }
-    };
 
-    let player = AudioPlayer::default();
-    match player.play_audio(audio_buffer) {
-        Ok(_) => {}
-        Err(e) => {
-            let err_msg = "Error: Failed to play audio";
-            let err_msg = format!("{}\nDetails: {}", err_msg, e);
-            return Err(err_msg.into());
+        match piper
+            .synthesize_speech_to_wav(text, output_path, Some(calculated_rate))
+            .await
+        {
+            Ok(_) => {
+                println!("Successfully saved audio to: {}", output_path);
+            }
+            Err(e) => {
+                let err_msg = "Error: Failed to save audio to file";
+                let err_msg = format!("{}\nOutput path: {}", err_msg, output_path);
+                let err_msg = format!("{}\nDetails: {}", err_msg, e);
+                return Err(err_msg.into());
+            }
+        }
+    } else {
+        let audio_buffer = match piper.synthesize_speech(text, Some(calculated_rate)).await {
+            Ok(buffer) => buffer,
+            Err(e) => {
+                let err_msg = "Error: Failed to synthesize speech";
+                let err_msg = format!("{}\nDetails: {}", err_msg, e);
+                return Err(err_msg.into());
+            }
+        };
+
+        let player = AudioPlayer::default();
+        match player.play_audio(audio_buffer) {
+            Ok(_) => {}
+            Err(e) => {
+                let err_msg = "Error: Failed to play audio";
+                let err_msg = format!("{}\nDetails: {}", err_msg, e);
+                return Err(err_msg.into());
+            }
         }
     }
 
