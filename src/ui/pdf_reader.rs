@@ -7,7 +7,7 @@ use gtk::{
     gdk_pixbuf::{Colorspace, Pixbuf},
     glib::clone,
 };
-use pdfium_render::prelude::{PdfDocument, PdfPage, PdfPoints, PdfRenderConfig};
+use pdfium_render::prelude::{PdfPage, PdfPoints, PdfRenderConfig};
 use std::{cell::RefCell, collections::BTreeMap, fmt::Debug, rc::Rc};
 
 use crate::{
@@ -205,10 +205,9 @@ impl PdfReader {
     }
 
     pub fn refresh_view(&self) {
-        let imp = self.imp();
-
-        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
-            self.render_current_page(doc);
+        if let Some(page) = self.get_current_page() {
+            self.render_current_page(&page);
+            self.generate_blocks_and_setup_controllers(&page);
         }
     }
 
@@ -230,14 +229,14 @@ impl PdfReader {
             imp.total_pages
                 .set_text(&pdf_document.pages().len().to_string());
 
-            self.render_current_page(pdf_document);
+            self.refresh_view();
             imp.content_stack.set_visible_child_name("pdf_view");
         }
     }
 
-    fn render_current_page(&self, doc: &PdfDocument) {
+    fn render_current_page(&self, page: &PdfPage) {
         let imp = self.imp();
-        let current_page = *imp.current_page_num.borrow();
+        let page_num = *imp.current_page_num.borrow();
 
         {
             let old_highlight_area = imp.highlight_area.borrow();
@@ -247,34 +246,30 @@ impl PdfReader {
                 }
             }
         }
+
         let highlight_area = gtk::DrawingArea::new();
         imp.overlay.add_overlay(&highlight_area);
         *imp.highlight_area.borrow_mut() = highlight_area;
 
-        match doc.pages().get(current_page) {
-            Ok(page) => {
-                let (width, height) = (page.width(), page.height());
+        let (width, height) = (page.width(), page.height());
+        self.render_pdf(page, width, height);
+        imp.current_page.set_text(&(page_num + 1).to_string());
+    }
 
-                if imp
-                    .pdf_highlighter
-                    .borrow_mut()
-                    .generate_reading_blocks(&page, current_page)
-                    .is_err()
-                {
-                    return;
-                }
-
-                self.render_pdf(&page, width, height);
-
-                self.setup_click_controller(&page);
-                self.setup_hover_controller(&page);
-                imp.current_page.set_text(&(current_page + 1).to_string());
-            }
-            Err(e) => {
-                eprintln!("Error rendering PDF: {}", e);
-                show_error_dialog(&format!("Error rendering PDF: {}", e), self);
-            }
+    fn generate_blocks_and_setup_controllers(&self, page: &PdfPage) {
+        let imp = self.imp();
+        let current_page = *imp.current_page_num.borrow();
+        if imp
+            .pdf_highlighter
+            .borrow_mut()
+            .generate_reading_blocks(page, current_page)
+            .is_err()
+        {
+            return;
         }
+
+        self.setup_click_controller(page);
+        self.setup_hover_controller(page);
     }
 
     fn render_pdf(&self, page: &PdfPage, width: PdfPoints, height: PdfPoints) {
@@ -497,6 +492,23 @@ impl PdfReader {
         imp.highlight_area
             .borrow()
             .add_controller(motion_controller);
+    }
+
+    fn get_current_page(&self) -> Option<PdfPage> {
+        let imp = self.imp();
+
+        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
+            match doc.pages().get(*imp.current_page_num.borrow()) {
+                Ok(page) => return Some(page),
+                Err(e) => {
+                    show_error_dialog(&format!("Error rendering PDF: {}", e), self);
+                }
+            }
+        } else {
+            show_error_dialog("No document loaded.", self);
+        }
+
+        None
     }
 
     fn navigate_page(&self, delta: i32) {

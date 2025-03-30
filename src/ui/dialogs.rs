@@ -20,6 +20,7 @@ pub fn file_dialog() -> gtk::FileDialog {
     let file_chooser = gtk::FileDialog::builder()
         .title("Open PDF")
         .accept_label("Open")
+        .modal(true)
         .build();
 
     let filter = gtk::FileFilter::new();

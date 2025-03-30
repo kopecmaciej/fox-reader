@@ -36,6 +36,37 @@ card {
   background-color: transparent;
 }
 
+filechooser list row:selected,
+filechooser list row:hover {
+  background-color: alpha(var(--primary-color), 0.3);
+}
+
+filechooser list row:selected {
+  background-color: var(--primary-color);
+}
+
+filechooser stack box scrolledwindow columnview > row:hover {
+  background-color: alpha(var(--primary-color), 0.3);
+}
+
+filechooser stack box scrolledwindow columnview > row:selected {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+filechooser columnview row:selected cell {
+  color: white;
+}
+
+filechooser columnview row:hover {
+  background-color: alpha(var(--primary-color), 0.3);
+}
+
+filechooser columnview row:selected {
+  background-color: var(--primary-color);
+  color: white;
+}
+
 play-button {
   color: rgba(255, 99, 71, 0.8);
   border: 1px solid rgba(255, 99, 71, 0.6);
