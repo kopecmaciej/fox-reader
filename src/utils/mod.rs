@@ -1,4 +1,5 @@
 pub mod audio_player;
+pub mod debouncer;
 pub mod file_handler;
 pub mod highlighter;
 pub mod pdf_highlighter;

@@ -12,7 +12,7 @@ use std::{cell::RefCell, collections::BTreeMap, fmt::Debug, rc::Rc};
 
 use crate::{
     core::{runtime::runtime, tts::TTSEvent},
-    utils::pdf_highlighter::PdfReadingBlock,
+    utils::{debouncer::Debouncer, pdf_highlighter::PdfReadingBlock},
     SETTINGS,
 };
 
@@ -90,6 +90,7 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
             Self::connect_signals(self, &obj);
+            Self::setup_page_navigation(self);
         }
 
         fn dispose(&self) {
@@ -100,6 +101,65 @@ mod imp {
     impl WidgetImpl for PdfReader {}
 
     impl PdfReader {
+        fn setup_page_navigation(&self) {
+            let obj = self.obj();
+            let debouncer = Rc::new(Debouncer::new(std::time::Duration::from_millis(500)));
+
+            self.prev_page.connect_clicked(glib::clone!(
+                #[weak]
+                obj,
+                #[strong]
+                debouncer,
+                move |_| {
+                    let new_page = *obj.imp().current_page_num.borrow() - 1;
+                    *obj.imp().current_page_num.borrow_mut() = new_page;
+
+                    let Some(page) = obj.get_current_page() else {
+                        return;
+                    };
+
+                    obj.render_current_page(&page);
+
+                    debouncer.debounce(glib::clone!(
+                        #[strong]
+                        obj,
+                        move || {
+                            if let Some(current_page) = obj.get_current_page() {
+                                obj.generate_blocks_and_setup_controllers(&current_page);
+                            }
+                        }
+                    ));
+                }
+            ));
+
+            self.next_page.connect_clicked(glib::clone!(
+                #[weak]
+                obj,
+                #[strong]
+                debouncer,
+                move |_| {
+                    let new_page = *obj.imp().current_page_num.borrow() + 1;
+                    *obj.imp().current_page_num.borrow_mut() = new_page;
+
+                    let Some(page) = obj.get_current_page() else {
+                        return;
+                    };
+
+                    obj.render_current_page(&page);
+
+                    debouncer.debounce(glib::clone!(
+                        #[strong]
+                        obj,
+                        move || {
+                            if let Some(current_page) = obj.get_current_page() {
+                                obj.generate_blocks_and_setup_controllers(&current_page);
+                            }
+                        }
+                    ));
+                }
+            ));
+        }
+
         fn connect_signals(&self, obj: &super::PdfReader) {
             self.open_pdf.connect_clicked(clone!(
                 #[weak]
@@ -121,22 +181,6 @@ mod imp {
                     } else {
                         false
                     }
-                }
-            ));
-
-            self.prev_page.connect_clicked(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.navigate_page(-1);
-                }
-            ));
-
-            self.next_page.connect_clicked(clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.navigate_page(1);
                 }
             ));
 
@@ -509,19 +553,6 @@ impl PdfReader {
         }
 
         None
-    }
-
-    fn navigate_page(&self, delta: i32) {
-        let imp = self.imp();
-        if let Some(doc) = imp.pdf_wrapper.borrow().get_document() {
-            let current = *imp.current_page_num.borrow() as i32;
-            let new_page = (current + delta).max(0);
-
-            if new_page < doc.pages().len() as i32 {
-                *imp.current_page_num.borrow_mut() = new_page as u16;
-                self.refresh_view();
-            }
-        }
     }
 
     fn go_to_page(&self, page_number: i32) {
