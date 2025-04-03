@@ -2,7 +2,10 @@ use crate::{
     core::runtime::spawn_tokio,
     paths::whisper_config::get_whisper_models,
     settings::LLMProvider,
-    utils::whisper_downloader::{download_model, is_model_downloaded, remove_model},
+    utils::{
+        progress_tracker::ProgressTracker,
+        whisper_downloader::{download_model, is_model_downloaded, remove_model},
+    },
     SETTINGS,
 };
 use adw::prelude::*;
@@ -43,6 +46,8 @@ mod imp {
         pub whisper_models: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub whisper_download_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub whisper_download_progress: TemplateChild<gtk::ProgressBar>,
     }
 
     #[glib::object_subclass]
@@ -203,18 +208,42 @@ impl SettingsDialog {
                             this.set_whisper_button_ui(&model_str);
                             return;
                         }
+
+                        // Create a progress tracker for this download
+                        let progress_tracker = ProgressTracker::default();
+                        let progress_callback = progress_tracker.get_progress_callback();
+
+                        // Connect the progress tracker to the progress bar
+                        // This returns two functions: one for completion and one for cancellation
+                        let (on_complete, on_cancel) = progress_tracker
+                            .track_with_progress_bar(&this.imp().whisper_download_progress);
+
+                        // Disable the download button during download
+                        button.set_sensitive(false);
+
                         glib::spawn_future_local(clone!(
                             #[weak]
                             button,
                             async move {
-                                let result =
-                                    spawn_tokio(
-                                        async move { download_model(&model_str_clone).await },
-                                    )
-                                    .await;
+                                let result = spawn_tokio(async move {
+                                    download_model(&model_str_clone, Some(progress_callback)).await
+                                })
+                                .await;
+
+                                // Re-enable the button
+                                button.set_sensitive(true);
+
                                 match result {
-                                    Ok(_) => this.set_whisper_button_ui(&model_str),
-                                    Err(e) => show_error_dialog(&format!("{}", e), &button),
+                                    Ok(_) => {
+                                        // Call the completion function
+                                        on_complete();
+                                        this.set_whisper_button_ui(&model_str);
+                                    }
+                                    Err(e) => {
+                                        // Call the cancellation function
+                                        on_cancel();
+                                        show_error_dialog(&format!("{}", e), &button);
+                                    }
                                 };
                             }
                         ));
