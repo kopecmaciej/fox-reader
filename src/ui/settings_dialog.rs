@@ -209,38 +209,31 @@ impl SettingsDialog {
                             return;
                         }
 
-                        // Create a progress tracker for this download
-                        let progress_tracker = ProgressTracker::default();
-                        let progress_callback = progress_tracker.get_progress_callback();
-
-                        // Connect the progress tracker to the progress bar
-                        // This returns two functions: one for completion and one for cancellation
-                        let (on_complete, on_cancel) = progress_tracker
-                            .track_with_progress_bar(&this.imp().whisper_download_progress);
-
-                        // Disable the download button during download
                         button.set_sensitive(false);
 
                         glib::spawn_future_local(clone!(
                             #[weak]
                             button,
                             async move {
+                                let progress_tracker = ProgressTracker::default();
+                                let progress_callback = progress_tracker.get_progress_callback();
+
+                                let (on_complete, on_cancel) = progress_tracker
+                                    .track_with_progress_bar(&this.imp().whisper_download_progress);
+
                                 let result = spawn_tokio(async move {
                                     download_model(&model_str_clone, Some(progress_callback)).await
                                 })
                                 .await;
 
-                                // Re-enable the button
                                 button.set_sensitive(true);
 
                                 match result {
                                     Ok(_) => {
-                                        // Call the completion function
                                         on_complete();
                                         this.set_whisper_button_ui(&model_str);
                                     }
                                     Err(e) => {
-                                        // Call the cancellation function
                                         on_cancel();
                                         show_error_dialog(&format!("{}", e), &button);
                                     }

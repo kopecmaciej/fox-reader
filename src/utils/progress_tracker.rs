@@ -38,7 +38,7 @@ impl ProgressTracker {
         }))
     }
 
-    pub fn connect_to_progress_bar(&self, progress_bar: &gtk::ProgressBar) -> impl Fn() {
+    pub fn connect_to_progress_bar(&self, progress_bar: &gtk::ProgressBar) {
         progress_bar.set_visible(true);
         progress_bar.set_fraction(0.0);
 
@@ -50,13 +50,10 @@ impl ProgressTracker {
             clone!(
                 #[weak]
                 progress_bar,
-                #[weak]
-                progress_value,
                 #[upgrade_or]
                 glib::ControlFlow::Break,
                 move || {
                     let progress = *progress_value.lock().unwrap();
-                    println!("{progress}");
                     progress_bar.set_fraction(progress as f64);
                     ControlFlow::Continue
                 }
@@ -64,48 +61,37 @@ impl ProgressTracker {
         );
 
         *timeout_id_arc.lock().unwrap() = Some(timeout_id);
-
-        let cleanup = move || {
-            if let Some(id) = timeout_id_arc.lock().unwrap().take() {
-                id.remove();
-            }
-        };
-        cleanup
     }
 
     pub fn track_with_progress_bar(
         &self,
         progress_bar: &gtk::ProgressBar,
     ) -> (Box<dyn FnOnce()>, Box<dyn FnOnce()>) {
-        let cleanup = Arc::new(self.connect_to_progress_bar(progress_bar));
+        self.connect_to_progress_bar(progress_bar);
         let progress_bar_weak = progress_bar.downgrade();
-        let cleanup_complete = Arc::clone(&cleanup);
-        let cleanup_cancel = Arc::clone(&cleanup);
 
-        // Function to call on successful completion
+        let timeout_id_arc = Arc::clone(&self.timeout_id);
         let on_complete = Box::new(move || {
             if let Some(pb) = progress_bar_weak.upgrade() {
                 pb.set_fraction(1.0);
             }
-            cleanup_complete();
+            if let Some(id) = timeout_id_arc.lock().unwrap().take() {
+                id.remove();
+            }
         });
 
-        // Clone the progress bar reference for the cancel function
         let progress_bar_weak_cancel = progress_bar.downgrade();
-
-        // Function to call on cancellation
+        let timeout_id_arc = Arc::clone(&self.timeout_id);
         let on_cancel = Box::new(move || {
             if let Some(pb) = progress_bar_weak_cancel.upgrade() {
                 pb.set_visible(false);
             }
-            cleanup_cancel();
+            if let Some(id) = timeout_id_arc.lock().unwrap().take() {
+                id.remove();
+            }
         });
 
         (on_complete, on_cancel)
-    }
-
-    pub fn get_progress(&self) -> f32 {
-        *self.progress_value.lock().unwrap()
     }
 }
 
