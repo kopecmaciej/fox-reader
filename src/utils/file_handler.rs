@@ -3,6 +3,9 @@ use std::error::Error;
 use std::fs::{self, remove_file, File};
 use std::io::prelude::*;
 use std::path::Path;
+use tokio_stream::StreamExt;
+
+use super::progress_tracker::ProgressCallback;
 
 pub struct FileHandler {}
 
@@ -24,6 +27,34 @@ impl FileHandler {
         let response = get_async(link).await?;
         let bytes = response.bytes().await?;
         Ok(bytes.to_vec())
+    }
+
+    pub async fn fetch_file_async_with_progress(
+        link: String,
+        progress_callback: Option<ProgressCallback>,
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
+        let response = get_async(&link).await?;
+        let total_size = response.content_length().unwrap_or(0);
+
+        let mut downloaded: u64 = 0;
+        let mut bytes = Vec::new();
+
+        let mut stream = response.bytes_stream();
+        while let Some(item) = stream.next().await {
+            let chunk = item?;
+            downloaded += chunk.len() as u64;
+            bytes.extend_from_slice(&chunk);
+
+            if let Some(callback) = &progress_callback {
+                if total_size > 0 {
+                    let progress = downloaded as f32 / total_size as f32;
+                    let mut callback = callback.lock().unwrap();
+                    (callback)(progress);
+                }
+            }
+        }
+
+        Ok(bytes)
     }
 
     pub fn save_bytes(path: &str, bytes: &[u8]) -> Result<(), Box<dyn Error>> {

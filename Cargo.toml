@@ -9,7 +9,7 @@ dirs = "5.0.1"
 gio = "0.20.6"
 gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }
 adw = { version = "0.7.1", features = ["v1_6"], package = "libadwaita" }
-reqwest = { version = "0.12.9", features = ["json"] }
+reqwest = { version = "0.12.9", features = ["json", "stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process"] }
@@ -22,6 +22,7 @@ whisper-rs = "0.14.2"
 cpal = "0.15.3"
 piper-rs = "0.1.9"
 clap = "4.5.32"
+tokio-stream = "0.1.17"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"

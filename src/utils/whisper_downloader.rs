@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::paths::whisper_config::{self};
 
-use super::file_handler::FileHandler;
+use super::{file_handler::FileHandler, progress_tracker::ProgressCallback};
 
 pub fn is_model_downloaded(model_name: &str) -> bool {
     let model_path = whisper_config::get_model_path(model_name);
@@ -43,11 +43,14 @@ pub fn get_downloaded_models() -> Vec<String> {
     downloaded_models
 }
 
-pub async fn download_model(model_name: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn download_model(
+    model_name: &str,
+    progress_callback: Option<ProgressCallback>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let url = whisper_config::get_model_url(model_name);
     let path = whisper_config::get_model_path(model_name);
 
-    match FileHandler::fetch_file_async(url).await {
+    match FileHandler::fetch_file_async_with_progress(url, progress_callback).await {
         Ok(file) => match FileHandler::save_bytes(&path, &file) {
             Ok(()) => Ok(()),
             Err(e) => Err(format!("Error while saving whisper model: {}", e).into()),

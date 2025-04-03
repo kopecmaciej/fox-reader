@@ -2,7 +2,10 @@ use crate::{
     core::runtime::spawn_tokio,
     paths::whisper_config::get_whisper_models,
     settings::LLMProvider,
-    utils::whisper_downloader::{download_model, is_model_downloaded, remove_model},
+    utils::{
+        progress_tracker::ProgressTracker,
+        whisper_downloader::{download_model, is_model_downloaded, remove_model},
+    },
     SETTINGS,
 };
 use adw::prelude::*;
@@ -43,6 +46,8 @@ mod imp {
         pub whisper_models: TemplateChild<adw::ComboRow>,
         #[template_child]
         pub whisper_download_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub whisper_download_progress: TemplateChild<gtk::ProgressBar>,
     }
 
     #[glib::object_subclass]
@@ -203,18 +208,35 @@ impl SettingsDialog {
                             this.set_whisper_button_ui(&model_str);
                             return;
                         }
+
+                        button.set_sensitive(false);
+
                         glib::spawn_future_local(clone!(
                             #[weak]
                             button,
                             async move {
-                                let result =
-                                    spawn_tokio(
-                                        async move { download_model(&model_str_clone).await },
-                                    )
-                                    .await;
+                                let progress_tracker = ProgressTracker::default();
+                                let progress_callback = progress_tracker.get_progress_callback();
+
+                                let (on_complete, on_cancel) = progress_tracker
+                                    .track_with_progress_bar(&this.imp().whisper_download_progress);
+
+                                let result = spawn_tokio(async move {
+                                    download_model(&model_str_clone, Some(progress_callback)).await
+                                })
+                                .await;
+
+                                button.set_sensitive(true);
+
                                 match result {
-                                    Ok(_) => this.set_whisper_button_ui(&model_str),
-                                    Err(e) => show_error_dialog(&format!("{}", e), &button),
+                                    Ok(_) => {
+                                        on_complete();
+                                        this.set_whisper_button_ui(&model_str);
+                                    }
+                                    Err(e) => {
+                                        on_cancel();
+                                        show_error_dialog(&format!("{}", e), &button);
+                                    }
                                 };
                             }
                         ));
