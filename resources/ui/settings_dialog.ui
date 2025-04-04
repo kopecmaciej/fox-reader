@@ -145,10 +145,6 @@
               <object class="AdwComboRow" id="whisper_models">
                 <property name="title">Whisper Model</property>
                 <property name="subtitle">Select a Whisper model to use for speech recognition</property>
-                <property name="model">
-                  <object class="GtkStringList">
-                  </object>
-                </property>
               </object>
             </child>
 

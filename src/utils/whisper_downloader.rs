@@ -6,11 +6,6 @@ use crate::paths::whisper_config::{self};
 
 use super::{file_handler::FileHandler, progress_tracker::ProgressCallback};
 
-pub fn is_model_downloaded(model_name: &str) -> bool {
-    let model_path = whisper_config::get_model_path(model_name);
-    Path::new(&model_path).exists()
-}
-
 pub fn get_downloaded_models() -> Vec<String> {
     let models_dir = whisper_config::get_whisper_models_path();
     let models_path = Path::new(&models_dir);

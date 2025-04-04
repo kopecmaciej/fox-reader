@@ -4,7 +4,7 @@ use gtk::{gdk::RGBA, gio, glib, pango::FontDescription};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, ops::Deref};
 
-use crate::APP_ID;
+use crate::{paths::whisper_config::get_whisper_models_names, APP_ID};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
@@ -285,6 +285,13 @@ impl Settings {
     pub fn set_whisper_model(&self, model: &str) {
         self.set_string("whisper-model", model)
             .expect("Failed to set Whisper model");
+    }
+
+    pub fn get_active_model_index(&self) -> usize {
+        get_whisper_models_names()
+            .iter()
+            .position(|p| p == &self.get_whisper_model())
+            .unwrap_or(0)
     }
 
     pub fn connect_whisper_model_changed<F: Fn(&gio::Settings, &str) + 'static>(

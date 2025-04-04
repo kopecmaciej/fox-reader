@@ -1,10 +1,10 @@
 use crate::{
     core::runtime::spawn_tokio,
-    paths::whisper_config::get_whisper_models,
+    paths::whisper_config::get_whisper_models_names,
     settings::LLMProvider,
     utils::{
         progress_tracker::ProgressTracker,
-        whisper_downloader::{download_model, is_model_downloaded, remove_model},
+        whisper_downloader::{download_model, get_downloaded_models, remove_model},
     },
     SETTINGS,
 };
@@ -15,6 +15,8 @@ use gtk::glib::{self, clone};
 use super::dialogs::show_error_dialog;
 
 mod imp {
+    use std::cell::RefCell;
+
     use super::*;
     use gtk::CompositeTemplate;
 
@@ -48,6 +50,7 @@ mod imp {
         pub whisper_download_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub whisper_download_progress: TemplateChild<gtk::ProgressBar>,
+        pub whisper_downloaded_models: RefCell<Vec<String>>,
     }
 
     #[glib::object_subclass]
@@ -90,22 +93,11 @@ impl Default for SettingsDialog {
         let rgba = settings.get_highlight_rgba();
         imp.highlight_color_button.set_rgba(&rgba);
 
-        let provider_model = gtk::StringList::new(
-            &LLMProvider::get_all_str()
-                .iter()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
-        );
-        imp.provider_list.set_model(Some(&provider_model));
-
-        let provider_index = settings.get_active_provider_index();
-        imp.provider_list.set_selected(provider_index as u32);
-
-        let whisper_model = gtk::StringList::new(&get_whisper_models());
-        imp.whisper_models.set_model(Some(&whisper_model));
+        *imp.whisper_downloaded_models.borrow_mut() = get_downloaded_models();
 
         obj.setup_signals();
         obj.update_ui_from_provider();
+        obj.setup_whisper_model_list();
         obj
     }
 }
@@ -171,10 +163,10 @@ impl SettingsDialog {
             move |combo| {
                 if let Some(item) = combo.selected_item() {
                     if let Ok(model) = item.downcast::<gtk::StringObject>() {
-                        if is_model_downloaded(model.string().as_ref()) {
+                        if this.is_model_downloaded(model.string().to_string()) {
                             SETTINGS.set_whisper_model(model.string().as_ref());
                         }
-                        this.set_whisper_button_ui(model.string().as_ref())
+                        this.update_whisper_button_state(model.string().to_string())
                     }
                 }
             }
@@ -186,7 +178,8 @@ impl SettingsDialog {
             move |_| {
                 if let Some(item) = this.imp().whisper_models.selected_item() {
                     if let Ok(model) = item.downcast::<gtk::StringObject>() {
-                        this.set_whisper_button_ui(model.string().as_ref())
+                        this.update_whisper_button_state(model.string().to_string());
+                        this.refresh_whisper_model_list();
                     }
                 }
             }
@@ -205,7 +198,7 @@ impl SettingsDialog {
                             if let Err(e) = remove_model(&model_str) {
                                 show_error_dialog(&format!("Failed to remove file, {}", e), button);
                             }
-                            this.set_whisper_button_ui(&model_str);
+                            this.update_whisper_button_state(model_str);
                             return;
                         }
 
@@ -231,7 +224,9 @@ impl SettingsDialog {
                                 match result {
                                     Ok(_) => {
                                         on_complete();
-                                        this.set_whisper_button_ui(&model_str);
+                                        SETTINGS.set_whisper_model(&model_str);
+                                        this.update_whisper_button_state(model_str);
+                                        this.refresh_whisper_model_list();
                                     }
                                     Err(e) => {
                                         on_cancel();
@@ -244,6 +239,74 @@ impl SettingsDialog {
                 }
             }
         ));
+    }
+
+    fn setup_whisper_model_list(&self) {
+        let imp = self.imp();
+
+        let models = get_whisper_models_names();
+        let downloaded_models = get_downloaded_models();
+
+        let factory = gtk::SignalListItemFactory::new();
+        factory.connect_setup(move |_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::builder().xalign(0.0).build();
+                list_item.set_child(Some(&label));
+            }
+        });
+
+        factory.connect_bind(clone!(move |_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(item) = list_item.item() {
+                    if let Ok(string_obj) = item.downcast::<gtk::StringObject>() {
+                        let model_name = string_obj.string();
+                        let label = list_item.child().and_downcast::<gtk::Label>().unwrap();
+
+                        if downloaded_models.contains(&model_name.to_string()) {
+                            label.add_css_class("whisper-downloaded-model");
+                            label.set_text(&format!("{} ✓", model_name));
+                        } else {
+                            label.remove_css_class("whisper-downloaded-model");
+                            label.set_text(model_name.as_ref());
+                        }
+                    }
+                }
+            }
+        }));
+
+        imp.whisper_models.set_factory(Some(&factory));
+
+        let whisper_model = gtk::StringList::new(&models);
+        imp.whisper_models.set_model(Some(&whisper_model));
+
+        let provider_index = SETTINGS.get_active_model_index();
+        imp.whisper_models.set_selected(provider_index as u32);
+    }
+
+    pub fn refresh_whisper_model_list(&self) {
+        let imp = self.imp();
+
+        let selected_model = if let Some(item) = imp.whisper_models.selected_item() {
+            if let Ok(string_obj) = item.downcast::<gtk::StringObject>() {
+                Some(string_obj.string().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        self.setup_whisper_model_list();
+
+        if let Some(model) = selected_model {
+            let models = get_whisper_models_names();
+            for (i, m) in models.iter().enumerate() {
+                if m == &model {
+                    imp.whisper_models.set_selected(i as u32);
+                    break;
+                }
+            }
+        }
     }
 
     fn update_ui_from_provider(&self) {
@@ -275,9 +338,9 @@ impl SettingsDialog {
         }
     }
 
-    fn set_whisper_button_ui(&self, model_name: &str) {
+    fn update_whisper_button_state(&self, model_name: String) {
         let imp = self.imp();
-        if is_model_downloaded(model_name) {
+        if self.is_model_downloaded(model_name) {
             imp.whisper_download_button.set_label("Remove");
             imp.whisper_download_button
                 .set_css_classes(&["destructive-action"]);
@@ -286,5 +349,12 @@ impl SettingsDialog {
             imp.whisper_download_button
                 .set_css_classes(&["suggested-action"]);
         }
+    }
+
+    fn is_model_downloaded(&self, model_name: String) -> bool {
+        self.imp()
+            .whisper_downloaded_models
+            .borrow()
+            .contains(&model_name)
     }
 }

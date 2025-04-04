@@ -64,7 +64,7 @@ pub mod whisper_config {
         format!("{}-{}.bin", base_url, model_name)
     }
 
-    pub fn get_whisper_models() -> Vec<&'static str> {
+    pub fn get_whisper_models_names() -> Vec<&'static str> {
         vec![
             "base-q5_1",
             "base-q8_0",
