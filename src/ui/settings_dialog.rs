@@ -166,7 +166,7 @@ impl SettingsDialog {
                         if this.is_model_downloaded(model.string().to_string()) {
                             SETTINGS.set_whisper_model(model.string().as_ref());
                         }
-                        this.update_whisper_button_state(model.string().to_string())
+                        this.update_whisper_button_state(model.string().to_string());
                     }
                 }
             }
@@ -179,7 +179,6 @@ impl SettingsDialog {
                 if let Some(item) = this.imp().whisper_models.selected_item() {
                     if let Ok(model) = item.downcast::<gtk::StringObject>() {
                         this.update_whisper_button_state(model.string().to_string());
-                        this.refresh_whisper_model_list();
                     }
                 }
             }
@@ -191,14 +190,18 @@ impl SettingsDialog {
             move |button| {
                 if let Some(item) = this.imp().whisper_models.selected_item() {
                     if let Ok(model) = item.downcast::<gtk::StringObject>() {
-                        let model_str = model.string().to_string();
-                        let model_str_clone = model_str.clone();
+                        let model_name = model.string().to_string();
 
                         if button.has_css_class("destructive-action") {
-                            if let Err(e) = remove_model(&model_str) {
+                            if let Err(e) = remove_model(&model_name) {
                                 show_error_dialog(&format!("Failed to remove file, {}", e), button);
                             }
-                            this.update_whisper_button_state(model_str);
+                            let mut models = this.imp().whisper_downloaded_models.borrow_mut();
+                            if let Some(index) = models.iter().position(|m| m == &model_name) {
+                                models.remove(index);
+                            }
+                            this.update_whisper_button_state(model_name);
+                            this.refresh_whisper_model_list();
                             return;
                         }
 
@@ -214,8 +217,9 @@ impl SettingsDialog {
                                 let (on_complete, on_cancel) = progress_tracker
                                     .track_with_progress_bar(&this.imp().whisper_download_progress);
 
+                                let model_name_clone = model_name.clone();
                                 let result = spawn_tokio(async move {
-                                    download_model(&model_str_clone, Some(progress_callback)).await
+                                    download_model(&model_name_clone, Some(progress_callback)).await
                                 })
                                 .await;
 
@@ -224,8 +228,12 @@ impl SettingsDialog {
                                 match result {
                                     Ok(_) => {
                                         on_complete();
-                                        SETTINGS.set_whisper_model(&model_str);
-                                        this.update_whisper_button_state(model_str);
+                                        SETTINGS.set_whisper_model(&model_name);
+                                        this.imp()
+                                            .whisper_downloaded_models
+                                            .borrow_mut()
+                                            .push(model_name.clone());
+                                        this.update_whisper_button_state(model_name);
                                         this.refresh_whisper_model_list();
                                     }
                                     Err(e) => {
