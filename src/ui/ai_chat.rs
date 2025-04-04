@@ -15,9 +15,7 @@ use crate::{
         llm_manager::LLMManager,
         runtime::{runtime, spawn_tokio},
         voice_manager::VoiceManager,
-    },
-    ui::dialogs::show_error_dialog,
-    utils::audio_player::AudioPlayer,
+    }, paths::whisper_config::get_model_path, ui::dialogs::show_error_dialog, utils::audio_player::AudioPlayer, SETTINGS
 };
 
 use super::{
@@ -248,7 +246,7 @@ impl AiChat {
 
     pub fn get_selected_language_code(&self) -> Option<String> {
         if let Some(voice_row) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
-            return Some(voice_row.language_code());
+            return Some(voice_row.language_code().split("-").collect::<Vec<_>>()[0].to_string());
         }
         None
     }
@@ -396,8 +394,9 @@ impl AiChat {
         audio_data: Vec<f32>,
         language_code: Option<String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let model = get_model_path(&SETTINGS.get_whisper_model());
         let whisper_ctx = WhisperContext::new_with_params(
-            "/home/cieju/projects/rust/fox-reader/ggml-base.bin",
+            &model,
             WhisperContextParameters::default(),
         )
         .expect("failed to load model");
