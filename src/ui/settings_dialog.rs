@@ -196,9 +196,11 @@ impl SettingsDialog {
                             if let Err(e) = remove_model(&model_name) {
                                 show_error_dialog(&format!("Failed to remove file, {}", e), button);
                             }
-                            let mut models = this.imp().whisper_downloaded_models.borrow_mut();
-                            if let Some(index) = models.iter().position(|m| m == &model_name) {
-                                models.remove(index);
+                            {
+                                let mut models = this.imp().whisper_downloaded_models.borrow_mut();
+                                if let Some(index) = models.iter().position(|m| m == &model_name) {
+                                    models.remove(index);
+                                }
                             }
                             this.update_whisper_button_state(model_name);
                             this.refresh_whisper_model_list();
@@ -229,10 +231,12 @@ impl SettingsDialog {
                                     Ok(_) => {
                                         on_complete();
                                         SETTINGS.set_whisper_model(&model_name);
-                                        this.imp()
-                                            .whisper_downloaded_models
-                                            .borrow_mut()
-                                            .push(model_name.clone());
+                                        {
+                                            this.imp()
+                                                .whisper_downloaded_models
+                                                .borrow_mut()
+                                                .push(model_name.clone());
+                                        }
                                         this.update_whisper_button_state(model_name);
                                         this.refresh_whisper_model_list();
                                     }
@@ -253,7 +257,6 @@ impl SettingsDialog {
         let imp = self.imp();
 
         let models = get_whisper_models_names();
-        let downloaded_models = get_downloaded_models();
 
         let factory = gtk::SignalListItemFactory::new();
         factory.connect_setup(move |_, list_item| {
@@ -263,6 +266,7 @@ impl SettingsDialog {
             }
         });
 
+        let downloaded_models = imp.whisper_downloaded_models.borrow().to_vec();
         factory.connect_bind(clone!(move |_, list_item| {
             if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
                 if let Some(item) = list_item.item() {
