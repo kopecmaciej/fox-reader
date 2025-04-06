@@ -243,7 +243,9 @@ impl PdfReader {
             #[weak(rename_to=this)]
             self,
             move |_settings, _key| {
-                this.refresh_view();
+                if this.imp().pdf_wrapper.borrow().get_document().is_some() {
+                    this.refresh_view();
+                }
             }
         ));
     }
@@ -281,7 +283,6 @@ impl PdfReader {
     fn render_current_page(&self, page: &PdfPage) {
         let imp = self.imp();
         let page_num = *imp.current_page_num.borrow();
-
         {
             let old_highlight_area = imp.highlight_area.borrow();
             if let Some(parent) = old_highlight_area.parent() {
@@ -290,7 +291,6 @@ impl PdfReader {
                 }
             }
         }
-
         let highlight_area = gtk::DrawingArea::new();
         imp.overlay.add_overlay(&highlight_area);
         *imp.highlight_area.borrow_mut() = highlight_area;
