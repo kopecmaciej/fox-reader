@@ -295,46 +295,9 @@ impl PdfHighlighter {
                 }
             }
 
-            // Common abbreviations that shouldn't be treated as sentence boundaries
-            let common_abbreviations = [
-                "Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Inc.", "Ltd.", "Co.", "e.g.", "i.e.",
-                "etc.", "vs.", "Fig.", "St.", "Ave.", "Blvd.", "Corp.", "Dept.", "Est.", "Jr.",
-                "Sr.", "Ph.D.", "B.A.", "M.A.", "a.m.", "p.m.", "U.S.", "U.K.", "E.U.", "v.",
-                "Jan.", "Feb.", "Mar.", "Apr.", "Jun.", "Jul.", "Aug.", "Sept.", "Oct.", "Nov.",
-                "Dec.",
-            ];
-
-            // Extract the word containing the period
-            let words: Vec<&str> = trimmed.split_whitespace().collect();
-            for word in words.iter().rev() {
-                if word.contains('.') {
-                    // Check if this word is an abbreviation
-                    for abbr in &common_abbreviations {
-                        if word == abbr
-                            || word.ends_with(abbr)
-                                && !word[..word.len() - abbr.len()]
-                                    .chars()
-                                    .last()
-                                    .unwrap_or(' ')
-                                    .is_alphanumeric()
-                        {
-                            return 0;
-                        }
-                    }
-                    break;
-                }
-            }
-
-            // Check for website and file extensions
-            let extensions = [
-                ".com", ".org", ".net", ".edu", ".gov", ".io", ".html", ".pdf", ".txt", ".rs",
-                ".js",
-            ];
-            let last_word = trimmed.split_whitespace().last().unwrap_or("");
-            for ext in &extensions {
-                if last_word.to_lowercase().ends_with(ext) {
-                    return 0;
-                }
+            let first_word = trimmed.split_whitespace().last().unwrap_or("");
+            if first_word.contains("http") {
+                return 0;
             }
 
             // Check for decimal numbers
@@ -374,7 +337,6 @@ impl PdfHighlighter {
             return original_pos + 1;
         }
 
-        // No period found (shouldn't happen at this point, but just in case)
         0
     }
 
