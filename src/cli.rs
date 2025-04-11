@@ -41,6 +41,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .long("rate")
                 .help("Speech rate (-100:100)")
                 .value_name("RATE")
+                .default_value("0")
                 .allow_negative_numbers(true)
                 .value_parser(clap::value_parser!(f32)),
         )
@@ -55,13 +56,10 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
 
     let model_path = matches.get_one::<String>("model").unwrap();
     let text = matches.get_one::<String>("text").unwrap();
-    let rate = matches.get_one::<f32>("rate").copied();
+    let rate = matches.get_one::<f32>("rate").unwrap();
     let output_path = matches.get_one::<String>("output");
 
-    let mut calculated_rate = 0;
-    if let Some(r) = rate {
-        calculated_rate = speech_dispatcher_to_piper_percentage(r);
-    }
+    let calculated_rate = speech_dispatcher_to_piper_percentage(rate);
 
     if !Path::new(model_path).exists() {
         let err_msg = format!("Error: Model path does not exist: {}", model_path);
@@ -123,8 +121,8 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
     Ok(true)
 }
 
-fn speech_dispatcher_to_piper_percentage(sd_rate: f32) -> u8 {
-    if sd_rate < 0.0 {
+fn speech_dispatcher_to_piper_percentage(sd_rate: &f32) -> u8 {
+    if *sd_rate < 0.0 {
         (sd_rate + 100.0 / 10.0).round() as u8
     } else {
         (10.0 + (sd_rate * 0.4)).round() as u8
