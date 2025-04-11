@@ -51,7 +51,7 @@ impl PiperTTS {
             rate,
             volume: None,
             pitch: None,
-            appended_silence_ms: None,
+            appended_silence_ms: Some(100),
         };
 
         let mut samples: Vec<f32> = Vec::new();

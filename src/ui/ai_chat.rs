@@ -15,7 +15,11 @@ use crate::{
         llm_manager::LLMManager,
         runtime::{runtime, spawn_tokio},
         voice_manager::VoiceManager,
-    }, paths::whisper_config::get_model_path, ui::dialogs::show_error_dialog, utils::audio_player::AudioPlayer, SETTINGS
+    },
+    paths::whisper_config::get_model_path,
+    ui::dialogs::show_error_dialog,
+    utils::{audio_player, markdown, text},
+    SETTINGS,
 };
 
 use super::{
@@ -61,7 +65,7 @@ mod imp {
         pub recording_stream: RefCell<Option<cpal::Stream>>,
         pub shared_audio_buffer: RefCell<Option<Arc<Mutex<Vec<f32>>>>>,
         pub llm_manager: Arc<LLMManager>,
-        pub audio_player: Arc<AudioPlayer>,
+        pub audio_player: Arc<audio_player::AudioPlayer>,
     }
 
     #[glib::object_subclass]
@@ -395,11 +399,9 @@ impl AiChat {
         language_code: Option<String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let model = get_model_path(&SETTINGS.get_whisper_model());
-        let whisper_ctx = WhisperContext::new_with_params(
-            &model,
-            WhisperContextParameters::default(),
-        )
-        .expect("failed to load model");
+        let whisper_ctx =
+            WhisperContext::new_with_params(&model, WhisperContextParameters::default())
+                .expect("failed to load model");
 
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
 
@@ -437,7 +439,8 @@ impl AiChat {
         imp.button_icon
             .set_icon_name(Some("media-playback-stop-symbolic"));
 
-        let sentences = self.split_into_sentences(response);
+        let tts_text = markdown::strip_markdown_for_tts(response);
+        let sentences = text::split_text_into_sentences(&tts_text);
 
         for sentence in sentences {
             if sentence.trim().is_empty() {
@@ -452,6 +455,7 @@ impl AiChat {
             }
 
             if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
+                println!("{sentence}");
                 let source_audio = runtime()
                     .block_on(VoiceManager::generate_piper_raw_speech(
                         &sentence,
@@ -468,24 +472,5 @@ impl AiChat {
                 }
             }
         }
-    }
-
-    fn split_into_sentences(&self, text: &str) -> Vec<String> {
-        let sentence_regex = regex::Regex::new(r"[^.!?]+[.!?]").unwrap();
-
-        let mut sentences: Vec<String> = sentence_regex
-            .find_iter(text)
-            .map(|m| m.as_str().to_string())
-            .collect();
-
-        let total_matched_len: usize = sentences.iter().map(|s| s.len()).sum();
-        if total_matched_len < text.len() {
-            let remaining = text[total_matched_len..].trim();
-            if !remaining.is_empty() {
-                sentences.push(remaining.to_string());
-            }
-        }
-
-        sentences
     }
 }
