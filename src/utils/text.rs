@@ -3,10 +3,12 @@ const MIN_SENTENCE_LENGTH: usize = 60;
 pub fn split_text_into_sentences(text: &str) -> Vec<String> {
     let mut segments = Vec::new();
 
-    let lines: Vec<&str> = text.split('\n').collect();
-    let sentence_regex = regex::Regex::new(r"[^.!?]+[.!?]").unwrap();
+    if text.trim().is_empty() {
+        return segments;
+    }
 
-    for line in lines {
+    let sentence_regex = regex::Regex::new(r"[^.!?]+[.!?]").unwrap();
+    for line in text.split('\n') {
         if line.trim().is_empty() {
             continue;
         }
@@ -23,35 +25,8 @@ pub fn split_text_into_sentences(text: &str) -> Vec<String> {
             continue;
         }
 
-        let mut current_segment = String::new();
-        let mut last_index = 0;
-
-        for sentence_match in sentence_matches {
-            let sentence = sentence_match.as_str();
-            last_index = sentence_match.end();
-
-            if !current_segment.is_empty() && current_segment.len() + sentence.len() >= MIN_SENTENCE_LENGTH {
-                segments.push(current_segment);
-                current_segment = sentence.to_string();
-            }
-            else if current_segment.is_empty() && sentence.len() >= MIN_SENTENCE_LENGTH {
-                segments.push(sentence.to_string());
-            }
-            else {
-                current_segment.push_str(sentence);
-            }
-        }
-
-        if !current_segment.is_empty() {
-            segments.push(current_segment);
-        }
-
-        if last_index < line.len() {
-            let remaining = &line[last_index..];
-            if !remaining.trim().is_empty() {
-                segments.push(remaining.trim().to_string());
-            }
-        }
+        let line_content = line.to_string();
+        segments.push(line_content);
     }
 
     segments
@@ -94,29 +69,24 @@ mod tests {
 
     #[test]
     fn test_long_line_with_multiple_sentences() {
-        let text = "This is a very long first sentence that has more than forty characters. This is a second sentence that also has more than forty characters.";
+        let text = "This is a very long first sentence that has a lot of characters, I'm handsome btw. This is a second sentence that also has more than forty characters, I'm handsome here as well";
         let result = split_text_into_sentences(text);
-        assert_eq!(result.len(), 2);
+        assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
-            "This is a very long first sentence that has more than forty characters."
-        );
-        assert_eq!(
-            result[1],
-            " This is a second sentence that also has more than forty characters."
+            "This is a very long first sentence that has a lot of characters, I'm handsome btw. This is a second sentence that also has more than forty characters, I'm handsome here as well"
         );
     }
 
     #[test]
     fn test_mixed_length_sentences() {
-        let text = "Short. This is a much longer sentence with more than forty characters. Another short one.";
+        let text = "Short sentence. This is a much longer sentence with a lot more characters. Another short one.";
         let result = split_text_into_sentences(text);
-        assert_eq!(result.len(), 2);
+        assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
-            "Short. This is a much longer sentence with more than forty characters."
+            "Short sentence. This is a much longer sentence with a lot more characters. Another short one."
         );
-        assert_eq!(result[1], " Another short one.");
     }
 
     #[test]
@@ -166,18 +136,14 @@ mod tests {
     fn test_complex_mixed_content() {
         let text = "Short.\nMedium sentence here.\nThis is a sentence that should be over 40 characters for sure. This is another sentence that's also over 40 characters.\nShort again.\nAnother short.";
         let result = split_text_into_sentences(text);
-        assert_eq!(result.len(), 6);
+        assert_eq!(result.len(), 5);
         assert_eq!(result[0], "Short.");
         assert_eq!(result[1], "Medium sentence here.");
         assert_eq!(
             result[2],
-            "This is a sentence that should be over 40 characters for sure."
+            "This is a sentence that should be over 40 characters for sure. This is another sentence that's also over 40 characters."
         );
-        assert_eq!(
-            result[3],
-            " This is another sentence that's also over 40 characters."
-        );
-        assert_eq!(result[4], "Short again.");
-        assert_eq!(result[5], "Another short.");
+        assert_eq!(result[3], "Short again.");
+        assert_eq!(result[4], "Another short.");
     }
 }
