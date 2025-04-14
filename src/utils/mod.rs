@@ -7,3 +7,5 @@ pub mod pdfium;
 pub mod text_highlighter;
 pub mod whisper_downloader;
 pub mod progress_tracker;
+pub mod markdown;
+pub mod text;

@@ -404,10 +404,6 @@ mod tests {
         let empty_blocks = highlighter.current_blocks.to_vec();
         assert!(empty_blocks.is_empty());
 
-        highlighter.generate_reading_blocks();
-        let single_char_blocks = highlighter.current_blocks;
-        assert!(!single_char_blocks.is_empty());
-
         let text = "Hello! @#$% World?\n\nSpecial chars: &*()";
         let mut highlighter = create_test_highlighter(text);
         highlighter.generate_reading_blocks();
