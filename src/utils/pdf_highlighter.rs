@@ -1,5 +1,5 @@
 use pdfium_render::prelude::{
-    PdfPage, PdfPageObject, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPageTextObject,
+    PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPageTextObject,
     PdfPoints, PdfQuadPoints, PdfRect, PdfSearchDirection, PdfSearchOptions,
 };
 
@@ -18,6 +18,7 @@ pub struct PdfReadingBlock {
 // Let's merge text that's near enough to make some sense of merging it
 const VERTICAL_THRESHOLD: u8 = 10;
 const HORIZONTAL_THRESHOLD: u8 = 40;
+const MIN_SENTENCE_LENGTH: usize = 40;
 
 impl ReadingBlock for PdfReadingBlock {
     fn get_text(&self) -> String {
@@ -76,15 +77,10 @@ impl PdfHighlighter {
         };
 
         //TODO: change to page.text() as objects() don't return all the text
-        let valid_text_objects: Vec<_> = page
-            .objects()
-            .iter()
-            .filter(|object| Self::is_valid_text_object(object))
-            .collect();
 
         let mut reading_blocks: Vec<PdfReadingBlock> = Vec::new();
 
-        for object in valid_text_objects.iter() {
+        for object in page.objects().iter() {
             let text_obj = match object.as_text_object() {
                 Some(obj) => obj,
                 None => continue,
@@ -142,19 +138,17 @@ impl PdfHighlighter {
         text_obj: &PdfPageTextObject,
         bounds: PdfQuadPoints,
     ) -> Result<(), Box<dyn Error>> {
-        // 2. Clean the text from special characters at the beginning
-        let cleaned_text = text_obj
-            .text()
-            .trim()
-            .trim_start_matches(|c: char| !c.is_alphanumeric())
-            .to_string();
+        let cleaned_text = text_obj.text().trim().to_string();
+        if cleaned_text.is_empty() {
+            return Ok(());
+        }
         // Extract text properties
         let font_size = text_obj.unscaled_font_size().value;
         let rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
 
         let sentence_end_index = self.find_sentence_end_index(&cleaned_text);
 
-        if sentence_end_index > 0 {
+        if sentence_end_index > 0 && cleaned_text.len() > MIN_SENTENCE_LENGTH {
             let char_length = bounds.width().value / cleaned_text.len() as f32;
 
             let (mut current_sentence, mut next_sentence) =
@@ -243,23 +237,6 @@ impl PdfHighlighter {
                 && !last_dot
                 && (vertical_distance.value <= VERTICAL_THRESHOLD.into()
                     || horizontal_distance.value <= HORIZONTAL_THRESHOLD.into())
-        } else {
-            false
-        }
-    }
-
-    /// Checks if the provided PDF object is a valid text object.
-    /// A valid text object must have non-empty text (not only numbers or special characters)
-    /// and a non-zero scaled font size.
-    fn is_valid_text_object(object: &PdfPageObject) -> bool {
-        if let Some(text_obj) = object.as_text_object() {
-            let text = text_obj.text().to_string();
-            let font_size = text_obj.scaled_font_size();
-            !(text
-                .trim()
-                .chars()
-                .all(|c| c.is_numeric() || !c.is_alphanumeric())
-                || font_size.value == 0.0)
         } else {
             false
         }
