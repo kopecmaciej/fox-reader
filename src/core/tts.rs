@@ -3,8 +3,9 @@ use crate::{
     core::runtime::spawn_tokio,
     utils::{audio_player::AudioPlayer, highlighter::ReadingBlock},
 };
+use rodio::buffer::SamplesBuffer;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     error::Error,
     fmt,
     sync::{
@@ -69,25 +70,28 @@ impl Tts {
 
         self.current_id.store(start_from as usize, Ordering::SeqCst);
 
+        let mut processed_blocks: HashMap<usize, SamplesBuffer<f32>> = HashMap::new();
+
         while self.current_id.load(Ordering::SeqCst) < blocks_map.len() {
             let current_idx = self.current_id.load(Ordering::SeqCst);
             let reading_speed_value = self.reading_speed.load(Ordering::SeqCst);
             let reading_block = &blocks_map.get(&(current_idx as u32)).unwrap();
             let speed = Self::spin_value_to_rate_percent(reading_speed_value);
 
-            let source_audio =
+            let source_audio = processed_blocks.entry(current_idx).or_insert(
                 VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice, speed)
-                    .await?;
+                    .await?,
+            );
 
             self.sender.send(TTSEvent::Progress {
                 block_id: current_idx as u32,
             })?;
-
-            let event = self.read_block_of_text(source_audio).await;
+            let event = self.read_block_of_text(source_audio.clone()).await;
 
             match event {
                 Ok(Some(TTSEvent::Stop)) => {
                     self.current_id.store(0, Ordering::SeqCst);
+                    processed_blocks.clear();
                     break;
                 }
                 Ok(Some(TTSEvent::Next)) => {
@@ -117,7 +121,7 @@ impl Tts {
 
     pub async fn read_block_of_text(
         &self,
-        source_audio: rodio::buffer::SamplesBuffer<f32>,
+        source_audio: SamplesBuffer<f32>,
     ) -> Result<Option<TTSEvent>, Box<dyn Error>> {
         let mut receiver = self.sender.subscribe();
         let audio_player = self.audio_player.clone();
