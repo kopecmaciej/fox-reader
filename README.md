@@ -6,7 +6,9 @@ converts text to speech using all voices from
 
 ## Current UI:
 
-![Text to Speech Interface](assets/test_to_speach.png)
+![PDF Reader](assets/pdf_reader.png)
+
+![AI Chat](assets/ai_voice_chat.png)
 
 ![Voice List](assets/voice_list.png)
 
