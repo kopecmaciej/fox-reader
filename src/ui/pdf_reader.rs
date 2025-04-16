@@ -393,7 +393,7 @@ impl PdfReader {
         let click_controller = gtk::GestureClick::new();
         let page_size = page.page_size();
 
-        click_controller.connect_pressed(clone!(move |_, _, x, y| {
+        click_controller.connect_released(clone!(move |_, _, x, y| {
             let clicked_block = reading_blocks.iter().find_map(|block| {
                 let scale_factor = scale_factor as f64;
                 block.rectangles.iter().find_map(|rect| {
