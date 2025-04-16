@@ -2,6 +2,26 @@
 <schemalist>
   <schema id="org.fox-reader" path="/org/fox-reader/">
     <!-- UI Settings -->
+    <key name="window-width" type="i">
+      <default>1080</default>
+      <summary>Window width</summary>
+      <description>Width of the application window</description>
+    </key>
+    <key name="window-height" type="i">
+      <default>960</default>
+      <summary>Window height</summary>
+      <description>Height of the application window</description>
+    </key>
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Window maximized state</summary>
+      <description>Whether the window is maximized</description>
+    </key>
+    <key name="theme" type="s">
+      <default>'light'</default>
+      <summary>Application Theme</summary>
+      <description>Light or dark application theme</description>
+    </key>
     <key name="font" type="s">
       <default>''</default>
       <summary>Font</summary>
@@ -11,11 +31,6 @@
       <default>'rgba(255,255,0,0.3)'</default>
       <summary>Highlight Color</summary>
       <description>Color used for text highlighting</description>
-    </key>
-    <key name="theme" type="s">
-      <default>'light'</default>
-      <summary>Application Theme</summary>
-      <description>Light or dark application theme</description>
     </key>
 
     <!-- Whisper Settings -->

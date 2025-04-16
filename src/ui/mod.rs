@@ -4,9 +4,10 @@ mod audio_controls;
 mod dialogs;
 mod helpers;
 mod pdf_reader;
-pub mod settings_dialog;
+mod settings_dialog;
 mod text_reader;
 mod voice_events;
 mod voice_list;
 mod voice_row;
+
 pub mod window;

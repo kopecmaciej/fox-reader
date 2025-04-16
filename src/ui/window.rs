@@ -101,6 +101,9 @@ impl FoxReaderAppWindow {
     pub fn new(app: &adw::Application) -> Self {
         let window: Self = Object::builder().property("application", app).build();
 
+        window.load_window_size();
+        window.setup_size_saving();
+
         if let Err(e) = SpeechDispatcher::init() {
             let err_msg = format!(
                 "Error initializing speech dispatcher config. \nDetails: {}",
@@ -200,5 +203,61 @@ impl FoxReaderAppWindow {
                 }
             }
         ));
+    }
+
+    fn load_window_size(&self) {
+        let width = SETTINGS.get_window_width();
+        let height = SETTINGS.get_window_height();
+        let maximized = SETTINGS.get_window_maximized();
+
+        if let Some(display) = gtk::gdk::Display::default() {
+            let monitors = display.monitors();
+
+            if monitors.n_items() > 0 {
+                if let Some(monitor) = monitors
+                    .item(0)
+                    .and_then(|obj| obj.downcast::<gtk::gdk::Monitor>().ok())
+                {
+                    let geometry = monitor.geometry();
+                    let screen_width = geometry.width();
+                    let screen_height = geometry.height();
+
+                    let width = width.min(screen_width);
+                    let height = height.min(screen_height);
+
+                    self.set_default_size(width, height);
+                } else {
+                    self.set_default_size(width, height);
+                }
+            } else {
+                self.set_default_size(width, height);
+            }
+        } else {
+            self.set_default_size(width, height);
+        }
+
+        if maximized {
+            self.maximize();
+        }
+    }
+
+    fn setup_size_saving(&self) {
+        let is_maximized = self.is_maximized();
+        let default_size = self.default_size();
+        self.connect_close_request(move |_| {
+            if !is_maximized {
+                let (width, height) = default_size;
+                SETTINGS.set_window_width(width);
+                SETTINGS.set_window_height(height);
+            }
+            SETTINGS.set_window_maximized(is_maximized);
+
+            glib::Propagation::Proceed
+        });
+
+        let window_clone = self.clone();
+        self.connect_maximized_notify(move |_| {
+            SETTINGS.set_window_maximized(window_clone.is_maximized());
+        });
     }
 }

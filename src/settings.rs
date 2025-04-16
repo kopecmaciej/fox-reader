@@ -66,6 +66,33 @@ impl Display for LLMProvider {
 pub struct Settings(gio::Settings);
 
 impl Settings {
+    pub fn get_window_width(&self) -> i32 {
+        self.int("window-width")
+    }
+
+    pub fn set_window_width(&self, width: i32) {
+        self.set_int("window-width", width)
+            .expect("Failed to set window width");
+    }
+
+    pub fn get_window_height(&self) -> i32 {
+        self.int("window-height")
+    }
+
+    pub fn set_window_height(&self, height: i32) {
+        self.set_int("window-height", height)
+            .expect("Failed to set window height");
+    }
+
+    pub fn get_window_maximized(&self) -> bool {
+        self.boolean("window-maximized")
+    }
+
+    pub fn set_window_maximized(&self, maximized: bool) {
+        self.set_boolean("window-maximized", maximized)
+            .expect("Failed to set window maximized state");
+    }
+
     pub fn get_font_description(&self) -> FontDescription {
         let font_str = self.string("font");
         FontDescription::from_string(&font_str)
