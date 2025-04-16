@@ -77,10 +77,17 @@ impl Tts {
             let speed = Self::spin_value_to_rate_percent(reading_speed_value);
 
             let reading_block = &blocks_map.get(&(current_idx as u32)).unwrap();
-            processed_blocks.entry(current_idx).or_insert(
-                VoiceManager::generate_piper_raw_speech(&reading_block.get_text(), &voice, speed)
-                    .await?,
-            );
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                processed_blocks.entry(current_idx)
+            {
+                let source_audio = VoiceManager::generate_piper_raw_speech(
+                    &reading_block.get_text(),
+                    &voice,
+                    speed,
+                )
+                .await?;
+                e.insert(source_audio);
+            }
 
             let source_audio = processed_blocks.get(&current_idx).unwrap().clone();
             let event_future = self.read_block_of_text(source_audio.clone());
