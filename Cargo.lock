@@ -878,7 +878,7 @@ dependencies = [
 
 [[package]]
 name = "fox-reader"
-version = "0.1.0"
+version = "0.1.1-build"
 dependencies = [
  "clap",
  "cpal",
