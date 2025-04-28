@@ -3,6 +3,7 @@ name = "fox-reader"
 version = "0.1.0"
 edition = "2021"
 authors = ["maciejkopec92@gmail.com"]
+repository = "https://github.com/kopecmaciej/fox-reader"
 
 [dependencies]
 dirs = "5.0.1"
@@ -26,3 +27,8 @@ tokio-stream = "0.1.17"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
