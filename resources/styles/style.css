@@ -1,13 +1,11 @@
-:root {
-  --bg_color: #3a3a3a;
-  --primary-color: #4285F4;
-  --secondary-color: #34A853;
-  --card-bg: #2D2D2D;
-  --text-secondary: #B0B0B0;
-  --hover-color: #3367D6;
-  --user-message-color: #444444;
-  --assistant-message-color: #4285F4;
-}
+@define-color bg_color #3a3a3a;
+@define-color primary_color #4285F4;
+@define-color secondary_color #34A853;
+@define-color card_bg #2D2D2D;
+@define-color text_secondary #B0B0B0;
+@define-color hover_color #3367D6;
+@define-color user_message_color #444444;
+@define-color assistant_message_color #4285F4;
 
 .app-title {
   font-size: 24px;
