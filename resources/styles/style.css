@@ -1,10 +1,10 @@
 :root {
+  --bg_color: #3a3a3a;
   --primary-color: #4285F4;
   --secondary-color: #34A853;
   --card-bg: #2D2D2D;
   --text-secondary: #B0B0B0;
   --hover-color: #3367D6;
-  --animation-duration: 0.3s;
   --user-message-color: #444444;
   --assistant-message-color: #4285F4;
 }
@@ -12,19 +12,19 @@
 .app-title {
   font-size: 24px;
   font-weight: 700;
-  color: var(--primary-color);
+  color: @primary_color;
   margin-bottom: 4px;
 }
 
 .app-subtitle {
-  color: var(--text-secondary);
+  color: @text_secondary;
   font-size: 14px;
   margin-bottom: 20px;
 }
 
 .text_input {
   padding: 4px 6px;
-  background: alpha(currentColor, 0.05);
+  background-color: alpha(@bg_color, 0.05);
 }
 
 columnview.view {
@@ -38,19 +38,19 @@ card {
 
 filechooser list row:selected,
 filechooser list row:hover {
-  background-color: alpha(var(--primary-color), 0.3);
+  background-color: alpha(@primary_color, 0.3);
 }
 
 filechooser list row:selected {
-  background-color: var(--primary-color);
+  background-color: @primary_color;
 }
 
-filechooser stack box scrolledwindow columnview>row:hover {
-  background-color: alpha(var(--primary-color), 0.3);
+filechooser stack box scrolledwindow columnview > row:hover {
+  background-color: alpha(@primary_color, 0.3);
 }
 
-filechooser stack box scrolledwindow columnview>row:selected {
-  background-color: var(--primary-color);
+filechooser stack box scrolledwindow columnview > row:selected {
+  background-color: @primary_color;
   color: white;
 }
 
@@ -59,11 +59,11 @@ filechooser columnview row:selected cell {
 }
 
 filechooser columnview row:hover {
-  background-color: alpha(var(--primary-color), 0.3);
+  background-color: alpha(@primary_color, 0.3);
 }
 
 filechooser columnview row:selected {
-  background-color: var(--primary-color);
+  background-color: @primary_color;
   color: white;
 }
 
@@ -146,8 +146,7 @@ dropdown.voice-selector button {
 .playback-controls {
   padding: 8px;
   border-radius: 12px;
-  background: alpha(currentColor, 0.05);
-  border: black;
+  background-color: alpha(@bg_color, 0.05);
 }
 
 .playback-controls button.circular {
@@ -163,7 +162,7 @@ dropdown.voice-selector button {
 }
 
 .playback-controls button.flat:hover {
-  background-color: alpha(currentColor, 0.1);
+  background-color: alpha(@bg_color, 0.1);
 }
 
 .speed-slider {
@@ -196,7 +195,7 @@ dropdown.voice-selector button {
 }
 
 .chat-history-scroll {
-  background-color: var(--card-bg);
+  background-color: @card_bg;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
@@ -213,27 +212,27 @@ row {
 .message {
   padding: 12px 16px;
   border-radius: 18px;
-  animation: fadeIn var(--animation-duration) ease;
+  animation: fadeIn 0.3s ease;
   line-height: 1.5;
   margin: 4px 0;
 }
 
 .assistant-message {
-  background-color: var(--assistant-message-color);
+  background-color: @assistant_message_color;
   border-bottom-left-radius: 4px;
   margin-right: 40px;
   color: white;
 }
 
 .user-message {
-  background-color: var(--user-message-color);
+  background-color: @user_message_color;
   border-bottom-right-radius: 4px;
   margin-left: 40px;
   color: white;
 }
 
 .mic-button {
-  background-color: var(--primary-color);
+  background-color: @primary_color;
   border-radius: 50%;
   transition: all 0.2s ease;
   min-width: 64px;
@@ -242,11 +241,11 @@ row {
 
 .mic-button:hover {
   transform: scale(1.15);
-  background-color: var(--hover-color);
+  background-color: @hover_color;
 }
 
 .status-label {
-  color: var(--text-secondary);
+  color: @text_secondary;
   font-size: 14px;
   margin: 10px 0;
 }
@@ -256,6 +255,6 @@ row {
 }
 
 .whisper-downloaded-model {
-  color: var(--secondary-color);
+  color: @secondary_color;
   font-weight: bold;
 }
