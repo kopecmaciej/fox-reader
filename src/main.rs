@@ -12,7 +12,7 @@ mod settings;
 mod ui;
 mod utils;
 
-const APP_ID: &str = "org.fox-reader";
+const APP_ID: &str = "com.github.kopecmaciej.fox-reader";
 
 pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
 

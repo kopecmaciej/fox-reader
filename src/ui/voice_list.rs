@@ -14,7 +14,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/voice_list.ui")]
+    #[template(resource = "/com/github/kopecmaciej/fox-reader/ui/voice_list.ui")]
     pub struct VoiceList {
         #[template_child]
         pub column_view: TemplateChild<gtk::ColumnView>,

@@ -21,7 +21,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/settings_dialog.ui")]
+    #[template(resource = "/com/github/kopecmaciej/fox-reader/ui/settings_dialog.ui")]
     pub struct SettingsDialog {
         // Font/highlight settings
         #[template_child]

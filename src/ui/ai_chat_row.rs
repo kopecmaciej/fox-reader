@@ -17,7 +17,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/ai_chat_row.ui")]
+    #[template(resource = "/com/github/kopecmaciej/fox-reader/ui/ai_chat_row.ui")]
     pub struct ChatMessageRow {
         #[template_child]
         pub message_label: TemplateChild<gtk::Label>,

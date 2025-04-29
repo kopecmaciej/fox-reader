@@ -7,9 +7,9 @@ use crate::core::voice_manager::{Voice, VoiceManager};
 use crate::ui::dialogs;
 use crate::utils::audio_player::AudioPlayer;
 use adw::subclass::prelude::*;
-use adw::Spinner;
 use glib::Properties;
 use gtk::glib::{self, clone};
+use gtk::Spinner;
 use gtk::{prelude::*, Button};
 
 use super::voice_events::event_emiter;
@@ -181,7 +181,9 @@ impl VoiceRow {
                     #[weak]
                     button,
                     async move {
+                        // Create a GTK spinner instead of adw spinner
                         let spinner = Spinner::builder().margin_start(8).margin_end(8).build();
+                        spinner.set_spinning(true); // Start the spinner animation
                         spinner.set_visible(true);
 
                         let grid = button.parent().and_downcast::<gtk::Grid>();

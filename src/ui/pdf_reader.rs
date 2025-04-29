@@ -32,7 +32,7 @@ mod imp {
     use pdfium_render::prelude::PdfPageIndex;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/pdf_reader.ui")]
+    #[template(resource = "/com/github/kopecmaciej/fox-reader/ui/pdf_reader.ui")]
     pub struct PdfReader {
         #[template_child]
         pub drop_area: TemplateChild<gtk::DropTarget>,

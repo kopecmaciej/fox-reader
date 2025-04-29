@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/org/fox-reader">
+  <gresource prefix="/com/github/kopecmaciej/fox-reader">
     <file compressed="true" preprocess="xml-stripblanks">ui/window.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/pdf_reader.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/text_reader.ui</file>

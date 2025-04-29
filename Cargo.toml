@@ -8,8 +8,8 @@ repository = "https://github.com/kopecmaciej/fox-reader"
 [dependencies]
 dirs = "5.0.1"
 gio = "0.20.6"
-gtk = { version = "0.9.4", package = "gtk4", features = ["v4_16"] }
-adw = { version = "0.7.1", features = ["v1_6"], package = "libadwaita" }
+gtk = { version = "0.9.4", package = "gtk4", features = ["v4_12"] }
+adw = { version = "0.7.1", features = ["v1_5"], package = "libadwaita" }
 reqwest = { version = "0.12.9", features = ["json", "stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"

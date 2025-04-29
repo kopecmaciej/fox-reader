@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.fox-reader" path="/org/fox-reader/">
+  <schema id="com.github.kopecmaciej.fox-reader" path="/com/github/kopecmaciej/fox-reader/">
     <!-- UI Settings -->
     <key name="window-width" type="i">
       <default>1080</default>

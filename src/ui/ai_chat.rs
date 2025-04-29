@@ -48,7 +48,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/ai_chat.ui")]
+    #[template(resource = "/com/github/kopecmaciej/fox-reader/ui/ai_chat.ui")]
     pub struct AiChat {
         #[template_child]
         pub mic_button: TemplateChild<gtk::Button>,

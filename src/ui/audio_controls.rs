@@ -25,7 +25,7 @@ mod imp {
     use gtk::CompositeTemplate;
 
     #[derive(Default, CompositeTemplate)]
-    #[template(resource = "/org/fox-reader/ui/audio_controls.ui")]
+    #[template(resource = "/com/github/kopecmaciej/fox-reader/ui/audio_controls.ui")]
     pub struct AudioControls {
         #[template_child]
         pub voice_selector: TemplateChild<gtk::DropDown>,
