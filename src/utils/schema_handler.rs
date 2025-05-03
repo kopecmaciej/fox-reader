@@ -53,15 +53,26 @@ impl SchemaHandler {
         Ok(())
     }
 
+    pub fn schema_exists(schema_url: &str, schemas_dir: &str) -> bool {
+        let file_name = schema_url.split('/').last().unwrap_or("schema.gschema.xml");
+        let schema_path = format!("{}/{}", schemas_dir, file_name);
+
+        FileHandler::does_file_exist(&schema_path)
+    }
+
     pub async fn install_from_url() -> Result<(), Box<dyn Error>> {
         let url = schema_config::get_schema_url();
+        let schemas_dir = Self::get_schemas_dir();
+
+        if Self::schema_exists(&url, &schemas_dir) {
+            println!("Schema already exists. Skipping installation.");
+            return Ok(());
+        }
+
         let file_name = url.split('/').last().unwrap_or("schema.gschema.xml");
         let temp_file = file_name.to_string();
 
         Self::download_schema(&url, &temp_file).await?;
-
-        let schemas_dir = Self::get_schemas_dir();
-
         Self::install_schema(&temp_file, &schemas_dir).await?;
 
         println!("Compiling schemas in: {}", schemas_dir);
