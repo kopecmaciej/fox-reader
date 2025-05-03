@@ -8,12 +8,15 @@ const HF_VOICES_JSON: &str = "voices.json";
 
 const WHISPER_BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp";
 
+const SCHEMAS_DIR_PATH: &str = "$HOME/.local/share/glib-2.0/schemas";
+const SCHEMA_URL: &str = "https://raw.githubusercontent.com/kopecmaciej/fox-reader/refs/heads/master/resources/com.github.kopecmaciej.Settings.gschema.xml";
+
 const DISPATCHER_CONFIG_PATH: &str = "$HOME/.config/speech-dispatcher";
 const DISPATCHER_CONFIG_FILE: &str = "speechd.conf";
 const DISPATCHER_MODULE_FILE: &str = "modules/fox-reader.conf";
 const DISPATCHER_SCRIPT_FILE: &str = "fox-reader.sh";
 
-fn resolve_home(path: &str) -> String {
+pub fn resolve_home(path: &str) -> String {
     let home = home_dir().expect("Failed to get home directory");
     path.replace("$HOME", &home.to_string_lossy())
 }
@@ -116,5 +119,17 @@ pub mod dispatcher_config {
 
     pub fn get_script_path() -> String {
         build_path(DISPATCHER_CONFIG_PATH, DISPATCHER_SCRIPT_FILE)
+    }
+}
+
+pub mod schema_config {
+    use super::*;
+
+    pub fn get_schemas_dir() -> String {
+        resolve_home(SCHEMAS_DIR_PATH)
+    }
+
+    pub fn get_schema_url() -> String {
+        SCHEMA_URL.to_string()
     }
 }

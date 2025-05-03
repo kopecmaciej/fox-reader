@@ -9,3 +9,4 @@ pub mod progress_tracker;
 pub mod text;
 pub mod text_highlighter;
 pub mod whisper_downloader;
+pub mod schema_handler;
