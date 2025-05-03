@@ -1,60 +1,105 @@
-use core::runtime::runtime;
-use gtk::gdk::Display;
-use gtk::{gio, glib};
-use gtk::{prelude::*, CssProvider};
-use settings::Settings;
-use std::sync::LazyLock;
+use std::env;
+use std::error::Error;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
-mod cli;
-mod core;
-mod paths;
-mod settings;
-mod ui;
-mod utils;
+async fn download_file(url: &str, output_path: &Path) -> Result<(), Box<dyn Error>> {
+    let client = reqwest::Client::new();
 
-const APP_ID: &str = "com.github.kopecmaciej.fox-reader";
+    let response = client.get(url).send().await?;
 
-pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
-
-fn main() -> glib::ExitCode {
-    let is_cli_mode = std::env::args().any(|arg| &arg == "--cli");
-
-    if is_cli_mode {
-        match runtime().block_on(cli::run_cli()) {
-            Ok(true) => return glib::ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("{}", e);
-                return glib::ExitCode::FAILURE;
-            }
-            _ => {
-                return glib::ExitCode::FAILURE;
-            }
-        }
+    if !response.status().is_success() {
+        return Err(format!("Failed to download file: HTTP status {}", response.status()).into());
     }
 
-    gio::resources_register_include!("fox-reader.gresource")
-        .expect("Failed to register resources.");
+    let content = response.bytes().await?;
 
-    let app = adw::Application::builder().application_id(APP_ID).build();
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
 
-    app.connect_startup(|_| load_css());
-    app.connect_activate(build_ui);
+    fs::write(output_path, content)?;
 
-    app.run()
+    Ok(())
 }
 
-fn build_ui(app: &adw::Application) {
-    let window = ui::window::FoxReaderAppWindow::new(app);
-    window.present();
+fn get_home_dir() -> PathBuf {
+    env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| {
+        if let Some(home_dir) = env::var_os("USERPROFILE") {
+            PathBuf::from(home_dir)
+        } else {
+            PathBuf::from(".")
+        }
+    })
 }
 
-fn load_css() {
-    let provider = CssProvider::new();
-    provider.load_from_string(include_str!("../resources/styles/style.css"));
+fn create_directory(path: &Path) -> Result<(), Box<dyn Error>> {
+    if !path.exists() {
+        fs::create_dir_all(path)?;
+        println!("Created directory: {}", path.display());
+    } else {
+        println!("Directory already exists: {}", path.display());
+    }
+    Ok(())
+}
 
-    gtk::style_context_add_provider_for_display(
-        &Display::default().expect("Could not connect to a display."),
-        &provider,
-        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
+fn move_file(source: &Path, destination: &Path) -> Result<(), Box<dyn Error>> {
+    if source.exists() {
+        if let Some(parent) = destination.parent() {
+            create_directory(parent)?;
+        }
+
+        fs::copy(source, destination)?;
+        fs::remove_file(source)?;
+        println!(
+            "Moved file from {} to {}",
+            source.display(),
+            destination.display()
+        );
+    } else {
+        return Err(format!("Source file does not exist: {}", source.display()).into());
+    }
+
+    Ok(())
+}
+
+fn compile_schemas(schemas_dir: &Path) -> Result<(), Box<dyn Error>> {
+    let output = Command::new("glib-compile-schemas")
+        .arg(schemas_dir.to_str().unwrap())
+        .output()?;
+
+    if output.status.success() {
+        println!("Successfully compiled schemas");
+    } else {
+        let error_message = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Failed to compile schemas: {}", error_message).into());
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let url = "https://raw.githubusercontent.com/kopecmaciej/fox-reader/refs/heads/master/resources/com.github.kopecmaciej.Settings.gschema.xml";
+
+    let temp_file = PathBuf::from("com.github.kopecmaciej.Settings.gschema.xml");
+
+    println!("Downloading schema file from: {}", url);
+    download_file(url, &temp_file).await?;
+
+    let home_dir = get_home_dir();
+    let schemas_dir = home_dir.join(".local/share/glib-2.0/schemas");
+    let dest_file = schemas_dir.join("com.github.kopecmaciej.Settings.gschema.xml");
+
+    create_directory(&schemas_dir)?;
+
+    move_file(&temp_file, &dest_file)?;
+
+    println!("Compiling schemas in: {}", schemas_dir.display());
+    compile_schemas(&schemas_dir)?;
+
+    println!("Installation completed successfully!");
+
+    Ok(())
 }
