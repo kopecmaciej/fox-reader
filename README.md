@@ -69,15 +69,6 @@ sudo pacman -S gtk4 speech-dispatcher
 
 ## Installation
 
-### *IMPORTANT Workaround until full build will be enabled*
-
-```bash
-curl -O https://raw.githubusercontent.com/kopecmaciej/fox-reader/refs/heads/master/resources/com.github.kopecmaciej.Settings.gschema.xml
-mkdir $HOME/.local/share/glib-2.0/schemas/ -p
-mv com.github.kopecmaciej.Settings.gschema.xml $HOME/.local/share/glib-2.0/schemas/
-glib-compile-schemas $HOME/.local/share/glib-2.0/schemas/
-```
-
 ### From Release
 
 1. Download the latest release:
