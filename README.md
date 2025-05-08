@@ -57,8 +57,14 @@ pkg-config --modversion gtk4
 ```bash
 pkg-config --modversion libadwaita-1
 ```
-- **Speech Dispatcher** for reading via spd-say or browser (optional)
+- **Speech Dispatcher** for reading via spd-say or browser (optional), example install on Arch Linux:
+
+```bash
+sudo pacman -S speech-dispatcher
+
+```
 - **Rust toolchain** (for building from source)
+[Install rust](https://www.rust-lang.org/tools/install)
 
 ### Environment Notes
 
