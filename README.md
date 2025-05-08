@@ -1,4 +1,4 @@
-# Fox Reader
+# 🦊 Fox Reader
 
 Fox Reader is a simple text-to-speech application built in Rust and GTK4 that
 converts text to speech using all voices from
@@ -40,36 +40,38 @@ wanted a little bit more, also non of them seems to work with firefox
    - Works directly with Firefox's built-in reading feature
    - Use voices downloaded via app
 
-## Prerequisites
-
-- **Operating Systems**: Primarily Linux-based distributions
-- **GTK4** and its development libraries
-- **Rust toolchain** (for building from source)
-- **Speech Dispatcher** for reading via spd-say or browser (optional)
-- **Pdfium** for PDF Reader (optional - if missing will be installed)
-- **Whisper model** for AI Chat (optional - if missing will be installed)
-
-### Dependency Installation (Ubuntu/Debian)
-
-```bash
-sudo apt install libgtk-4-dev libspeechd-dev
-```
-
-### Dependency Installation (Fedora)
-
-```bash
-sudo dnf install gtk4-devel speech-dispatcher-devel
-```
-
-### Dependency Installation (Arch Linux)
-
-```bash
-sudo pacman -S gtk4 speech-dispatcher
-```
-
 ## Installation
 
-### From Release
+### Prerequisites
+
+- **Operating Systems**: Primarily Linux-based distributions, tested on:
+   - Ubuntu 24.04
+   - Fedora 42
+   - Arch Linux (GNOME & Hyprland)
+
+- **GTK4** ≥ 4.12, Check version with: 
+```bash
+pkg-config --modversion gtk4
+```
+- **Adwaita** >= 1.5, check version via 
+```bash
+pkg-config --modversion libadwaita-1
+```
+- **Speech Dispatcher** for reading via spd-say or browser (optional)
+- **Rust toolchain** (for building from source)
+
+### Environment Notes
+
+- On Ubuntu 24.04, Fedora 42, and Arch Linux with GNOME, no extra dependencies are needed—required GTK4 and Adwaita libraries are already included.
+
+- On Hyprland (Arch Linux), libadwaita is not installed by default. You must install it manually:
+
+```bash
+sudo pacman -S libadwaita
+```
+- Older versions of Ubuntu, Debian, Fedora etc. can have problem with running this as updating gtk4 to newer version can be a bit difficult.
+
+### Install From Release
 
 1. Download the latest release:
 
