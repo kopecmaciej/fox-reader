@@ -81,7 +81,6 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         println!("Espeak data downloaded successfully.");
     }
 
-    // Set the espeak environment
     EspeakHandler::set_espeak_environment();
 
     let piper = PiperTTS::new();

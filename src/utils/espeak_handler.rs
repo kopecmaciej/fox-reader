@@ -48,12 +48,11 @@ impl EspeakHandler {
         create_dir_all(temp_path)?;
 
         let compressed_data = if let Some(progress_cb) = progress_callback {
-            let bytes = FileHandler::fetch_file_async_with_progress(
+            FileHandler::fetch_file_async_with_progress(
                 espeak_download_url.to_string(),
                 Some(progress_cb),
             )
-            .await?;
-            bytes
+            .await?
         } else {
             reqwest::get(espeak_download_url)
                 .await?
