@@ -46,13 +46,23 @@ impl PiperTTS {
         &self,
         model_path: &str,
         progress_callback: Option<ProgressCallback>,
+        progress_bar: Option<&ProgressBar>,
     ) -> Result<(), Box<dyn Error>> {
         if !model_path.ends_with("json") {
             return Err("Voice model should be loaded as .json file".into());
         }
 
         if !EspeakHandler::is_espeak_installed() {
-            EspeakHandler::download_espeak_data(progress_callback).await?;
+            // Create a progress tracker if a progress bar was provided
+            if let Some(pb) = progress_bar {
+                let tracker = ProgressTracker::default();
+                tracker.connect_to_progress_bar(pb);
+                let callback = tracker.get_progress_callback();
+                EspeakHandler::download_espeak_data(Some(callback)).await?;
+            } else {
+                // Use the provided callback if no progress bar
+                EspeakHandler::download_espeak_data(progress_callback).await?;
+            }
         }
 
         EspeakHandler::set_espeak_environment();

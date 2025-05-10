@@ -59,9 +59,6 @@ impl ProgressDialog {
     }
 
     pub fn get_progress_callback(&self) -> Arc<Mutex<dyn FnMut(f32) + Send>> {
-        // Remove unused variable
-        // let progress_bar_clone = self.progress_bar.clone();
-
         let progress_callback = self.tracker.get_progress_callback();
         let progress_bar_weak = self.progress_bar.downgrade();
 
@@ -89,5 +86,9 @@ impl ProgressDialog {
 
     pub fn update_message(&self, message: &str) {
         self.dialog.set_body(message);
+    }
+    
+    pub fn get_progress_bar(&self) -> &ProgressBar {
+        &self.progress_bar
     }
 }
