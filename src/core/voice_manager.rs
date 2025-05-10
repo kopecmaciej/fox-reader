@@ -17,31 +17,6 @@ pub struct Language {
     pub code: String,
     pub name_english: String,
     pub region: String,
-    pub async fn generate_piper_raw_speech_with_progress(
-        text: &str,
-        voice_path: &str,
-        rate: Option<u8>,
-        progress_bar: Option<&gtk::ProgressBar>,
-    ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
-        let voice_full_path = format!("{}/{}", huggingface_config::get_download_path(), voice_path);
-
-        let piper_tts = PiperTTS::new();
-        
-        // Check if espeak is installed, if not download it with progress tracking
-        if !crate::utils::espeak_handler::EspeakHandler::is_espeak_installed() {
-            if let Some(pb) = progress_bar {
-                piper_tts.initialize_with_progress(&voice_full_path, None, Some(pb)).await?;
-            } else {
-                crate::utils::espeak_handler::EspeakHandler::download_espeak_data(None).await?;
-                crate::utils::espeak_handler::EspeakHandler::set_espeak_environment();
-                piper_tts.initialize(&voice_full_path).await?;
-            }
-        } else {
-            piper_tts.initialize(&voice_full_path).await?;
-        }
-
-        piper_tts.synthesize_speech(text, rate).await
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -163,6 +138,32 @@ impl VoiceManager {
         }
         
         piper_tts.initialize(&voice_full_path).await?;
+
+        piper_tts.synthesize_speech(text, rate).await
+    }
+    
+    pub async fn generate_piper_raw_speech_with_progress(
+        text: &str,
+        voice_path: &str,
+        rate: Option<u8>,
+        progress_bar: Option<&gtk::ProgressBar>,
+    ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
+        let voice_full_path = format!("{}/{}", huggingface_config::get_download_path(), voice_path);
+
+        let piper_tts = PiperTTS::new();
+        
+        // Check if espeak is installed, if not download it with progress tracking
+        if !crate::utils::espeak_handler::EspeakHandler::is_espeak_installed() {
+            if let Some(pb) = progress_bar {
+                piper_tts.initialize_with_progress(&voice_full_path, None, Some(pb)).await?;
+            } else {
+                crate::utils::espeak_handler::EspeakHandler::download_espeak_data(None).await?;
+                crate::utils::espeak_handler::EspeakHandler::set_espeak_environment();
+                piper_tts.initialize(&voice_full_path).await?;
+            }
+        } else {
+            piper_tts.initialize(&voice_full_path).await?;
+        }
 
         piper_tts.synthesize_speech(text, rate).await
     }
