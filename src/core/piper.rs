@@ -1,9 +1,14 @@
+use gtk::ProgressBar;
 use piper_rs::synth::{AudioOutputConfig, PiperSpeechSynthesizer};
 use rodio::buffer::SamplesBuffer;
 use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
+
+use crate::utils::espeak_handler::EspeakHandler;
+use crate::utils::progress_tracker::{ProgressCallback, ProgressTracker};
 
 pub struct PiperTTS {
     synthesizer: Arc<Mutex<Option<PiperSpeechSynthesizer>>>,
@@ -26,6 +31,32 @@ impl PiperTTS {
         if !model_path.ends_with("json") {
             return Err("Voice model should be loaded as .json file".into());
         }
+        let model = piper_rs::from_config_path(Path::new(model_path))
+            .map_err(|e| format!("Failed to load Piper model: {}", e))?;
+
+        let synth = PiperSpeechSynthesizer::new(model)
+            .map_err(|e| format!("Failed to initialize Piper synthesizer: {}", e))?;
+
+        *self.synthesizer.lock().await = Some(synth);
+
+        Ok(())
+    }
+
+    pub async fn initialize_with_progress(
+        &self,
+        model_path: &str,
+        progress_callback: Option<ProgressCallback>,
+    ) -> Result<(), Box<dyn Error>> {
+        if !model_path.ends_with("json") {
+            return Err("Voice model should be loaded as .json file".into());
+        }
+
+        if !EspeakHandler::is_espeak_installed() {
+            EspeakHandler::download_espeak_data(progress_callback).await?;
+        }
+
+        EspeakHandler::set_espeak_environment();
+
         let model = piper_rs::from_config_path(Path::new(model_path))
             .map_err(|e| format!("Failed to load Piper model: {}", e))?;
 

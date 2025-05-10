@@ -4,7 +4,9 @@ use std::path::Path;
 
 use crate::core::piper::PiperTTS;
 use crate::utils::audio_player::AudioPlayer;
+use crate::utils::espeak_handler::EspeakHandler;
 use crate::utils::file_handler::FileHandler;
+use crate::utils::progress_tracker::ProgressTracker;
 
 pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
     if !std::env::args().any(|arg| &arg == "--cli") {
@@ -65,6 +67,22 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         let err_msg = format!("Error: Model path does not exist: {}", model_path);
         return Err(err_msg.into());
     }
+    if !EspeakHandler::is_espeak_installed() {
+        println!("Downloading espeak-ng data files required for TTS...");
+
+        let progress_tracker = ProgressTracker::default();
+        let callback = progress_tracker.get_terminal_progress_callback();
+
+        if let Err(e) = EspeakHandler::download_espeak_data(Some(callback)).await {
+            let err_msg = format!("Error: Failed to download espeak data: {}", e);
+            return Err(err_msg.into());
+        }
+
+        println!("Espeak data downloaded successfully.");
+    }
+
+    // Set the espeak environment
+    EspeakHandler::set_espeak_environment();
 
     let piper = PiperTTS::new();
     match piper.initialize(model_path).await {
