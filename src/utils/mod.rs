@@ -1,12 +1,13 @@
 pub mod audio_player;
 pub mod debouncer;
+pub mod espeak_handler;
 pub mod file_handler;
 pub mod highlighter;
 pub mod markdown;
 pub mod pdf_highlighter;
 pub mod pdfium;
 pub mod progress_tracker;
+pub mod schema_handler;
 pub mod text;
 pub mod text_highlighter;
 pub mod whisper_downloader;
-pub mod schema_handler;
