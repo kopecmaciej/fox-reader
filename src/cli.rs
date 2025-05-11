@@ -6,7 +6,6 @@ use crate::core::piper::PiperTTS;
 use crate::utils::audio_player::AudioPlayer;
 use crate::utils::espeak_handler::EspeakHandler;
 use crate::utils::file_handler::FileHandler;
-use crate::utils::progress_tracker::ProgressTracker;
 
 pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
     if !std::env::args().any(|arg| &arg == "--cli") {

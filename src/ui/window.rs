@@ -1,4 +1,4 @@
-use adw::prelude::AdwDialogExt;
+use adw::prelude::{AdwDialogExt, MessageDialogExt};
 use adw::subclass::prelude::*;
 use gio::glib::Object;
 use gtk::prelude::*;
@@ -7,7 +7,11 @@ use gtk::{
     StringList,
 };
 
-use crate::{core::speech_dispatcher::SpeechDispatcher, SETTINGS};
+use crate::{
+    core::{runtime::spawn_tokio, speech_dispatcher::SpeechDispatcher},
+    utils::espeak_handler::EspeakHandler,
+    SETTINGS,
+};
 
 use super::{dialogs, settings_dialog::SettingsDialog};
 
@@ -126,8 +130,56 @@ impl FoxReaderAppWindow {
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
         window.setup_search();
+        window.ensure_espeak_avaliable();
 
         window
+    }
+
+    fn ensure_espeak_avaliable(&self) {
+        glib::spawn_future_local(clone!(
+            #[weak(rename_to=this)]
+            self,
+            async move {
+                if !EspeakHandler::is_espeak_installed() {
+                    let downloading_dialog = adw::MessageDialog::new(
+                        Some(&this),
+                        Some("Downloading Required Files"),
+                        None,
+                    );
+                    downloading_dialog.set_width_request(400);
+                    downloading_dialog.set_body("Downloading espeak-ng data files, please hold");
+                    downloading_dialog.add_response("1", "Cancel");
+                    downloading_dialog.set_default_response(Some("1"));
+                    downloading_dialog.present();
+
+                    let download_result = spawn_tokio(async move {
+                        match EspeakHandler::download_espeak_data(None).await {
+                            Ok(res) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(res),
+                            Err(e) => Err(format!("Error generating speech: {}", e).into()),
+                        }
+                    })
+                    .await;
+
+                    match download_result {
+                        Ok(_) => {
+                            downloading_dialog
+                                .set_body("Espeak data files have been successfully downloaded.");
+
+                            downloading_dialog.close();
+                        }
+                        Err(e) => {
+                            downloading_dialog.close();
+                            dialogs::show_error_dialog(
+                                &format!("Failed to download espeak data: {}", e),
+                                &this,
+                            );
+                        }
+                    }
+                }
+
+                EspeakHandler::set_espeak_environment();
+            }
+        ));
     }
 
     fn update_voice_selector_on_click(&self) {

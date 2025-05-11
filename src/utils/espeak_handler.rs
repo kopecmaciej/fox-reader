@@ -97,12 +97,4 @@ impl EspeakHandler {
 
         Ok(())
     }
-
-    pub async fn download_with_progress_ui() -> Result<(), Box<dyn Error>> {
-        if !EspeakHandler::is_espeak_installed() {
-            // Here code for downloading and handlig showing to user
-        }
-        EspeakHandler::set_espeak_environment();
-        Ok(())
-    }
 }
