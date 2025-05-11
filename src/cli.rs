@@ -67,21 +67,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         let err_msg = format!("Error: Model path does not exist: {}", model_path);
         return Err(err_msg.into());
     }
-    if !EspeakHandler::is_espeak_installed() {
-        println!("Downloading espeak-ng data files required for TTS...");
-
-        let progress_tracker = ProgressTracker::default();
-        let callback = progress_tracker.get_terminal_progress_callback();
-
-        if let Err(e) = EspeakHandler::download_espeak_data(Some(callback)).await {
-            let err_msg = format!("Error: Failed to download espeak data: {}", e);
-            return Err(err_msg.into());
-        }
-
-        println!("Espeak data downloaded successfully.");
-    }
-
-    EspeakHandler::set_espeak_environment();
+    EspeakHandler::download_with_progress_cli().await?;
 
     let piper = PiperTTS::new();
     match piper.initialize(model_path).await {

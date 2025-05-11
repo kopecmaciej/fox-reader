@@ -7,6 +7,7 @@ use std::path::Path;
 use tar::Archive;
 
 use crate::paths;
+use crate::utils::progress_tracker::ProgressTracker;
 
 use super::file_handler::FileHandler;
 use super::progress_tracker::ProgressCallback;
@@ -78,5 +79,28 @@ impl EspeakHandler {
             "PIPER_ESPEAKNG_DATA_DIRECTORY",
             Path::new(&espeak_data_path).parent().unwrap(),
         );
+    }
+
+    pub async fn download_with_progress_cli() -> Result<(), Box<dyn Error>> {
+        if !EspeakHandler::is_espeak_installed() {
+            println!("Downloading espeak-ng data files required for TTS...");
+
+            let progress_tracker = ProgressTracker::default();
+            let callback = progress_tracker.get_terminal_progress_callback();
+
+            EspeakHandler::download_espeak_data(Some(callback)).await?;
+
+            println!("Espeak data downloaded successfully.");
+        }
+
+        EspeakHandler::set_espeak_environment();
+
+        Ok(())
+    }
+
+    pub async fn download_with_progress_ui() -> Result<(), Box<dyn Error>> {
+        if !EspeakHandler::is_espeak_installed() {}
+        EspeakHandler::set_espeak_environment();
+        Ok(())
     }
 }
