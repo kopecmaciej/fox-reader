@@ -82,10 +82,15 @@ sudo pacman -S libadwaita
 1. Download the latest release:
 
 ```bash
-wget https://github.com/kopecmaciej/fox-reader/releases/download/v0.1.0/fox-reader-v0.1.0.tar.gz
-tar -xzf fox-reader-v0.1.0.tar.gz
+curl -sL $(curl -s https://api.github.com/repos/kopecmaciej/fox-reader/releases/latest \
+  | grep browser_download_url \
+  | grep .tar.gz \
+  | cut -d '"' -f 4) -o fox-reader.tar.gz
+
+tar -xzf fox-reader.tar.gz
+## Or other desired path
 mv fox-reader ~/.local/bin/
-rm fox-reader-v0.1.0.tar.gz
+rm fox-reader.tar.gz
 ```
 
 2. Run the application:
