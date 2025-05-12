@@ -83,17 +83,17 @@ mod imp {
         fn on_stop_button_clicked(&self, button: &gtk::Button) {
             let obj = self.obj();
             let stoped = runtime().block_on(async {
-                if obj.imp().tts.is_playing() {
-                    if (obj.imp().tts.stop(true).await).is_err() {
-                        return false;
-                    }
-                    return true;
+                if (obj.imp().tts.stop(true).await).is_err() {
+                    return false;
                 }
-                false
+                true
             });
             if stoped {
                 button.set_sensitive(false);
                 obj.imp().play_button.set_sensitive(true);
+                obj.imp()
+                    .play_button
+                    .set_icon_name("media-playback-start-symbolic");
                 if let Some(handler) = obj.imp().stop_handler.borrow().as_ref() {
                     handler();
                 }
@@ -211,14 +211,13 @@ impl AudioControls {
         let imp = self.imp();
         let button = &imp.play_button;
         button.set_icon_name("media-playback-pause-symbolic");
+        imp.stop_button.set_sensitive(true);
 
         if let Some(handler) = imp.play_handler.borrow().as_ref() {
             handler(id);
         } else {
             dialogs::show_error_dialog("No read handler configured", self);
         }
-
-        button.set_icon_name("media-playback-start-symbolic");
     }
 
     pub fn set_read_handler<F>(&self, handler: F)
