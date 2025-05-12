@@ -54,7 +54,6 @@ glib::wrapper! {
     pub struct EventEmitter(ObjectSubclass<imp::EventEmmiter>);
 }
 
-
 impl Default for EventEmitter {
     fn default() -> Self {
         glib::Object::new()

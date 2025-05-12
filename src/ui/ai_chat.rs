@@ -98,9 +98,9 @@ mod imp {
                     async move {
                         obj.imp()
                             .status_label
-                            .set_text("No whisper model available");
+                            .set_text("No whisper model available, go to settings to download");
                         obj.imp().mic_button.add_css_class("destructive-action");
-                        glib::timeout_future_seconds(1).await;
+                        glib::timeout_future_seconds(2).await;
                         obj.imp().status_label.set_text("Ready to chat");
                         obj.imp().mic_button.remove_css_class("destructive-action");
                     }
