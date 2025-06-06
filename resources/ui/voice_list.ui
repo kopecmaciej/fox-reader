@@ -16,6 +16,13 @@
                 <property name="expand">true</property>
               </object>
             </child>
+            <!-- Traits Column -->
+            <child>
+              <object class="GtkColumnViewColumn" id="traits_column">
+                <property name="title">Traits</property>
+                <property name="fixed-width">80</property>
+              </object>
+            </child>
             <!-- Gender Column -->
             <child>
               <object class="GtkColumnViewColumn" id="quality_column">

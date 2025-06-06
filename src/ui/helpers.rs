@@ -74,17 +74,25 @@ pub mod voice_selector {
                 if let Some(v) = list_item.item().and_downcast::<VoiceRow>() {
                     list_item.set_accessible_label(&v.key());
                     if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
-                        // Improved text formatting - for Kokoros voices, the name already includes flag and country
+                        // Show traits separately from name to avoid duplication
                         let text = if v.name().contains("🇺🇸") || v.name().contains("🇬🇧") || 
                                       v.name().contains("🇯🇵") || v.name().contains("🇨🇳") ||
                                       v.name().contains("🇪🇸") || v.name().contains("🇫🇷") ||
                                       v.name().contains("🇮🇳") || v.name().contains("🇮🇹") ||
                                       v.name().contains("🇧🇷") {
-                            // For Kokoros voices, just show name and quality
-                            format!("{} ({})", v.name(), v.quality())
+                            // For Kokoros voices, show traits + name + quality
+                            if !v.traits().is_empty() {
+                                format!("{} {} ({})", v.traits(), v.name(), v.quality())
+                            } else {
+                                format!("{} ({})", v.name(), v.quality())
+                            }
                         } else {
-                            // For other voices, show traditional format
-                            format!("{} ({}) - {}", v.name(), v.quality(), v.language())
+                            // For other voices, show traditional format with traits if available
+                            if !v.traits().is_empty() {
+                                format!("{} {} ({}) - {}", v.traits(), v.name(), v.quality(), v.language())
+                            } else {
+                                format!("{} ({}) - {}", v.name(), v.quality(), v.language())
+                            }
                         };
                         label.set_text(&text);
                     }

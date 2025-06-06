@@ -21,6 +21,8 @@ mod imp {
         #[template_child]
         pub name_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
+        pub traits_column: TemplateChild<gtk::ColumnViewColumn>,
+        #[template_child]
         pub quality_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub language_column: TemplateChild<gtk::ColumnViewColumn>,
@@ -236,6 +238,10 @@ impl VoiceList {
             .set_sorter(self.string_sorter("name").as_ref());
 
         self.imp()
+            .traits_column
+            .set_sorter(self.string_sorter("traits").as_ref());
+
+        self.imp()
             .quality_column
             .set_sorter(self.string_sorter("quality").as_ref());
 
@@ -265,6 +271,26 @@ impl VoiceList {
                 if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
                     if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
                         label.set_text(&voice_row.name());
+                    }
+                }
+            }
+        });
+
+        let traits_factory = gtk::SignalListItemFactory::new();
+        traits_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::builder()
+                    .xalign(0.5)
+                    .css_classes(vec!["traits-label".to_string()])
+                    .build();
+                list_item.set_child(Some(&label));
+            }
+        });
+        traits_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
+                        label.set_text(&voice_row.traits());
                     }
                 }
             }
@@ -342,6 +368,7 @@ impl VoiceList {
 
         let imp = self.imp();
         imp.name_column.set_factory(Some(&name_factory));
+        imp.traits_column.set_factory(Some(&traits_factory));
         imp.quality_column.set_factory(Some(&quality_factory));
         imp.language_column.set_factory(Some(&language_factory));
         imp.actions_column.set_factory(Some(&actions_factory));

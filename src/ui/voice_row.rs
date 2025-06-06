@@ -42,6 +42,8 @@ mod imp {
         #[property(get, set)]
         pub quality: OnceCell<String>,
         #[property(get, set)]
+        pub traits: OnceCell<String>,
+        #[property(get, set)]
         pub downloaded: RefCell<bool>,
         #[property(get, set)]
         pub is_default: RefCell<bool>,
@@ -95,6 +97,7 @@ impl VoiceRow {
             .property("language", language)
             .property("language_code", &voice.language.code)
             .property("quality", &voice.quality)
+            .property("traits", &voice.traits)
             .property("downloaded", voice.downloaded)
             .property("is_default", voice.is_default.unwrap_or(false))
             .build();

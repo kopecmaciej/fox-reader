@@ -35,6 +35,8 @@ pub struct Voice {
     pub language: Language,
     pub quality: String,
     #[serde(default)]
+    pub traits: String,
+    #[serde(default)]
     pub downloaded: bool,
     pub is_default: Option<bool>,
     pub files: HashMap<String, File>,
@@ -66,6 +68,11 @@ impl VoiceManager {
                 voice.downloaded = downloaded_voices.contains(&voice.key);
                 if let Some(ref default_voice) = default_voice {
                     voice.is_default = Some(default_voice == &voice.key);
+                }
+
+                // Ensure Piper voices have empty traits if not set
+                if voice.traits.is_empty() {
+                    voice.traits = String::new();
                 }
 
                 (key, voice)
@@ -180,6 +187,8 @@ impl VoiceManager {
         kokoros_voices.into_iter().map(|voice_style| {
             let (language_code, language_name, region, _flag) = Self::get_language_info_from_voice_style(&voice_style);
             let friendly_name = Self::get_friendly_voice_name(&voice_style);
+            let quality_grade = Self::get_voice_quality_grade(&voice_style);
+            let traits = Self::get_voice_traits(&voice_style);
             
             // Create a compatible Voice struct for Kokoros voices
             Voice {
@@ -190,7 +199,8 @@ impl VoiceManager {
                     name_english: language_name,
                     region,
                 },
-                quality: "high".to_string(),
+                quality: quality_grade,
+                traits,
                 downloaded: true, // Kokoros voices are always "available" once model is downloaded
                 is_default: Some(voice_style == "af_heart"), // Make af_heart default instead of af_sky
                 files: std::collections::HashMap::new(), // No files for Kokoros
@@ -313,7 +323,35 @@ impl VoiceManager {
         }
     }
 
-    // Helper function to get a friendly display name from voice style
+    // Get traits/icons for a specific voice style
+    pub fn get_voice_traits(voice_style: &str) -> String {
+        let base_gender_trait = match voice_style.get(1..2).unwrap_or("") {
+            "f" => "🚺", // Female
+            "m" => "🚹", // Male
+            _ => "",
+        };
+
+        let special_traits = match voice_style {
+            // American English special traits
+            "af_heart" => "❤️",      // Heart
+            "af_bella" => "🔥",      // Fire
+            "af_nicole" => "🎧",     // Headphones
+            "af_sky" | "am_santa" => "🤏", // Short training
+            
+            // Japanese special traits
+            "jf_nezumi" | "jm_kumo" => "🤏", // Short training
+            
+            _ => "",
+        };
+
+        if special_traits.is_empty() {
+            base_gender_trait.to_string()
+        } else {
+            format!("{}{}", base_gender_trait, special_traits)
+        }
+    }
+
+    // Helper function to get a friendly display name from voice style without traits (since traits are separate now)
     fn get_friendly_voice_name(voice_style: &str) -> String {
         let (_, _, country, flag) = Self::get_language_info_from_voice_style(voice_style);
         
@@ -338,6 +376,7 @@ impl VoiceManager {
             .collect::<Vec<_>>()
             .join(" ");
         
+        // Don't include traits in the name since we have a separate traits field now
         format!("{} {} - {} {}", flag, formatted_name, gender, country)
     }
 
@@ -372,5 +411,85 @@ impl VoiceManager {
             "Italy".to_string(),
             "Brazil".to_string(),
         ]
+    }
+
+    // Helper function to get actual quality grade from voice style based on the voice documentation
+    fn get_voice_quality_grade(voice_style: &str) -> String {
+        match voice_style {
+            // American English
+            "af_heart" => "A".to_string(),
+            "af_alloy" => "C".to_string(),
+            "af_aoede" => "C+".to_string(),
+            "af_bella" => "A-".to_string(),
+            "af_jessica" => "D".to_string(),
+            "af_kore" => "C+".to_string(),
+            "af_nicole" => "B-".to_string(),
+            "af_nova" => "C".to_string(),
+            "af_river" => "D".to_string(),
+            "af_sarah" => "C+".to_string(),
+            "af_sky" => "C-".to_string(),
+            "am_adam" => "F+".to_string(),
+            "am_echo" => "D".to_string(),
+            "am_eric" => "D".to_string(),
+            "am_fenrir" => "C+".to_string(),
+            "am_liam" => "D".to_string(),
+            "am_michael" => "C+".to_string(),
+            "am_onyx" => "D".to_string(),
+            "am_puck" => "C+".to_string(),
+            "am_santa" => "D-".to_string(),
+            
+            // British English
+            "bf_alice" => "D".to_string(),
+            "bf_emma" => "B-".to_string(),
+            "bf_isabella" => "C".to_string(),
+            "bf_lily" => "D".to_string(),
+            "bm_daniel" => "D".to_string(),
+            "bm_fable" => "C".to_string(),
+            "bm_george" => "C".to_string(),
+            "bm_lewis" => "D+".to_string(),
+            
+            // Japanese
+            "jf_alpha" => "C+".to_string(),
+            "jf_gongitsune" => "C".to_string(),
+            "jf_nezumi" => "C-".to_string(),
+            "jf_tebukuro" => "C".to_string(),
+            "jm_kumo" => "C-".to_string(),
+            
+            // Mandarin Chinese
+            "zf_xiaobei" => "D".to_string(),
+            "zf_xiaoni" => "D".to_string(),
+            "zf_xiaoxiao" => "D".to_string(),
+            "zf_xiaoyi" => "D".to_string(),
+            "zm_yunjian" => "D".to_string(),
+            "zm_yunxi" => "D".to_string(),
+            "zm_yunxia" => "D".to_string(),
+            "zm_yunyang" => "D".to_string(),
+            
+            // Spanish (no specific grades in table, using reasonable defaults)
+            "ef_dora" => "C".to_string(),
+            "em_alex" => "C".to_string(),
+            "em_santa" => "C".to_string(),
+            
+            // French
+            "ff_siwis" => "B-".to_string(),
+            
+            // Hindi
+            "hf_alpha" => "C".to_string(),
+            "hf_beta" => "C".to_string(),
+            "hm_omega" => "C".to_string(),
+            "hm_psi" => "C".to_string(),
+            
+            // Italian
+            "if_sara" => "C".to_string(),
+            "im_nicola" => "C".to_string(),
+            
+            // Brazilian Portuguese (no specific grades in table, using reasonable defaults)
+            "pf_dora" => "C".to_string(),
+            "pm_alex" => "C".to_string(),
+            "pm_santa" => "C".to_string(),
+            
+            // Default fallback
+            _ => "C".to_string(),
+        }
     }
 }
