@@ -135,7 +135,7 @@ mod imp {
 
 glib::wrapper! {
     pub struct AiChat(ObjectSubclass<imp::AiChat>)
-        @extends gtk::Widget, adw::Bin, adw::ActionRow;
+        @extends gtk::Widget, adw::Bin;
 }
 
 impl AiChat {

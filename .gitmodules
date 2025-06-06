@@ -1,0 +1,3 @@
+[submodule "libs/kokoros"]
+	path = libs/kokoros
+	url = https://github.com/kopecmaciej/Kokoros

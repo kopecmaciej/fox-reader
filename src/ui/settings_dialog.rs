@@ -76,7 +76,7 @@ mod imp {
 
 glib::wrapper! {
     pub struct SettingsDialog(ObjectSubclass<imp::SettingsDialog>)
-        @extends adw::Dialog, gtk::Widget,
+        @extends adw::Dialog, gtk::Widget, adw::PreferencesDialog,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
