@@ -84,7 +84,7 @@ impl VoiceList {
         self.imp()
             .filter_criteria
             .replace(FilterCriteria::default());
-        let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
+        let voice_list = runtime().block_on(VoiceManager::list_all_available_voices_with_kokoros());
         if let Ok(voices) = voice_list {
             self.set_voice_row_model(voices);
         }

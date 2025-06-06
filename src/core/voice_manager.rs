@@ -163,4 +163,64 @@ impl VoiceManager {
     pub fn get_kokoros_voices() -> Vec<String> {
         KokorosTTS::get_available_voices()
     }
+
+    // Create Kokoros voice entries compatible with the existing voice system
+    pub fn get_kokoros_voice_rows() -> Vec<Voice> {
+        let kokoros_voices = KokorosTTS::get_available_voices();
+        
+        kokoros_voices.into_iter().map(|voice_style| {
+            // Create a compatible Voice struct for Kokoros voices
+            Voice {
+                name: format!("Kokoros {}", voice_style),
+                key: format!("kokoros_{}", voice_style),
+                language: Language {
+                    code: "en-US".to_string(),
+                    name_english: "English".to_string(),
+                    region: "United States".to_string(),
+                },
+                quality: "high".to_string(),
+                downloaded: true, // Kokoros voices are always "available" once model is downloaded
+                is_default: Some(voice_style == "af_sky"), // Make af_sky default
+                files: std::collections::HashMap::new(), // No files for Kokoros
+            }
+        }).collect()
+    }
+
+    // Updated method to list all voices (both Piper and Kokoros)
+    pub async fn list_all_available_voices_with_kokoros() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
+        let mut all_voices = BTreeMap::new();
+        
+        // Add Kokoros voices first (they're always available)
+        let kokoros_voices = Self::get_kokoros_voice_rows();
+        for voice in kokoros_voices {
+            all_voices.insert(voice.key.clone(), voice);
+        }
+        
+        // Add Piper voices (for backward compatibility)
+        match Self::list_all_available_voices().await {
+            Ok(piper_voices) => {
+                all_voices.extend(piper_voices);
+            }
+            Err(e) => {
+                println!("Warning: Could not load Piper voices: {}", e);
+                // Continue with just Kokoros voices
+            }
+        }
+        
+        Ok(all_voices)
+    }
+
+    // Helper method to check if a voice key is Kokoros
+    pub fn is_kokoros_voice(voice_key: &str) -> bool {
+        voice_key.starts_with("kokoros_")
+    }
+
+    // Get Kokoros style name from voice key
+    pub fn get_kokoros_style_from_key(voice_key: &str) -> String {
+        if voice_key.starts_with("kokoros_") {
+            voice_key.strip_prefix("kokoros_").unwrap_or("af_sky").to_string()
+        } else {
+            "af_sky".to_string() // fallback
+        }
+    }
 }

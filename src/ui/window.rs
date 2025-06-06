@@ -8,7 +8,7 @@ use gtk::{
 };
 
 use crate::{
-    core::{runtime::spawn_tokio, speech_dispatcher::SpeechDispatcher},
+    core::{runtime::spawn_tokio, speech_dispatcher::SpeechDispatcher, voice_manager::VoiceManager},
     utils::espeak_handler::EspeakHandler,
     SETTINGS,
 };
@@ -115,6 +115,28 @@ impl FoxReaderAppWindow {
             );
             dialogs::show_error_dialog(&err_msg, &window);
         }
+
+        // Initialize Kokoros TTS
+        let window_weak = window.downgrade();
+        glib::spawn_future_local(async move {
+            if let Some(window) = window_weak.upgrade() {
+                // Use spawn_tokio to run Kokoros initialization in tokio runtime context
+                match spawn_tokio(async move {
+                    VoiceManager::init_kokoros().await
+                }).await {
+                    Ok(_) => {
+                        println!("Kokoros TTS initialized successfully");
+                    }
+                    Err(e) => {
+                        let err_msg = format!(
+                            "Error initializing Kokoros TTS. Falling back to dummy audio. \nDetails: {}",
+                            e
+                        );
+                        dialogs::show_error_dialog(&err_msg, &window);
+                    }
+                }
+            }
+        });
 
         let imp = window.imp();
         let settings = &SETTINGS;
