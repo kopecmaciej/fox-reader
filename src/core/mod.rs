@@ -1,3 +1,4 @@
+pub mod kokoros_manager;
 pub mod llm_manager;
 pub mod runtime;
 pub mod speech_dispatcher;

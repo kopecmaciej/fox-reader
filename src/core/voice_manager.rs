@@ -1,11 +1,17 @@
 use crate::paths::{dispatcher_config, huggingface_config};
 use crate::utils::file_handler::FileHandler;
+use crate::core::kokoros_manager::KokorosTTS;
 use rodio::buffer::SamplesBuffer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::OnceCell;
+
+// Global Kokoros TTS instance
+static KOKOROS_TTS: OnceCell<Arc<KokorosTTS>> = OnceCell::const_new();
 
 pub struct VoiceManager {}
 
@@ -132,5 +138,29 @@ impl VoiceManager {
         // piper_tts.initialize(&voice_full_path).await?;
         //
         // piper_tts.synthesize_speech(text, rate).await
+    }
+
+    // Initialize Kokoros TTS (call this once at app startup)
+    pub async fn init_kokoros() -> Result<(), Box<dyn Error + Send + Sync>> {
+        let kokoros = KokorosTTS::new().await?;
+        KOKOROS_TTS.set(Arc::new(kokoros)).map_err(|_| "Failed to initialize Kokoros TTS")?;
+        Ok(())
+    }
+
+    // New Kokoros TTS method
+    pub async fn generate_kokoros_speech(
+        text: &str,
+        voice_style: &str,
+        speed: f32,
+    ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
+        let kokoros = KOKOROS_TTS.get()
+            .ok_or("Kokoros TTS not initialized")?;
+        
+        kokoros.generate_speech(text, voice_style, speed).await
+    }
+
+    // Get available Kokoros voice styles
+    pub fn get_kokoros_voices() -> Vec<String> {
+        KokorosTTS::get_available_voices()
     }
 }
