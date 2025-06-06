@@ -69,10 +69,26 @@ glib::wrapper! {
 
 impl VoiceRow {
     pub fn new(voice: Voice) -> Self {
-        let mut language = voice.language.name_english;
-        if language == "English" {
-            language = format!("{} ({})", language, voice.language.region);
+        // Format language display with better country information
+        let mut language = voice.language.name_english.clone();
+        
+        // For Kokoros voices that already have country in the name, use as-is
+        // For other voices, add region information
+        if !voice.name.contains("🇺🇸") && !voice.name.contains("🇬🇧") && 
+           !voice.name.contains("🇯🇵") && !voice.name.contains("🇨🇳") &&
+           !voice.name.contains("🇪🇸") && !voice.name.contains("🇫🇷") &&
+           !voice.name.contains("🇮🇳") && !voice.name.contains("🇮🇹") &&
+           !voice.name.contains("🇧🇷") {
+            if language == "English" {
+                language = format!("{} ({})", language, voice.language.region);
+            } else if !voice.language.region.is_empty() && voice.language.region != voice.language.name_english {
+                language = format!("{} ({})", language, voice.language.region);
+            }
+        } else {
+            // For Kokoros voices, just use the language name since country is in the voice name
+            language = voice.language.name_english.clone();
         }
+        
         let obj: Self = glib::Object::builder()
             .property("name", &voice.name)
             .property("key", &voice.key)
@@ -152,17 +168,38 @@ impl VoiceRow {
                     #[weak]
                     button,
                     async move {
-                        let file_paths = this.imp().files.borrow().clone().into_keys().collect();
-                        match runtime().block_on(VoiceManager::download_voice_samples(file_paths)) {
-                            Ok(audio_data) => {
-                                if let Err(e) =
-                                    spawn_tokio(async move { audio_player.play_mp3(audio_data) })
-                                        .await
-                                {
-                                    dialogs::show_error_dialog(&e.to_string(), &button)
+                        // Check if this is a Kokoros voice
+                        if VoiceManager::is_kokoros_voice(&this.key()) {
+                            // For Kokoros voices, generate sample speech
+                            let voice_style = VoiceManager::get_kokoros_style_from_key(&this.key());
+                            let sample_text = "Hello, this is a sample of this voice.";
+                            
+                            match spawn_tokio(async move {
+                                VoiceManager::generate_kokoros_speech(sample_text, &voice_style, 1.0).await
+                            }).await {
+                                Ok(audio_buffer) => {
+                                    if let Err(e) = spawn_tokio(async move { 
+                                        audio_player.play_audio(audio_buffer) 
+                                    }).await {
+                                        dialogs::show_error_dialog(&e.to_string(), &button);
+                                    }
                                 }
+                                Err(e) => dialogs::show_error_dialog(&e.to_string(), &button),
                             }
-                            Err(e) => dialogs::show_error_dialog(&e.to_string(), &button),
+                        } else {
+                            // For Piper voices, download and play sample files
+                            let file_paths = this.imp().files.borrow().clone().into_keys().collect();
+                            match runtime().block_on(VoiceManager::download_voice_samples(file_paths)) {
+                                Ok(audio_data) => {
+                                    if let Err(e) =
+                                        spawn_tokio(async move { audio_player.play_mp3(audio_data) })
+                                            .await
+                                    {
+                                        dialogs::show_error_dialog(&e.to_string(), &button)
+                                    }
+                                }
+                                Err(e) => dialogs::show_error_dialog(&e.to_string(), &button),
+                            }
                         }
 
                         button.set_icon_name(PLAY_ICON);

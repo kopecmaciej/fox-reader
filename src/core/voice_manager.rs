@@ -166,21 +166,33 @@ impl VoiceManager {
 
     // Create Kokoros voice entries compatible with the existing voice system
     pub fn get_kokoros_voice_rows() -> Vec<Voice> {
-        let kokoros_voices = KokorosTTS::get_available_voices();
+        let mut kokoros_voices = KokorosTTS::get_available_voices();
+        
+        // Sort voices by country first, then by voice name for better organization
+        kokoros_voices.sort_by(|a, b| {
+            let (_, _, country_a, _) = Self::get_language_info_from_voice_style(a);
+            let (_, _, country_b, _) = Self::get_language_info_from_voice_style(b);
+            
+            // First sort by country, then by voice name
+            country_a.cmp(&country_b).then_with(|| a.cmp(b))
+        });
         
         kokoros_voices.into_iter().map(|voice_style| {
+            let (language_code, language_name, region, _flag) = Self::get_language_info_from_voice_style(&voice_style);
+            let friendly_name = Self::get_friendly_voice_name(&voice_style);
+            
             // Create a compatible Voice struct for Kokoros voices
             Voice {
-                name: format!("Kokoros {}", voice_style),
+                name: friendly_name,
                 key: format!("kokoros_{}", voice_style),
                 language: Language {
-                    code: "en-US".to_string(),
-                    name_english: "English".to_string(),
-                    region: "United States".to_string(),
+                    code: language_code,
+                    name_english: language_name,
+                    region,
                 },
                 quality: "high".to_string(),
                 downloaded: true, // Kokoros voices are always "available" once model is downloaded
-                is_default: Some(voice_style == "af_sky"), // Make af_sky default
+                is_default: Some(voice_style == "af_heart"), // Make af_heart default instead of af_sky
                 files: std::collections::HashMap::new(), // No files for Kokoros
             }
         }).collect()
@@ -222,5 +234,143 @@ impl VoiceManager {
         } else {
             "af_sky".to_string() // fallback
         }
+    }
+
+    // Helper function to get language info from voice style
+    fn get_language_info_from_voice_style(voice_style: &str) -> (String, String, String, String) {
+        let prefix = voice_style.get(0..2).unwrap_or("");
+        match prefix {
+            // American English
+            "af" | "am" => (
+                "en-US".to_string(),
+                "English".to_string(),
+                "United States".to_string(),
+                "🇺🇸".to_string(),
+            ),
+            // British English
+            "bf" | "bm" => (
+                "en-GB".to_string(),
+                "English".to_string(),
+                "United Kingdom".to_string(),
+                "🇬🇧".to_string(),
+            ),
+            // Japanese
+            "jf" | "jm" => (
+                "ja".to_string(),
+                "Japanese".to_string(),
+                "Japan".to_string(),
+                "🇯🇵".to_string(),
+            ),
+            // Mandarin Chinese
+            "zf" | "zm" => (
+                "zh-CN".to_string(),
+                "Chinese".to_string(),
+                "China".to_string(),
+                "🇨🇳".to_string(),
+            ),
+            // Spanish
+            "ef" | "em" => (
+                "es".to_string(),
+                "Spanish".to_string(),
+                "Spain".to_string(),
+                "🇪🇸".to_string(),
+            ),
+            // French
+            "ff" | "fm" => (
+                "fr".to_string(),
+                "French".to_string(),
+                "France".to_string(),
+                "🇫🇷".to_string(),
+            ),
+            // Hindi
+            "hf" | "hm" => (
+                "hi".to_string(),
+                "Hindi".to_string(),
+                "India".to_string(),
+                "🇮🇳".to_string(),
+            ),
+            // Italian
+            "if" | "im" => (
+                "it".to_string(),
+                "Italian".to_string(),
+                "Italy".to_string(),
+                "🇮🇹".to_string(),
+            ),
+            // Brazilian Portuguese
+            "pf" | "pm" => (
+                "pt-BR".to_string(),
+                "Portuguese".to_string(),
+                "Brazil".to_string(),
+                "🇧🇷".to_string(),
+            ),
+            // Default to American English for unknown prefixes
+            _ => (
+                "en-US".to_string(),
+                "English".to_string(),
+                "United States".to_string(),
+                "🇺🇸".to_string(),
+            ),
+        }
+    }
+
+    // Helper function to get a friendly display name from voice style
+    fn get_friendly_voice_name(voice_style: &str) -> String {
+        let (_, _, country, flag) = Self::get_language_info_from_voice_style(voice_style);
+        
+        // Extract gender and name from voice style
+        let gender_char = voice_style.chars().nth(1).unwrap_or('u');
+        let gender = match gender_char {
+            'f' => "Female",
+            'm' => "Male",
+            _ => "Unknown",
+        };
+        
+        let name_part = voice_style.get(3..).unwrap_or(voice_style);
+        let formatted_name = name_part
+            .split('_')
+            .map(|part| {
+                let mut chars = part.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        
+        format!("{} {} - {} {}", flag, formatted_name, gender, country)
+    }
+
+    // Get voices grouped by country for better organization
+    pub fn get_voices_grouped_by_country() -> BTreeMap<String, Vec<Voice>> {
+        let voices = Self::get_kokoros_voice_rows();
+        let mut grouped: BTreeMap<String, Vec<Voice>> = BTreeMap::new();
+        
+        for voice in voices {
+            let country = voice.language.region.clone();
+            grouped.entry(country).or_insert_with(Vec::new).push(voice);
+        }
+        
+        // Sort voices within each country by name
+        for voices_in_country in grouped.values_mut() {
+            voices_in_country.sort_by(|a, b| a.name.cmp(&b.name));
+        }
+        
+        grouped
+    }
+
+    // Get country order for consistent sorting
+    pub fn get_country_sort_order() -> Vec<String> {
+        vec![
+            "United States".to_string(),
+            "United Kingdom".to_string(),
+            "Japan".to_string(),
+            "China".to_string(),
+            "Spain".to_string(),
+            "France".to_string(),
+            "India".to_string(),
+            "Italy".to_string(),
+            "Brazil".to_string(),
+        ]
     }
 }
