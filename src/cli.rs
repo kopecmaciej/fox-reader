@@ -2,7 +2,6 @@ use clap::{Arg, Command};
 use std::error::Error;
 use std::path::Path;
 
-use crate::core::piper::PiperTTS;
 use crate::utils::audio_player::AudioPlayer;
 use crate::utils::espeak_handler::EspeakHandler;
 use crate::utils::file_handler::FileHandler;
@@ -68,57 +67,57 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
     }
     EspeakHandler::download_with_progress_cli().await?;
 
-    let piper = PiperTTS::new();
-    match piper.initialize(model_path).await {
-        Ok(_) => {}
-        Err(e) => {
-            let err_msg = "Error: Failed to initialize Piper TTS engine";
-            let err_msg = format!("{}\nModel path: {}", err_msg, model_path);
-            let err_msg = format!("{}\nDetails: {}", err_msg, e);
-            return Err(err_msg.into());
-        }
-    }
+    // let piper = PiperTTS::new();
+    // match piper.initialize(model_path).await {
+    //     Ok(_) => {}
+    //     Err(e) => {
+    //         let err_msg = "Error: Failed to initialize Piper TTS engine";
+    //         let err_msg = format!("{}\nModel path: {}", err_msg, model_path);
+    //         let err_msg = format!("{}\nDetails: {}", err_msg, e);
+    //         return Err(err_msg.into());
+    //     }
+    // }
 
-    if let Some(output_path) = output_path {
-        if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
-            let err_msg = format!("Error: Failed to create output directory: {}", e);
-            return Err(err_msg.into());
-        }
-
-        match piper
-            .synthesize_speech_to_wav(text, output_path, Some(calculated_rate))
-            .await
-        {
-            Ok(_) => {
-                println!("Successfully saved audio to: {}", output_path);
-            }
-            Err(e) => {
-                let err_msg = "Error: Failed to save audio to file";
-                let err_msg = format!("{}\nOutput path: {}", err_msg, output_path);
-                let err_msg = format!("{}\nDetails: {}", err_msg, e);
-                return Err(err_msg.into());
-            }
-        }
-    } else {
-        let audio_buffer = match piper.synthesize_speech(text, Some(calculated_rate)).await {
-            Ok(buffer) => buffer,
-            Err(e) => {
-                let err_msg = "Error: Failed to synthesize speech";
-                let err_msg = format!("{}\nDetails: {}", err_msg, e);
-                return Err(err_msg.into());
-            }
-        };
-
-        let player = AudioPlayer::default();
-        match player.play_audio(audio_buffer) {
-            Ok(_) => {}
-            Err(e) => {
-                let err_msg = "Error: Failed to play audio";
-                let err_msg = format!("{}\nDetails: {}", err_msg, e);
-                return Err(err_msg.into());
-            }
-        }
-    }
+    // if let Some(output_path) = output_path {
+    //     if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
+    //         let err_msg = format!("Error: Failed to create output directory: {}", e);
+    //         return Err(err_msg.into());
+    //     }
+    //
+    //     match piper
+    //         .synthesize_speech_to_wav(text, output_path, Some(calculated_rate))
+    //         .await
+    //     {
+    //         Ok(_) => {
+    //             println!("Successfully saved audio to: {}", output_path);
+    //         }
+    //         Err(e) => {
+    //             let err_msg = "Error: Failed to save audio to file";
+    //             let err_msg = format!("{}\nOutput path: {}", err_msg, output_path);
+    //             let err_msg = format!("{}\nDetails: {}", err_msg, e);
+    //             return Err(err_msg.into());
+    //         }
+    //     }
+    // } else {
+    //     let audio_buffer = match piper.synthesize_speech(text, Some(calculated_rate)).await {
+    //         Ok(buffer) => buffer,
+    //         Err(e) => {
+    //             let err_msg = "Error: Failed to synthesize speech";
+    //             let err_msg = format!("{}\nDetails: {}", err_msg, e);
+    //             return Err(err_msg.into());
+    //         }
+    //     };
+    //
+    //     let player = AudioPlayer::default();
+    //     match player.play_audio(audio_buffer) {
+    //         Ok(_) => {}
+    //         Err(e) => {
+    //             let err_msg = "Error: Failed to play audio";
+    //             let err_msg = format!("{}\nDetails: {}", err_msg, e);
+    //             return Err(err_msg.into());
+    //         }
+    //     }
+    // }
 
     Ok(true)
 }

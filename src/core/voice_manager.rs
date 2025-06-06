@@ -7,8 +7,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::path::Path;
 
-use super::piper::PiperTTS;
-
 pub struct VoiceManager {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -128,9 +126,11 @@ impl VoiceManager {
     ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
         let voice_full_path = format!("{}/{}", huggingface_config::get_download_path(), voice_path);
 
-        let piper_tts = PiperTTS::new();
-        piper_tts.initialize(&voice_full_path).await?;
+        return Ok(SamplesBuffer::new(1, 24000, vec![0.0; 24000]));
 
-        piper_tts.synthesize_speech(text, rate).await
+        // let piper_tts = PiperTTS::new();
+        // piper_tts.initialize(&voice_full_path).await?;
+        //
+        // piper_tts.synthesize_speech(text, rate).await
     }
 }
