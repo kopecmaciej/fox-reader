@@ -9,22 +9,17 @@ use crate::utils::audio_player::AudioPlayer;
 use adw::subclass::prelude::*;
 use glib::Properties;
 use gtk::glib::{self, clone};
-use gtk::Spinner;
 use gtk::{prelude::*, Button};
 
 use super::voice_events::event_emiter;
 
 pub const PLAY_ICON: &str = "media-playback-start-symbolic";
 pub const STOP_ICON: &str = "media-playback-stop-symbolic";
-pub const DOWNLOAD_VOICE_ICON: &str = "folder-download-symbolic";
 pub const SET_AS_DEFAULT_ICON: &str = "starred";
-pub const DELETE_VOICE_ICON: &str = "edit-delete";
 pub const DEFAULT_VOICE_ICON: &str = "object-select";
 
 mod imp {
-    use std::{cell::OnceCell, collections::HashMap};
-
-    use crate::core::voice_manager::File;
+    use std::cell::OnceCell;
 
     use super::*;
 
@@ -42,10 +37,9 @@ mod imp {
         #[property(get, set)]
         pub quality: OnceCell<String>,
         #[property(get, set)]
-        pub downloaded: RefCell<bool>,
+        pub traits: OnceCell<String>,
         #[property(get, set)]
         pub is_default: RefCell<bool>,
-        pub files: RefCell<HashMap<String, File>>,
     }
 
     #[glib::object_subclass]
@@ -69,69 +63,58 @@ glib::wrapper! {
 
 impl VoiceRow {
     pub fn new(voice: Voice) -> Self {
-        let mut language = voice.language.name_english;
-        if language == "English" {
-            language = format!("{} ({})", language, voice.language.region);
+        // Format language display with better country information
+        let mut language = voice.language.name_english.clone();
+
+        // For Kokoros voices that already have country in the name, use as-is
+        // For other voices, add region information
+        if !voice.name.contains("🇺🇸")
+            && !voice.name.contains("🇬🇧")
+            && !voice.name.contains("🇯🇵")
+            && !voice.name.contains("🇨🇳")
+            && !voice.name.contains("🇪🇸")
+            && !voice.name.contains("🇫🇷")
+            && !voice.name.contains("🇮🇳")
+            && !voice.name.contains("🇮🇹")
+            && !voice.name.contains("🇧🇷")
+        {
+            if language == "English" {
+                language = format!("{} ({})", language, voice.language.region);
+            } else if !voice.language.region.is_empty()
+                && voice.language.region != voice.language.name_english
+            {
+                language = format!("{} ({})", language, voice.language.region);
+            }
+        } else {
+            // For Kokoros voices, just use the language name since country is in the voice name
+            language = voice.language.name_english.clone();
         }
+
         let obj: Self = glib::Object::builder()
             .property("name", &voice.name)
             .property("key", &voice.key)
             .property("language", language)
             .property("language_code", &voice.language.code)
             .property("quality", &voice.quality)
-            .property("downloaded", voice.downloaded)
+            .property("traits", &voice.traits)
             .property("is_default", voice.is_default.unwrap_or(false))
             .build();
-        obj.imp().files.replace(voice.files);
         obj
     }
 
-    pub fn setup_action_buttons() -> (Button, Button, Button, Button) {
+    pub fn setup_action_buttons() -> (Button, Button) {
         let play_button = Button::builder()
             .icon_name(PLAY_ICON)
             .tooltip_text("Play Sample")
             .css_name("play-button")
-            .build();
-        let download_button = Button::builder()
-            .icon_name(DOWNLOAD_VOICE_ICON)
-            .tooltip_text("Download")
-            .css_name("download-button")
             .build();
         let set_default_button = Button::builder()
             .icon_name(SET_AS_DEFAULT_ICON)
             .tooltip_text("Set as default")
             .css_name("default-button")
             .build();
-        let delete_button = Button::builder()
-            .icon_name(DELETE_VOICE_ICON)
-            .tooltip_text("Delete")
-            .css_name("delete-button")
-            .build();
 
-        download_button
-            .bind_property("sensitive", &delete_button, "sensitive")
-            .invert_boolean()
-            .sync_create()
-            .build();
-
-        download_button
-            .bind_property("sensitive", &set_default_button, "sensitive")
-            .invert_boolean()
-            .sync_create()
-            .build();
-
-        delete_button
-            .bind_property("sensitive", &download_button, "sensitive")
-            .invert_boolean()
-            .sync_create()
-            .build();
-
-        (
-            play_button,
-            download_button,
-            set_default_button,
-            delete_button,
-        )
+        (play_button, set_default_button)
     }
 
     pub fn handle_play_actions(&self, play_button: &Button) {
@@ -152,14 +135,28 @@ impl VoiceRow {
                     #[weak]
                     button,
                     async move {
-                        let file_paths = this.imp().files.borrow().clone().into_keys().collect();
-                        match runtime().block_on(VoiceManager::download_voice_samples(file_paths)) {
-                            Ok(audio_data) => {
+                        // All voices are now Kokoros voices, generate sample speech
+                        let voice_style = VoiceManager::get_kokoros_style_from_key(&this.key());
+                        let sample_text = "Hello, this is a sample of this voice.";
+
+                        match spawn_tokio(async move {
+                            VoiceManager::generate_kokoros_speech(
+                                sample_text,
+                                &voice_style,
+                                1.0,
+                            )
+                            .await
+                        })
+                        .await
+                        {
+                            Ok(audio_buffer) => {
                                 if let Err(e) =
-                                    spawn_tokio(async move { audio_player.play_mp3(audio_data) })
-                                        .await
+                                    spawn_tokio(
+                                        async move { audio_player.play_audio(audio_buffer) },
+                                    )
+                                    .await
                                 {
-                                    dialogs::show_error_dialog(&e.to_string(), &button)
+                                    dialogs::show_error_dialog(&e.to_string(), &button);
                                 }
                             }
                             Err(e) => dialogs::show_error_dialog(&e.to_string(), &button),
@@ -168,88 +165,6 @@ impl VoiceRow {
                         button.set_icon_name(PLAY_ICON);
                     }
                 ));
-            }
-        ));
-    }
-
-    pub fn handle_download_actions(&self, download_button: &Button) {
-        download_button.connect_clicked(clone!(
-            #[weak(rename_to=this)]
-            self,
-            move |button| {
-                glib::spawn_future_local(clone!(
-                    #[weak]
-                    button,
-                    async move {
-                        // Create a GTK spinner instead of adw spinner
-                        let spinner = Spinner::builder().margin_start(8).margin_end(8).build();
-                        spinner.set_spinning(true); // Start the spinner animation
-                        spinner.set_visible(true);
-
-                        let grid = button.parent().and_downcast::<gtk::Grid>();
-                        if let Some(grid) = &grid {
-                            grid.remove(&button);
-                            grid.attach(&spinner, 1, 0, 1, 1);
-                        }
-                        let file_paths = this.imp().files.borrow().clone().into_keys().collect();
-                        if let Err(e) = spawn_tokio(async move {
-                            if let Err(e) = VoiceManager::download_voice(file_paths).await {
-                                return Err(format!("{}", e));
-                            }
-                            Ok(())
-                        })
-                        .await
-                        {
-                            dialogs::show_error_dialog(
-                                &format!("Failed to download voice: {}", e),
-                                &button,
-                            );
-                        }
-
-                        if let Err(e) = SpeechDispatcher::add_new_voice_to_config(
-                            &this.language_code(),
-                            &this.name(),
-                            &this.key(),
-                        ) {
-                            let err_msg = format!("Failed to add voice to config: {}", e);
-                            dialogs::show_error_dialog(&err_msg, &button);
-                        }
-                        if let Some(grid) = grid {
-                            grid.remove(&spinner);
-                            grid.attach(&button, 1, 0, 1, 1);
-                        }
-                        button.set_sensitive(false);
-                        this.set_downloaded(true);
-
-                        event_emiter().emit_voice_downloaded(this.key());
-                    }
-                ));
-            }
-        ));
-    }
-
-    pub fn handle_delete_actions(&self, remove_button: &Button) {
-        remove_button.connect_clicked(clone!(
-            #[weak(rename_to=this)]
-            self,
-            move |button| {
-                let files = this.imp().files.borrow().clone().into_keys().collect();
-                if let Err(e) = VoiceManager::delete_voice(files) {
-                    let err_msg = format!("Failed to delete voice: {}", e);
-                    dialogs::show_error_dialog(&err_msg, button);
-                }
-                if let Err(e) = SpeechDispatcher::delete_voice_from_config(
-                    &this.language_code(),
-                    &this.name(),
-                    &this.key(),
-                ) {
-                    let err_msg = format!("Failed to update config file: {}", e);
-                    dialogs::show_error_dialog(&err_msg, button);
-                };
-                button.set_sensitive(false);
-                this.set_downloaded(false);
-
-                event_emiter().emit_voice_deleted(this.key());
             }
         ));
     }

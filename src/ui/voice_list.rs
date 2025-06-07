@@ -21,6 +21,8 @@ mod imp {
         #[template_child]
         pub name_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
+        pub traits_column: TemplateChild<gtk::ColumnViewColumn>,
+        #[template_child]
         pub quality_column: TemplateChild<gtk::ColumnViewColumn>,
         #[template_child]
         pub language_column: TemplateChild<gtk::ColumnViewColumn>,
@@ -65,7 +67,6 @@ impl Default for VoiceList {
 pub struct FilterCriteria {
     search_text: String,
     selected_language: String,
-    show_downloaded_only: bool,
 }
 
 impl Default for FilterCriteria {
@@ -73,7 +74,6 @@ impl Default for FilterCriteria {
         Self {
             search_text: String::new(),
             selected_language: "All".to_string(),
-            show_downloaded_only: false,
         }
     }
 }
@@ -84,7 +84,7 @@ impl VoiceList {
         self.imp()
             .filter_criteria
             .replace(FilterCriteria::default());
-        let voice_list = runtime().block_on(VoiceManager::list_all_available_voices());
+        let voice_list = runtime().block_on(VoiceManager::list_all_available_voices_with_kokoros());
         if let Ok(voices) = voice_list {
             self.set_voice_row_model(voices);
         }
@@ -168,19 +168,7 @@ impl VoiceList {
         self.update_filter();
     }
 
-    pub fn filter_downloaded_voices(&self) {
-        {
-            let mut criteria = self.imp().filter_criteria.borrow_mut();
-            criteria.show_downloaded_only = true;
-        }
-        self.update_filter();
-    }
-
     pub fn show_all_voices(&self) {
-        {
-            let mut criteria = self.imp().filter_criteria.borrow_mut();
-            criteria.show_downloaded_only = false;
-        }
         self.update_filter();
     }
 
@@ -199,9 +187,7 @@ impl VoiceList {
                         .to_lowercase()
                         .contains(&criteria.search_text.to_lowercase());
 
-                let download_matches = !criteria.show_downloaded_only || voice_row.downloaded();
-
-                language_matches && search_matches && download_matches
+                language_matches && search_matches
             });
         };
     }
@@ -236,6 +222,10 @@ impl VoiceList {
             .set_sorter(self.string_sorter("name").as_ref());
 
         self.imp()
+            .traits_column
+            .set_sorter(self.string_sorter("traits").as_ref());
+
+        self.imp()
             .quality_column
             .set_sorter(self.string_sorter("quality").as_ref());
 
@@ -265,6 +255,26 @@ impl VoiceList {
                 if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
                     if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
                         label.set_text(&voice_row.name());
+                    }
+                }
+            }
+        });
+
+        let traits_factory = gtk::SignalListItemFactory::new();
+        traits_factory.connect_setup(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                let label = gtk::Label::builder()
+                    .xalign(0.5)
+                    .css_classes(vec!["traits-label".to_string()])
+                    .build();
+                list_item.set_child(Some(&label));
+            }
+        });
+        traits_factory.connect_bind(|_, list_item| {
+            if let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() {
+                if let Some(voice_row) = list_item.item().and_downcast::<VoiceRow>() {
+                    if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
+                        label.set_text(&voice_row.traits());
                     }
                 }
             }
@@ -317,24 +327,14 @@ impl VoiceList {
                     if let Some(grid) = list_item.child().and_downcast::<gtk::Grid>() {
                         grid.remove_row(0);
 
-                        let (play_button, download_button, set_default_button, delete_button) =
+                        let (play_button, set_default_button) =
                             VoiceRow::setup_action_buttons();
 
                         voice_row.handle_play_actions(&play_button);
-
-                        voice_row.handle_download_actions(&download_button);
-                        download_button.set_sensitive(!voice_row.downloaded());
-
-                        voice_row.handle_delete_actions(&delete_button);
-                        delete_button.set_sensitive(voice_row.downloaded());
-
                         voice_row.handle_set_default_actions(&set_default_button);
-                        set_default_button.set_sensitive(voice_row.downloaded());
 
                         grid.attach(&play_button, 0, 0, 1, 1);
-                        grid.attach(&download_button, 1, 0, 1, 1);
-                        grid.attach(&set_default_button, 2, 0, 1, 1);
-                        grid.attach(&delete_button, 3, 0, 1, 1);
+                        grid.attach(&set_default_button, 1, 0, 1, 1);
                     }
                 }
             }
@@ -342,6 +342,7 @@ impl VoiceList {
 
         let imp = self.imp();
         imp.name_column.set_factory(Some(&name_factory));
+        imp.traits_column.set_factory(Some(&traits_factory));
         imp.quality_column.set_factory(Some(&quality_factory));
         imp.language_column.set_factory(Some(&language_factory));
         imp.actions_column.set_factory(Some(&actions_factory));

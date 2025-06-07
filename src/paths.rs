@@ -126,6 +126,18 @@ pub mod dispatcher_config {
     }
 }
 
+pub mod voice_config {
+    use super::*;
+
+    pub fn get_kokoros_model_path() -> String {
+        build_path(FOX_READER_BASE_PATH, "kokoros/kokoro-v1.0.onnx")
+    }
+
+    pub fn get_kokoros_voices_path() -> String {
+        build_path(FOX_READER_BASE_PATH, "kokoros/voices-v1.0.bin")
+    }
+}
+
 pub mod schema_config {
     use super::*;
 

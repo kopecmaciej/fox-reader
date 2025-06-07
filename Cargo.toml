@@ -21,9 +21,10 @@ rodio = "0.20.1"
 pdfium-render = "0.8.29"
 whisper-rs = "0.14.2"
 cpal = "0.15.3"
-piper-rs = "0.1.9"
 clap = "4.5.32"
 tokio-stream = "0.1.17"
+
+kokoros = { path = "libs/kokoros/kokoros" }
 
 [build-dependencies]
 glib-build-tools = "0.20.0"

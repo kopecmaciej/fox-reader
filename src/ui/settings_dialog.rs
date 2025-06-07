@@ -76,7 +76,7 @@ mod imp {
 
 glib::wrapper! {
     pub struct SettingsDialog(ObjectSubclass<imp::SettingsDialog>)
-        @extends adw::Dialog, gtk::Widget,
+        @extends adw::Dialog, gtk::Widget, adw::PreferencesDialog,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
 }
 
@@ -95,9 +95,10 @@ impl Default for SettingsDialog {
 
         *imp.whisper_downloaded_models.borrow_mut() = get_downloaded_models();
 
+        obj.setup_provider_list();
+        obj.setup_whisper_model_list();
         obj.setup_signals();
         obj.update_ui_from_provider();
-        obj.setup_whisper_model_list();
         obj
     }
 }
@@ -293,6 +294,19 @@ impl SettingsDialog {
 
         let provider_index = SETTINGS.get_active_model_index();
         imp.whisper_models.set_selected(provider_index as u32);
+    }
+
+    fn setup_provider_list(&self) {
+        let imp = self.imp();
+        let settings = &SETTINGS;
+
+        let providers = LLMProvider::get_all_str();
+        let provider_refs: Vec<&str> = providers.iter().map(|s| s.as_str()).collect();
+        let provider_list = gtk::StringList::new(&provider_refs);
+        imp.provider_list.set_model(Some(&provider_list));
+
+        let active_provider_index = settings.get_active_provider_index();
+        imp.provider_list.set_selected(active_provider_index as u32);
     }
 
     pub fn refresh_whisper_model_list(&self) {

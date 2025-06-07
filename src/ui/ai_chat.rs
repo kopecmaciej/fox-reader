@@ -13,7 +13,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 use crate::{
     core::{
         llm_manager::LLMManager,
-        runtime::{runtime, spawn_tokio},
+        runtime::spawn_tokio,
         voice_manager::VoiceManager,
     },
     paths::whisper_config::get_model_path,
@@ -25,7 +25,6 @@ use crate::{
 use super::{
     ai_chat_row::{ChatMessageRow, MessageType},
     helpers::voice_selector,
-    voice_events::{event_emiter, VoiceEvent},
     voice_row::VoiceRow,
 };
 
@@ -135,12 +134,11 @@ mod imp {
 
 glib::wrapper! {
     pub struct AiChat(ObjectSubclass<imp::AiChat>)
-        @extends gtk::Widget;
+        @extends gtk::Widget, adw::Bin;
 }
 
 impl AiChat {
     pub fn init(&self) {
-        self.connect_voice_events();
         self.setup_chat_history();
     }
 
@@ -175,48 +173,6 @@ impl AiChat {
         voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
     }
 
-    fn connect_voice_events(&self) {
-        let voice_events = event_emiter();
-
-        let voice_selector = &self.imp().voice_selector;
-        voice_events.connect_local(
-            "voice-downloaded",
-            false,
-            clone!(
-                #[weak]
-                voice_selector,
-                #[upgrade_or]
-                None,
-                move |args| {
-                    let voice_key = args[1].get::<String>().unwrap();
-                    voice_selector::refresh_voice_selector(
-                        &voice_selector,
-                        VoiceEvent::Downloaded(voice_key),
-                    );
-                    None
-                }
-            ),
-        );
-
-        voice_events.connect_local(
-            "voice-deleted",
-            false,
-            clone!(
-                #[weak]
-                voice_selector,
-                #[upgrade_or]
-                None,
-                move |args| {
-                    let voice_key = args[1].get::<String>().unwrap();
-                    voice_selector::refresh_voice_selector(
-                        &voice_selector,
-                        VoiceEvent::Deleted(voice_key),
-                    );
-                    None
-                }
-            ),
-        );
-    }
 
     fn reset_conversation(&self) {
         let imp = self.imp();
@@ -456,21 +412,36 @@ impl AiChat {
 
             if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
                 println!("{sentence}");
-                let source_audio = runtime()
-                    .block_on(VoiceManager::generate_piper_raw_speech(
-                        &sentence,
-                        &voice.key(),
-                        None,
-                    ))
-                    .unwrap();
+                
+                let voice_style = self.map_voice_to_kokoros_style(&voice.key());
+                let speed = 1.0;
+                
+                let source_audio = spawn_tokio(async move {
+                    VoiceManager::generate_kokoros_speech(&sentence, &voice_style, speed).await
+                }).await;
 
-                let audio_player = self.imp().audio_player.clone();
-                if let Err(e) =
-                    spawn_tokio(async move { audio_player.play_audio(source_audio) }).await
-                {
-                    show_error_dialog(&format!("Error playing audio: {}", e), self);
+                match source_audio {
+                    Ok(audio) => {
+                        let audio_player = self.imp().audio_player.clone();
+                        if let Err(e) = spawn_tokio(async move { audio_player.play_audio(audio) }).await {
+                            show_error_dialog(&format!("Error playing audio: {}", e), self);
+                        }
+                    }
+                    Err(e) => {
+                        show_error_dialog(&format!("Error generating TTS: {}", e), self);
+                    }
                 }
             }
+        }
+    }
+
+    // Helper method to map voice keys to Kokoros styles
+    fn map_voice_to_kokoros_style(&self, voice_key: &str) -> String {
+        if VoiceManager::is_kokoros_voice(voice_key) {
+            VoiceManager::get_kokoros_style_from_key(voice_key)
+        } else {
+            // For non-Kokoros voices (legacy Piper), use default
+            "af_sky".to_string()
         }
     }
 }
