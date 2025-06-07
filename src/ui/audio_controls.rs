@@ -141,7 +141,6 @@ glib::wrapper! {
 impl AudioControls {
     pub fn init(&self) {
         self.setup_signals();
-        self.connect_voice_events();
     }
 
     pub fn connect_pdf_audio_events(&self) {
@@ -158,49 +157,6 @@ impl AudioControls {
                 move |args| {
                     let id = args[1].get::<u32>().unwrap();
                     this.start_audio(id);
-                    None
-                }
-            ),
-        );
-    }
-
-    fn connect_voice_events(&self) {
-        let voice_events = event_emiter();
-
-        let voice_selector = &self.imp().voice_selector;
-        voice_events.connect_local(
-            "voice-downloaded",
-            false,
-            clone!(
-                #[weak]
-                voice_selector,
-                #[upgrade_or]
-                None,
-                move |args| {
-                    let voice_key = args[1].get::<String>().unwrap();
-                    voice_selector::refresh_voice_selector(
-                        &voice_selector,
-                        VoiceEvent::Downloaded(voice_key),
-                    );
-                    None
-                }
-            ),
-        );
-
-        voice_events.connect_local(
-            "voice-deleted",
-            false,
-            clone!(
-                #[weak]
-                voice_selector,
-                #[upgrade_or]
-                None,
-                move |args| {
-                    let voice_key = args[1].get::<String>().unwrap();
-                    voice_selector::refresh_voice_selector(
-                        &voice_selector,
-                        VoiceEvent::Deleted(voice_key),
-                    );
                     None
                 }
             ),

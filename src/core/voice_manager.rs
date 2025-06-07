@@ -1,10 +1,9 @@
+use crate::core::kokoros_manager::KokorosTTS;
 use crate::paths::{dispatcher_config, huggingface_config};
 use crate::utils::file_handler::FileHandler;
-use crate::core::kokoros_manager::KokorosTTS;
 use rodio::buffer::SamplesBuffer;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
@@ -34,54 +33,11 @@ pub struct Voice {
     pub key: String,
     pub language: Language,
     pub quality: String,
-    #[serde(default)]
     pub traits: String,
-    #[serde(default)]
-    pub downloaded: bool,
     pub is_default: Option<bool>,
-    pub files: HashMap<String, File>,
 }
 
 impl VoiceManager {
-    pub async fn list_all_available_voices() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
-        let voices_url = huggingface_config::get_voices_url();
-        let voices_file = FileHandler::fetch_file_async(voices_url).await?;
-        let raw_json = String::from_utf8(voices_file)?;
-
-        let value_data: Value = serde_json::from_str(&raw_json)?;
-        let voices: BTreeMap<String, Voice> = serde_json::from_value(value_data)?;
-
-        let downloaded_voices = Self::list_downloaded_voices()?;
-        let default_voice = Self::get_default_voice()?;
-
-        let voices = voices
-            .into_iter()
-            .map(|(mut key, mut voice)| {
-                voice.language.code = voice.language.code.replace("_", "-");
-                // we want key to be as voice.onnx for dispatcher config
-                voice.key = format!("{}.onnx.json", voice.key);
-                key = format!("{}.onnx.json", key);
-                voice
-                    .files
-                    .retain(|f, _| f.ends_with("json") || f.ends_with("onnx"));
-
-                voice.downloaded = downloaded_voices.contains(&voice.key);
-                if let Some(ref default_voice) = default_voice {
-                    voice.is_default = Some(default_voice == &voice.key);
-                }
-
-                // Ensure Piper voices have empty traits if not set
-                if voice.traits.is_empty() {
-                    voice.traits = String::new();
-                }
-
-                (key, voice)
-            })
-            .collect();
-
-        Ok(voices)
-    }
-
     pub fn list_downloaded_voices() -> Result<Vec<String>, Box<dyn Error>> {
         FileHandler::get_all_file_names(&huggingface_config::get_download_path())
     }
@@ -132,25 +88,12 @@ impl VoiceManager {
         Ok(())
     }
 
-    pub async fn generate_piper_raw_speech(
-        text: &str,
-        voice_path: &str,
-        rate: Option<u8>,
-    ) -> Result<SamplesBuffer<f32>, Box<dyn Error>> {
-        let voice_full_path = format!("{}/{}", huggingface_config::get_download_path(), voice_path);
-
-        return Ok(SamplesBuffer::new(1, 24000, vec![0.0; 24000]));
-
-        // let piper_tts = PiperTTS::new();
-        // piper_tts.initialize(&voice_full_path).await?;
-        //
-        // piper_tts.synthesize_speech(text, rate).await
-    }
-
     // Initialize Kokoros TTS (call this once at app startup)
     pub async fn init_kokoros() -> Result<(), Box<dyn Error + Send + Sync>> {
         let kokoros = KokorosTTS::new().await?;
-        KOKOROS_TTS.set(Arc::new(kokoros)).map_err(|_| "Failed to initialize Kokoros TTS")?;
+        KOKOROS_TTS
+            .set(Arc::new(kokoros))
+            .map_err(|_| "Failed to initialize Kokoros TTS")?;
         Ok(())
     }
 
@@ -160,9 +103,8 @@ impl VoiceManager {
         voice_style: &str,
         speed: f32,
     ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
-        let kokoros = KOKOROS_TTS.get()
-            .ok_or("Kokoros TTS not initialized")?;
-        
+        let kokoros = KOKOROS_TTS.get().ok_or("Kokoros TTS not initialized")?;
+
         kokoros.generate_speech(text, voice_style, speed).await
     }
 
@@ -174,65 +116,53 @@ impl VoiceManager {
     // Create Kokoros voice entries compatible with the existing voice system
     pub fn get_kokoros_voice_rows() -> Vec<Voice> {
         let mut kokoros_voices = KokorosTTS::get_available_voices();
-        
+
         // Sort voices by country first, then by voice name for better organization
         kokoros_voices.sort_by(|a, b| {
             let (_, _, country_a, _) = Self::get_language_info_from_voice_style(a);
             let (_, _, country_b, _) = Self::get_language_info_from_voice_style(b);
-            
+
             // First sort by country, then by voice name
             country_a.cmp(&country_b).then_with(|| a.cmp(b))
         });
-        
-        kokoros_voices.into_iter().map(|voice_style| {
-            let (language_code, language_name, region, _flag) = Self::get_language_info_from_voice_style(&voice_style);
-            let friendly_name = Self::get_friendly_voice_name(&voice_style);
-            let quality_grade = Self::get_voice_quality_grade(&voice_style);
-            let traits = Self::get_voice_traits(&voice_style);
-            
-            // Create a compatible Voice struct for Kokoros voices
-            Voice {
-                name: friendly_name,
-                key: format!("kokoros_{}", voice_style),
-                language: Language {
-                    code: language_code,
-                    name_english: language_name,
-                    region,
-                },
-                quality: quality_grade,
-                traits,
-                downloaded: true, // Kokoros voices are always "available" once model is downloaded
-                is_default: Some(voice_style == "af_heart"), // Make af_heart default instead of af_sky
-                files: std::collections::HashMap::new(), // No files for Kokoros
-            }
-        }).collect()
+
+        kokoros_voices
+            .into_iter()
+            .map(|voice_style| {
+                let (language_code, language_name, region, _flag) =
+                    Self::get_language_info_from_voice_style(&voice_style);
+                let friendly_name = Self::get_friendly_voice_name(&voice_style);
+                let quality_grade = Self::get_voice_quality_grade(&voice_style);
+                let traits = Self::get_voice_traits(&voice_style);
+
+                Voice {
+                    name: friendly_name,
+                    key: format!("kokoros_{}", voice_style),
+                    language: Language {
+                        code: language_code,
+                        name_english: language_name,
+                        region,
+                    },
+                    quality: quality_grade,
+                    traits,
+                    is_default: Some(voice_style == "af_heart"),
+                }
+            })
+            .collect()
     }
 
-    // Updated method to list all voices (both Piper and Kokoros)
-    pub async fn list_all_available_voices_with_kokoros() -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
+    pub async fn list_all_available_voices_with_kokoros(
+    ) -> Result<BTreeMap<String, Voice>, Box<dyn Error>> {
         let mut all_voices = BTreeMap::new();
-        
-        // Add Kokoros voices first (they're always available)
+
         let kokoros_voices = Self::get_kokoros_voice_rows();
         for voice in kokoros_voices {
             all_voices.insert(voice.key.clone(), voice);
         }
-        
-        // Add Piper voices (for backward compatibility)
-        match Self::list_all_available_voices().await {
-            Ok(piper_voices) => {
-                all_voices.extend(piper_voices);
-            }
-            Err(e) => {
-                println!("Warning: Could not load Piper voices: {}", e);
-                // Continue with just Kokoros voices
-            }
-        }
-        
+
         Ok(all_voices)
     }
 
-    // Helper method to check if a voice key is Kokoros
     pub fn is_kokoros_voice(voice_key: &str) -> bool {
         voice_key.starts_with("kokoros_")
     }
@@ -240,13 +170,15 @@ impl VoiceManager {
     // Get Kokoros style name from voice key
     pub fn get_kokoros_style_from_key(voice_key: &str) -> String {
         if voice_key.starts_with("kokoros_") {
-            voice_key.strip_prefix("kokoros_").unwrap_or("af_sky").to_string()
+            voice_key
+                .strip_prefix("kokoros_")
+                .unwrap_or("af_sky")
+                .to_string()
         } else {
             "af_sky".to_string() // fallback
         }
     }
 
-    // Helper function to get language info from voice style
     fn get_language_info_from_voice_style(voice_style: &str) -> (String, String, String, String) {
         let prefix = voice_style.get(0..2).unwrap_or("");
         match prefix {
@@ -333,14 +265,14 @@ impl VoiceManager {
 
         let special_traits = match voice_style {
             // American English special traits
-            "af_heart" => "❤️",      // Heart
-            "af_bella" => "🔥",      // Fire
-            "af_nicole" => "🎧",     // Headphones
+            "af_heart" => "❤️",            // Heart
+            "af_bella" => "🔥",            // Fire
+            "af_nicole" => "🎧",           // Headphones
             "af_sky" | "am_santa" => "🤏", // Short training
-            
+
             // Japanese special traits
             "jf_nezumi" | "jm_kumo" => "🤏", // Short training
-            
+
             _ => "",
         };
 
@@ -354,7 +286,7 @@ impl VoiceManager {
     // Helper function to get a friendly display name from voice style without traits (since traits are separate now)
     fn get_friendly_voice_name(voice_style: &str) -> String {
         let (_, _, country, flag) = Self::get_language_info_from_voice_style(voice_style);
-        
+
         // Extract gender and name from voice style
         let gender_char = voice_style.chars().nth(1).unwrap_or('u');
         let gender = match gender_char {
@@ -362,7 +294,7 @@ impl VoiceManager {
             'm' => "Male",
             _ => "Unknown",
         };
-        
+
         let name_part = voice_style.get(3..).unwrap_or(voice_style);
         let formatted_name = name_part
             .split('_')
@@ -375,7 +307,7 @@ impl VoiceManager {
             })
             .collect::<Vec<_>>()
             .join(" ");
-        
+
         // Don't include traits in the name since we have a separate traits field now
         format!("{} {} - {} {}", flag, formatted_name, gender, country)
     }
@@ -384,17 +316,17 @@ impl VoiceManager {
     pub fn get_voices_grouped_by_country() -> BTreeMap<String, Vec<Voice>> {
         let voices = Self::get_kokoros_voice_rows();
         let mut grouped: BTreeMap<String, Vec<Voice>> = BTreeMap::new();
-        
+
         for voice in voices {
             let country = voice.language.region.clone();
             grouped.entry(country).or_insert_with(Vec::new).push(voice);
         }
-        
+
         // Sort voices within each country by name
         for voices_in_country in grouped.values_mut() {
             voices_in_country.sort_by(|a, b| a.name.cmp(&b.name));
         }
-        
+
         grouped
     }
 
@@ -437,7 +369,7 @@ impl VoiceManager {
             "am_onyx" => "D".to_string(),
             "am_puck" => "C+".to_string(),
             "am_santa" => "D-".to_string(),
-            
+
             // British English
             "bf_alice" => "D".to_string(),
             "bf_emma" => "B-".to_string(),
@@ -447,14 +379,14 @@ impl VoiceManager {
             "bm_fable" => "C".to_string(),
             "bm_george" => "C".to_string(),
             "bm_lewis" => "D+".to_string(),
-            
+
             // Japanese
             "jf_alpha" => "C+".to_string(),
             "jf_gongitsune" => "C".to_string(),
             "jf_nezumi" => "C-".to_string(),
             "jf_tebukuro" => "C".to_string(),
             "jm_kumo" => "C-".to_string(),
-            
+
             // Mandarin Chinese
             "zf_xiaobei" => "D".to_string(),
             "zf_xiaoni" => "D".to_string(),
@@ -464,30 +396,30 @@ impl VoiceManager {
             "zm_yunxi" => "D".to_string(),
             "zm_yunxia" => "D".to_string(),
             "zm_yunyang" => "D".to_string(),
-            
+
             // Spanish (no specific grades in table, using reasonable defaults)
             "ef_dora" => "C".to_string(),
             "em_alex" => "C".to_string(),
             "em_santa" => "C".to_string(),
-            
+
             // French
             "ff_siwis" => "B-".to_string(),
-            
+
             // Hindi
             "hf_alpha" => "C".to_string(),
             "hf_beta" => "C".to_string(),
             "hm_omega" => "C".to_string(),
             "hm_psi" => "C".to_string(),
-            
+
             // Italian
             "if_sara" => "C".to_string(),
             "im_nicola" => "C".to_string(),
-            
+
             // Brazilian Portuguese (no specific grades in table, using reasonable defaults)
             "pf_dora" => "C".to_string(),
             "pm_alex" => "C".to_string(),
             "pm_santa" => "C".to_string(),
-            
+
             // Default fallback
             _ => "C".to_string(),
         }

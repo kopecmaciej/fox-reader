@@ -13,7 +13,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 use crate::{
     core::{
         llm_manager::LLMManager,
-        runtime::{runtime, spawn_tokio},
+        runtime::spawn_tokio,
         voice_manager::VoiceManager,
     },
     paths::whisper_config::get_model_path,
@@ -25,7 +25,6 @@ use crate::{
 use super::{
     ai_chat_row::{ChatMessageRow, MessageType},
     helpers::voice_selector,
-    voice_events::{event_emiter, VoiceEvent},
     voice_row::VoiceRow,
 };
 
@@ -140,7 +139,6 @@ glib::wrapper! {
 
 impl AiChat {
     pub fn init(&self) {
-        self.connect_voice_events();
         self.setup_chat_history();
     }
 
@@ -175,48 +173,6 @@ impl AiChat {
         voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
     }
 
-    fn connect_voice_events(&self) {
-        let voice_events = event_emiter();
-
-        let voice_selector = &self.imp().voice_selector;
-        voice_events.connect_local(
-            "voice-downloaded",
-            false,
-            clone!(
-                #[weak]
-                voice_selector,
-                #[upgrade_or]
-                None,
-                move |args| {
-                    let voice_key = args[1].get::<String>().unwrap();
-                    voice_selector::refresh_voice_selector(
-                        &voice_selector,
-                        VoiceEvent::Downloaded(voice_key),
-                    );
-                    None
-                }
-            ),
-        );
-
-        voice_events.connect_local(
-            "voice-deleted",
-            false,
-            clone!(
-                #[weak]
-                voice_selector,
-                #[upgrade_or]
-                None,
-                move |args| {
-                    let voice_key = args[1].get::<String>().unwrap();
-                    voice_selector::refresh_voice_selector(
-                        &voice_selector,
-                        VoiceEvent::Deleted(voice_key),
-                    );
-                    None
-                }
-            ),
-        );
-    }
 
     fn reset_conversation(&self) {
         let imp = self.imp();

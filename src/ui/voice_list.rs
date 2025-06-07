@@ -67,7 +67,6 @@ impl Default for VoiceList {
 pub struct FilterCriteria {
     search_text: String,
     selected_language: String,
-    show_downloaded_only: bool,
 }
 
 impl Default for FilterCriteria {
@@ -75,7 +74,6 @@ impl Default for FilterCriteria {
         Self {
             search_text: String::new(),
             selected_language: "All".to_string(),
-            show_downloaded_only: false,
         }
     }
 }
@@ -170,19 +168,7 @@ impl VoiceList {
         self.update_filter();
     }
 
-    pub fn filter_downloaded_voices(&self) {
-        {
-            let mut criteria = self.imp().filter_criteria.borrow_mut();
-            criteria.show_downloaded_only = true;
-        }
-        self.update_filter();
-    }
-
     pub fn show_all_voices(&self) {
-        {
-            let mut criteria = self.imp().filter_criteria.borrow_mut();
-            criteria.show_downloaded_only = false;
-        }
         self.update_filter();
     }
 
@@ -201,9 +187,7 @@ impl VoiceList {
                         .to_lowercase()
                         .contains(&criteria.search_text.to_lowercase());
 
-                let download_matches = !criteria.show_downloaded_only || voice_row.downloaded();
-
-                language_matches && search_matches && download_matches
+                language_matches && search_matches
             });
         };
     }
@@ -343,24 +327,14 @@ impl VoiceList {
                     if let Some(grid) = list_item.child().and_downcast::<gtk::Grid>() {
                         grid.remove_row(0);
 
-                        let (play_button, download_button, set_default_button, delete_button) =
+                        let (play_button, set_default_button) =
                             VoiceRow::setup_action_buttons();
 
                         voice_row.handle_play_actions(&play_button);
-
-                        voice_row.handle_download_actions(&download_button);
-                        download_button.set_sensitive(!voice_row.downloaded());
-
-                        voice_row.handle_delete_actions(&delete_button);
-                        delete_button.set_sensitive(voice_row.downloaded());
-
                         voice_row.handle_set_default_actions(&set_default_button);
-                        set_default_button.set_sensitive(voice_row.downloaded());
 
                         grid.attach(&play_button, 0, 0, 1, 1);
-                        grid.attach(&download_button, 1, 0, 1, 1);
-                        grid.attach(&set_default_button, 2, 0, 1, 1);
-                        grid.attach(&delete_button, 3, 0, 1, 1);
+                        grid.attach(&set_default_button, 1, 0, 1, 1);
                     }
                 }
             }

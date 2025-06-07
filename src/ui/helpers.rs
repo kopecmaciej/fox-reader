@@ -1,4 +1,4 @@
-use super::{voice_events::VoiceEvent, voice_row::VoiceRow};
+use super::{voice_row::VoiceRow};
 use gtk::{gio, prelude::*};
 
 pub mod voice_selector {
@@ -52,14 +52,6 @@ pub mod voice_selector {
         
         model.extend_from_slice(&sorted_rows);
 
-        let filter = gtk::CustomFilter::new(move |obj| {
-            if let Some(voice_row) = obj.downcast_ref::<VoiceRow>() {
-                return voice_row.downloaded();
-            }
-            false
-        });
-
-        let filtered_model = gtk::FilterListModel::new(Some(model), Some(filter));
 
         let factory = gtk::SignalListItemFactory::new();
         factory.connect_setup(move |_, list_item| {
@@ -100,49 +92,8 @@ pub mod voice_selector {
             }
         });
         voice_selector.set_factory(Some(&factory));
-        voice_selector.set_model(Some(&filtered_model));
+        voice_selector.set_model(Some(&model));
     }
 
-    pub fn refresh_voice_selector(voice_selector: &gtk::DropDown, event: VoiceEvent) {
-        if let Some(model) = voice_selector.model() {
-            if let Some(filter_model) = model.downcast_ref::<gtk::FilterListModel>() {
-                if let Some(base_model) = filter_model.model().and_downcast::<gio::ListStore>() {
-                    match event {
-                        VoiceEvent::Downloaded(voice_key) => {
-                            for i in 0..base_model.n_items() {
-                                if let Some(voice_row) =
-                                    base_model.item(i).and_downcast::<VoiceRow>()
-                                {
-                                    if voice_row.key() == voice_key {
-                                        voice_row.set_downloaded(true);
-                                        base_model.items_changed(i, 1, 1);
 
-                                        if let Some(filter) = filter_model
-                                            .filter()
-                                            .and_downcast::<gtk::CustomFilter>()
-                                        {
-                                            filter.changed(gtk::FilterChange::Different);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        VoiceEvent::Deleted(voice_key) => {
-                            for i in 0..base_model.n_items() {
-                                if let Some(voice_row) =
-                                    base_model.item(i).and_downcast::<VoiceRow>()
-                                {
-                                    if voice_row.key() == voice_key {
-                                        base_model.remove(i);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

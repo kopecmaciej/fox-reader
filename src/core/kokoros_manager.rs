@@ -1,4 +1,4 @@
-use kokoros::tts::koko::{TTSKoko, InitConfig};
+use kokoros::tts::koko::{InitConfig, TTSKoko};
 use rodio::buffer::SamplesBuffer;
 use std::error::Error;
 use std::path::Path;
@@ -16,20 +16,16 @@ impl KokorosTTS {
     pub async fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let model_path = voice_config::get_kokoros_model_path();
         let voices_path = voice_config::get_kokoros_voices_path();
-        
-        // Ensure parent directories exist
+
         if let Some(parent) = Path::new(&model_path).parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        if let Some(parent) = Path::new(&voices_path).parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
 
         let config = InitConfig::default();
         let sample_rate = config.sample_rate;
-        
+
         let tts_engine = TTSKoko::from_config(&model_path, &voices_path, config).await;
-        
+
         Ok(Self {
             tts_engine: Arc::new(Mutex::new(tts_engine)),
             sample_rate,
@@ -43,19 +39,13 @@ impl KokorosTTS {
         speed: f32,
     ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
         let tts_engine = self.tts_engine.lock().await;
-        
-        // Use English as default language for now
-        let audio_data = tts_engine.tts_raw_audio(
-            text,
-            "en",
-            voice_style,
-            speed,
-            Some(0), // No initial silence
-        ).map_err(|e| format!("TTS generation failed: {}", e))?;
 
-        // Convert Vec<f32> to SamplesBuffer<f32> for compatibility with rodio
+        let audio_data = tts_engine
+            .tts_raw_audio(text, "en", voice_style, speed, Some(0))
+            .map_err(|e| format!("TTS generation failed: {}", e))?;
+
         let samples_buffer = SamplesBuffer::new(1, self.sample_rate, audio_data);
-        
+
         Ok(samples_buffer)
     }
 
@@ -85,7 +75,6 @@ impl KokorosTTS {
             "am_onyx".to_string(),
             "am_puck".to_string(),
             "am_santa".to_string(),
-            
             // British English (🇬🇧)
             "bf_alice".to_string(),
             "bf_emma".to_string(),
@@ -95,14 +84,12 @@ impl KokorosTTS {
             "bm_fable".to_string(),
             "bm_george".to_string(),
             "bm_lewis".to_string(),
-            
             // Japanese (🇯🇵)
             "jf_alpha".to_string(),
             "jf_gongitsune".to_string(),
             "jf_nezumi".to_string(),
             "jf_tebukuro".to_string(),
             "jm_kumo".to_string(),
-            
             // Mandarin Chinese (🇨🇳)
             "zf_xiaobei".to_string(),
             "zf_xiaoni".to_string(),
@@ -112,25 +99,20 @@ impl KokorosTTS {
             "zm_yunxi".to_string(),
             "zm_yunxia".to_string(),
             "zm_yunyang".to_string(),
-            
             // Spanish (🇪🇸)
             "ef_dora".to_string(),
             "em_alex".to_string(),
             "em_santa".to_string(),
-            
             // French (🇫🇷)
             "ff_siwis".to_string(),
-            
             // Hindi (🇮🇳)
             "hf_alpha".to_string(),
             "hf_beta".to_string(),
             "hm_omega".to_string(),
             "hm_psi".to_string(),
-            
             // Italian (🇮🇹)
             "if_sara".to_string(),
             "im_nicola".to_string(),
-            
             // Brazilian Portuguese (🇧🇷)
             "pf_dora".to_string(),
             "pm_alex".to_string(),
@@ -145,4 +127,5 @@ impl KokorosTTS {
     pub fn get_sample_rate(&self) -> u32 {
         self.sample_rate
     }
-} 
+}
+

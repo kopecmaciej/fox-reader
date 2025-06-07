@@ -237,7 +237,8 @@ impl FoxReaderAppWindow {
                                 voice_list.set_parent(&this.imp().all_voices_container.get());
                             }
                             "downloaded_voices" => {
-                                voice_list.filter_downloaded_voices();
+                                // Since all voices are now always available, just show all voices
+                                voice_list.show_all_voices();
                                 voice_list.unparent();
                                 voice_list.set_parent(&this.imp().downloaded_container.get());
                             }

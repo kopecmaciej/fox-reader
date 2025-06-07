@@ -1,8 +1,6 @@
 #[derive(Debug, Clone)]
 pub enum VoiceEvent {
-    Downloaded(String),
-    Deleted(String),
-    //SetDefault(String),
+    //SetDefault(String), // Keep this commented for future use if needed
 }
 
 use gio::prelude::ObjectExt;
@@ -31,12 +29,6 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
                 vec![
-                    Signal::builder("voice-downloaded")
-                        .param_types([glib::types::Type::STRING])
-                        .build(),
-                    Signal::builder("voice-deleted")
-                        .param_types([glib::types::Type::STRING])
-                        .build(),
                     Signal::builder("voice-set-default")
                         .param_types([glib::types::Type::STRING])
                         .build(),
@@ -61,14 +53,6 @@ impl Default for EventEmitter {
 }
 
 impl EventEmitter {
-    pub fn emit_voice_downloaded(&self, voice_key: String) {
-        self.emit_by_name::<()>("voice-downloaded", &[&voice_key]);
-    }
-
-    pub fn emit_voice_deleted(&self, voice_key: String) {
-        self.emit_by_name::<()>("voice-deleted", &[&voice_key]);
-    }
-
     pub fn emit_voice_set_default(&self, voice_key: String) {
         self.emit_by_name::<()>("voice-set-default", &[&voice_key]);
     }

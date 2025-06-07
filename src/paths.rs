@@ -136,10 +136,6 @@ pub mod voice_config {
     pub fn get_kokoros_voices_path() -> String {
         build_path(FOX_READER_BASE_PATH, "kokoros/voices-v1.0.bin")
     }
-
-    pub fn get_kokoros_base_path() -> String {
-        resolve_home(&format!("{}/kokoros", FOX_READER_BASE_PATH))
-    }
 }
 
 pub mod schema_config {

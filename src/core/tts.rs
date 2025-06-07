@@ -80,12 +80,10 @@ impl Tts {
             if let std::collections::hash_map::Entry::Vacant(e) =
                 processed_blocks.entry(current_idx)
             {
-                let source_audio = VoiceManager::generate_piper_raw_speech(
-                    &reading_block.get_text(),
-                    &voice,
-                    speed,
-                )
-                .await?;
+                let source_audio =
+                    VoiceManager::generate_kokoros_speech(&reading_block.get_text(), &voice, speed)
+                        .await
+                        .map_err(|e| e as Box<dyn Error>)?;
                 e.insert(source_audio);
             }
 
@@ -102,7 +100,7 @@ impl Tts {
                     let reading_block = blocks_map.get(&(next_block as u32)).unwrap().clone();
                     let voice_clone = voice.clone();
                     let voice_future = spawn_tokio(async move {
-                        match VoiceManager::generate_piper_raw_speech(
+                        match VoiceManager::generate_kokoros_speech(
                             &reading_block.get_text(),
                             &voice_clone,
                             speed,
@@ -251,12 +249,7 @@ impl Tts {
         ((speed as f32 / 200.0) * 100.0) as u8
     }
 
-    fn spin_value_to_rate_percent(spin_value: usize) -> Option<u8> {
-        if spin_value == 100 {
-            return None;
-        }
-        // Map 50 to 0, 100 to ~9, 550 to 100
-        let normalized = (spin_value as f32 - 50.0) / 5.0;
-        Some(normalized.clamp(0.0, 100.0).round() as u8)
+    fn spin_value_to_rate_percent(spin_value: usize) -> f32 {
+        return (spin_value / 10) as f32;
     }
 }
