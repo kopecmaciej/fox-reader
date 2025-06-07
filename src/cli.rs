@@ -59,7 +59,6 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         )
         .get_matches();
 
-    // Handle list voices command
     if matches.get_flag("list-voices") {
         println!("Available voice styles:");
         let voices = VoiceManager::get_kokoros_voices();
@@ -88,15 +87,11 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         return Err(err_msg.into());
     }
 
-    println!("Initializing Kokoros TTS...");
-    EspeakHandler::download_with_progress_cli().await?;
-    
     VoiceManager::init_kokoros().await.map_err(|e| {
         format!("Failed to initialize Kokoros TTS: {}", e)
     })?;
 
     if let Some(output_path) = output_path {
-        // Save to file using Kokoros built-in method
         if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
             let err_msg = format!("Error: Failed to create output directory: {}", e);
             return Err(err_msg.into());
@@ -113,7 +108,6 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             }
         }
     } else {
-        // Generate audio buffer and play directly
         println!("Generating speech...");
         let audio_buffer = VoiceManager::generate_kokoros_speech(text, voice_style, *speed)
             .await

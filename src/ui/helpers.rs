@@ -16,15 +16,12 @@ pub mod voice_selector {
     pub fn populate_voice_selector(voice_selector: &gtk::DropDown, all_rows: &[VoiceRow]) {
         let model = gio::ListStore::new::<VoiceRow>();
         
-        // Sort voices by country and then by name for better organization
         let mut sorted_rows = all_rows.to_vec();
         sorted_rows.sort_by(|a, b| {
-            // Extract country from language display (for non-Kokoros voices) or voice name (for Kokoros)
             let get_country = |voice: &VoiceRow| -> String {
                 let name = voice.name();
                 let language = voice.language();
                 
-                // For Kokoros voices, extract country from flag emojis in name
                 if name.contains("🇺🇸") { return "1_United States".to_string(); }
                 if name.contains("🇬🇧") { return "2_United Kingdom".to_string(); }
                 if name.contains("🇯🇵") { return "3_Japan".to_string(); }
@@ -35,18 +32,15 @@ pub mod voice_selector {
                 if name.contains("🇮🇹") { return "8_Italy".to_string(); }
                 if name.contains("🇧🇷") { return "9_Brazil".to_string(); }
                 
-                // For other voices, try to extract from language
                 if language.contains("United States") { return "1_United States".to_string(); }
                 if language.contains("United Kingdom") { return "2_United Kingdom".to_string(); }
                 
-                // Default fallback
                 format!("Z_{}", language)
             };
             
             let country_a = get_country(a);
             let country_b = get_country(b);
             
-            // First sort by country, then by voice name
             country_a.cmp(&country_b).then_with(|| a.name().cmp(&b.name()))
         });
         
@@ -66,20 +60,17 @@ pub mod voice_selector {
                 if let Some(v) = list_item.item().and_downcast::<VoiceRow>() {
                     list_item.set_accessible_label(&v.key());
                     if let Some(label) = list_item.child().and_downcast::<gtk::Label>() {
-                        // Show traits separately from name to avoid duplication
                         let text = if v.name().contains("🇺🇸") || v.name().contains("🇬🇧") || 
                                       v.name().contains("🇯🇵") || v.name().contains("🇨🇳") ||
                                       v.name().contains("🇪🇸") || v.name().contains("🇫🇷") ||
                                       v.name().contains("🇮🇳") || v.name().contains("🇮🇹") ||
                                       v.name().contains("🇧🇷") {
-                            // For Kokoros voices, show traits + name + quality
                             if !v.traits().is_empty() {
                                 format!("{} {} ({})", v.traits(), v.name(), v.quality())
                             } else {
                                 format!("{} ({})", v.name(), v.quality())
                             }
                         } else {
-                            // For other voices, show traditional format with traits if available
                             if !v.traits().is_empty() {
                                 format!("{} {} ({}) - {}", v.traits(), v.name(), v.quality(), v.language())
                             } else {
@@ -95,5 +86,20 @@ pub mod voice_selector {
         voice_selector.set_model(Some(&model));
     }
 
-
+    pub fn set_selected_voice_by_key(voice_selector: &gtk::DropDown, voice_key: &str) {
+        if let Some(model) = voice_selector.model() {
+            if let Some(list_model) = model.downcast_ref::<gio::ListModel>() {
+                for i in 0..list_model.n_items() {
+                    if let Some(item) = list_model.item(i) {
+                        if let Some(voice_row) = item.downcast_ref::<VoiceRow>() {
+                            if voice_row.key() == voice_key {
+                                voice_selector.set_selected(i);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

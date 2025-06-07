@@ -17,6 +17,7 @@ use crate::{
         voice_manager::VoiceManager,
     },
     paths::whisper_config::get_model_path,
+    settings::Settings,
     ui::dialogs::show_error_dialog,
     utils::{audio_player, markdown, text},
     SETTINGS,
@@ -171,8 +172,21 @@ impl AiChat {
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
         voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
+        
+        self.set_default_voice_from_settings();
     }
 
+    pub fn set_default_voice_from_settings(&self) {
+        let settings = Settings::default();
+        let default_voice_key = settings.get_default_voice();
+        
+        if !default_voice_key.is_empty() {
+            println!("Setting default voice from settings in AI chat: {}", default_voice_key);
+            voice_selector::set_selected_voice_by_key(&self.imp().voice_selector, &default_voice_key);
+        } else {
+            println!("No default voice set in settings for AI chat");
+        }
+    }
 
     fn reset_conversation(&self) {
         let imp = self.imp();
@@ -413,7 +427,7 @@ impl AiChat {
             if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
                 println!("{sentence}");
                 
-                let voice_style = self.map_voice_to_kokoros_style(&voice.key());
+                let voice_style = voice.key();
                 let speed = 1.0;
                 
                 let source_audio = spawn_tokio(async move {
@@ -432,16 +446,6 @@ impl AiChat {
                     }
                 }
             }
-        }
-    }
-
-    // Helper method to map voice keys to Kokoros styles
-    fn map_voice_to_kokoros_style(&self, voice_key: &str) -> String {
-        if VoiceManager::is_kokoros_voice(voice_key) {
-            VoiceManager::get_kokoros_style_from_key(voice_key)
-        } else {
-            // For non-Kokoros voices (legacy Piper), use default
-            "af_sky".to_string()
         }
     }
 }

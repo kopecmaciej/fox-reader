@@ -338,6 +338,25 @@ impl Settings {
             f(s, key);
         })
     }
+
+    // Voice Settings
+    pub fn get_default_voice(&self) -> String {
+        self.string("default-voice").to_string()
+    }
+
+    pub fn set_default_voice(&self, voice_key: &str) {
+        self.set_string("default-voice", voice_key)
+            .expect("Failed to set default voice");
+    }
+
+    pub fn connect_default_voice_changed<F: Fn(&gio::Settings, &str) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_changed(Some("default-voice"), move |s, key| {
+            f(s, key);
+        })
+    }
 }
 
 impl Deref for Settings {

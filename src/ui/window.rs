@@ -114,11 +114,9 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, &window);
         }
 
-        // Initialize Kokoros TTS
         let window_weak = window.downgrade();
         glib::spawn_future_local(async move {
             if let Some(window) = window_weak.upgrade() {
-                // Use spawn_tokio to run Kokoros initialization in tokio runtime context
                 match spawn_tokio(async move {
                     VoiceManager::init_kokoros().await
                 }).await {

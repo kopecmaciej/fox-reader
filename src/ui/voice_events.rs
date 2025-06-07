@@ -1,8 +1,3 @@
-#[derive(Debug, Clone)]
-pub enum VoiceEvent {
-    //SetDefault(String), // Keep this commented for future use if needed
-}
-
 use gio::prelude::ObjectExt;
 use glib::subclass::Signal;
 use gtk::glib;

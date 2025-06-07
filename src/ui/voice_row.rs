@@ -4,14 +4,13 @@ use std::sync::Arc;
 use crate::core::runtime::{runtime, spawn_tokio};
 use crate::core::speech_dispatcher::SpeechDispatcher;
 use crate::core::voice_manager::{Voice, VoiceManager};
+use crate::settings::Settings;
 use crate::ui::dialogs;
 use crate::utils::audio_player::AudioPlayer;
 use adw::subclass::prelude::*;
 use glib::Properties;
 use gtk::glib::{self, clone};
 use gtk::{prelude::*, Button};
-
-use super::voice_events::event_emiter;
 
 pub const PLAY_ICON: &str = "media-playback-start-symbolic";
 pub const STOP_ICON: &str = "media-playback-stop-symbolic";
@@ -63,11 +62,8 @@ glib::wrapper! {
 
 impl VoiceRow {
     pub fn new(voice: Voice) -> Self {
-        // Format language display with better country information
         let mut language = voice.language.name_english.clone();
 
-        // For Kokoros voices that already have country in the name, use as-is
-        // For other voices, add region information
         if !voice.name.contains("🇺🇸")
             && !voice.name.contains("🇬🇧")
             && !voice.name.contains("🇯🇵")
@@ -86,7 +82,6 @@ impl VoiceRow {
                 language = format!("{} ({})", language, voice.language.region);
             }
         } else {
-            // For Kokoros voices, just use the language name since country is in the voice name
             language = voice.language.name_english.clone();
         }
 
@@ -135,9 +130,10 @@ impl VoiceRow {
                     #[weak]
                     button,
                     async move {
-                        // All voices are now Kokoros voices, generate sample speech
-                        let voice_style = VoiceManager::get_kokoros_style_from_key(&this.key());
+                        let voice_style = this.key();
                         let sample_text = "Hello, this is a sample of this voice.";
+
+                        println!("Playing sample for voice: {}", this.key());
 
                         match spawn_tokio(async move {
                             VoiceManager::generate_kokoros_speech(
@@ -177,7 +173,12 @@ impl VoiceRow {
                 if let Err(e) = SpeechDispatcher::set_default_voice(&this.key()) {
                     let err_msg = format!("Failed to set voice as default: {}", e);
                     dialogs::show_error_dialog(&err_msg, button);
+                    return;
                 }
+                
+                let settings = Settings::default();
+                settings.set_default_voice(&this.key());
+                
                 this.set_is_default(true);
             }
         ));

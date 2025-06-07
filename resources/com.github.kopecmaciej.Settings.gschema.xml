@@ -40,6 +40,13 @@
       <description>The Whisper model to use for speech recognition</description>
     </key>
 
+    <!-- Voice Settings -->
+    <key name="default-voice" type="s">
+      <default>''</default>
+      <summary>Default Voice</summary>
+      <description>The default voice to use for text-to-speech</description>
+    </key>
+
     <!-- LLM General Settings -->
     <key name="active-provider" type="s">
       <default>'Ollama'</default>

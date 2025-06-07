@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 
 use crate::core::{runtime::runtime, tts::Tts};
+use crate::settings::Settings;
 use gtk::{
     glib::{self, clone},
     prelude::*,
@@ -143,6 +144,18 @@ impl AudioControls {
         self.setup_signals();
     }
 
+    pub fn set_default_voice_from_settings(&self) {
+        let settings = Settings::default();
+        let default_voice_key = settings.get_default_voice();
+        
+        if !default_voice_key.is_empty() {
+            println!("Setting default voice from settings: {}", default_voice_key);
+            voice_selector::set_selected_voice_by_key(&self.imp().voice_selector, &default_voice_key);
+        } else {
+            println!("No default voice set in settings");
+        }
+    }
+
     pub fn connect_pdf_audio_events(&self) {
         let voice_events = event_emiter();
 
@@ -192,6 +205,8 @@ impl AudioControls {
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
         voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
+        
+        self.set_default_voice_from_settings();
     }
 
     fn setup_signals(&self) {

@@ -37,56 +37,6 @@ pub struct Voice {
 }
 
 impl VoiceManager {
-    pub fn list_downloaded_voices() -> Result<Vec<String>, Box<dyn Error>> {
-        FileHandler::get_all_file_names(&huggingface_config::get_download_path())
-    }
-
-    pub fn get_default_voice() -> Result<Option<String>, Box<dyn Error>> {
-        FileHandler::get_default_voice_from_config(&dispatcher_config::get_module_config_path())
-    }
-
-    pub async fn download_voice(file_paths: Vec<String>) -> Result<(), Box<dyn Error>> {
-        for file_path in file_paths {
-            let voice_config_url = huggingface_config::get_voice_url(&file_path);
-            let file = FileHandler::fetch_file_async(voice_config_url).await?;
-            let file_name = Path::new(&file_path)
-                .file_name()
-                .and_then(|f| f.to_str())
-                .ok_or("Failed to properly extract file name from path")?;
-
-            FileHandler::save_bytes(&huggingface_config::get_voice_file_path(file_name), &file)?;
-        }
-        Ok(())
-    }
-
-    pub async fn download_voice_samples(
-        file_paths: Vec<String>,
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
-        if let Some(file_name) = file_paths.first() {
-            let (base_path, _) = file_name.rsplit_once("/").unwrap();
-            let sample_path = format!("{}/samples/speaker_0.mp3", base_path);
-
-            let voice_sample_url = huggingface_config::get_voice_url(&sample_path);
-            let file = FileHandler::fetch_file_async(voice_sample_url).await?;
-            Ok(file)
-        } else {
-            Err("Invalid file path structure".into())
-        }
-    }
-
-    pub fn delete_voice(file_paths: Vec<String>) -> Result<(), Box<dyn Error>> {
-        for file_path in file_paths {
-            let file_name = Path::new(&file_path)
-                .file_name()
-                .and_then(|f| f.to_str())
-                .ok_or("Failed to properly extract file name from path")?;
-
-            FileHandler::remove_file(&huggingface_config::get_voice_file_path(file_name))?;
-        }
-
-        Ok(())
-    }
-
     pub async fn init_kokoros() -> Result<(), Box<dyn Error + Send + Sync>> {
         let kokoros = KokorosTTS::new().await?;
         KOKOROS_TTS
@@ -167,21 +117,6 @@ impl VoiceManager {
         Ok(all_voices)
     }
 
-    pub fn is_kokoros_voice(voice_key: &str) -> bool {
-        voice_key.starts_with("kokoros_")
-    }
-
-    // Get Kokoros style name from voice key
-    pub fn get_kokoros_style_from_key(voice_key: &str) -> String {
-        if voice_key.starts_with("kokoros_") {
-            voice_key
-                .strip_prefix("kokoros_")
-                .unwrap_or("af_sky")
-                .to_string()
-        } else {
-            "af_sky".to_string() // fallback
-        }
-    }
 
     fn get_language_info_from_voice_style(voice_style: &str) -> (String, String, String, String) {
         let prefix = voice_style.get(0..2).unwrap_or("");
@@ -259,7 +194,6 @@ impl VoiceManager {
         }
     }
 
-    // Get traits/icons for a specific voice style
     pub fn get_voice_traits(voice_style: &str) -> String {
         let base_gender_trait = match voice_style.get(1..2).unwrap_or("") {
             "f" => "🚺", // Female
@@ -287,11 +221,9 @@ impl VoiceManager {
         }
     }
 
-    // Helper function to get a friendly display name from voice style without traits (since traits are separate now)
     fn get_friendly_voice_name(voice_style: &str) -> String {
         let (_, _, country, flag) = Self::get_language_info_from_voice_style(voice_style);
 
-        // Extract gender and name from voice style
         let gender_char = voice_style.chars().nth(1).unwrap_or('u');
         let gender = match gender_char {
             'f' => "Female",
@@ -312,44 +244,10 @@ impl VoiceManager {
             .collect::<Vec<_>>()
             .join(" ");
 
-        // Don't include traits in the name since we have a separate traits field now
         format!("{} {} - {} {}", flag, formatted_name, gender, country)
     }
 
-    // Get voices grouped by country for better organization
-    pub fn get_voices_grouped_by_country() -> BTreeMap<String, Vec<Voice>> {
-        let voices = Self::get_kokoros_voice_rows();
-        let mut grouped: BTreeMap<String, Vec<Voice>> = BTreeMap::new();
 
-        for voice in voices {
-            let country = voice.language.region.clone();
-            grouped.entry(country).or_insert_with(Vec::new).push(voice);
-        }
-
-        // Sort voices within each country by name
-        for voices_in_country in grouped.values_mut() {
-            voices_in_country.sort_by(|a, b| a.name.cmp(&b.name));
-        }
-
-        grouped
-    }
-
-    // Get country order for consistent sorting
-    pub fn get_country_sort_order() -> Vec<String> {
-        vec![
-            "United States".to_string(),
-            "United Kingdom".to_string(),
-            "Japan".to_string(),
-            "China".to_string(),
-            "Spain".to_string(),
-            "France".to_string(),
-            "India".to_string(),
-            "Italy".to_string(),
-            "Brazil".to_string(),
-        ]
-    }
-
-    // Helper function to get actual quality grade from voice style based on the voice documentation
     fn get_voice_quality_grade(voice_style: &str) -> String {
         match voice_style {
             // American English

@@ -55,6 +55,17 @@
             <property name="margin-bottom">16</property>
             <child>
               <object class="AdwViewStack" id="reader_stack">
+                <!-- AI Chat Page -->
+                <child>
+                  <object class="AdwViewStackPage">
+                    <property name="name">ai_chat</property>
+                    <property name="title">AI Chat</property>
+                    <property name="icon-name">user-available-symbolic</property>
+                    <property name="child">
+                      <object class="AiChat" id="ai_chat"></object>
+                    </property>
+                  </object>
+                </child>
                 <!-- PDF Reader Page -->
                 <child>
                   <object class="AdwViewStackPage">
@@ -74,17 +85,6 @@
                     <property name="icon-name">emblem-documents-symbolic</property>
                     <property name="child">
                       <object class="TextReader" id="text_reader"></object>
-                    </property>
-                  </object>
-                </child>
-                <!-- AI Chat Page -->
-                <child>
-                  <object class="AdwViewStackPage">
-                    <property name="name">ai_chat</property>
-                    <property name="title">AI Chat</property>
-                    <property name="icon-name">user-available-symbolic</property>
-                    <property name="child">
-                      <object class="AiChat" id="ai_chat"></object>
                     </property>
                   </object>
                 </child>
