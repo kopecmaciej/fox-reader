@@ -2,6 +2,7 @@ use clap::{Arg, Command};
 use std::error::Error;
 use std::path::Path;
 
+use crate::core::voice_manager::VoiceManager;
 use crate::utils::audio_player::AudioPlayer;
 use crate::utils::espeak_handler::EspeakHandler;
 use crate::utils::file_handler::FileHandler;
@@ -20,12 +21,12 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .action(clap::ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("model")
-                .short('m')
-                .long("model")
-                .help("Path to the Piper model directory (.onnx.json file)")
-                .value_name("MODEL_PATH")
-                .required(true),
+            Arg::new("voice")
+                .short('v')
+                .long("voice")
+                .help("Voice style to use for speech synthesis")
+                .value_name("VOICE_STYLE")
+                .default_value("af_heart"),
         )
         .arg(
             Arg::new("text")
@@ -33,16 +34,14 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .long("text")
                 .help("Text to synthesize")
                 .value_name("TEXT")
-                .required(true),
         )
         .arg(
-            Arg::new("rate")
-                .short('r')
-                .long("rate")
-                .help("Speech rate (-100:100)")
-                .value_name("RATE")
-                .default_value("0")
-                .allow_negative_numbers(true)
+            Arg::new("speed")
+                .short('s')
+                .long("speed")
+                .help("Speech speed (0.5-2.0)")
+                .value_name("SPEED")
+                .default_value("1.0")
                 .value_parser(clap::value_parser!(f32)),
         )
         .arg(
@@ -52,80 +51,88 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .help("Path to save audio output (WAV format)")
                 .value_name("OUTPUT_PATH"),
         )
+        .arg(
+            Arg::new("list-voices")
+                .long("list-voices")
+                .help("List all available voice styles")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
-    let model_path = matches.get_one::<String>("model").unwrap();
+    // Handle list voices command
+    if matches.get_flag("list-voices") {
+        println!("Available voice styles:");
+        let voices = VoiceManager::get_kokoros_voices();
+        for voice in voices {
+            println!("  {}", voice);
+        }
+        return Ok(true);
+    }
+
+    let voice_style = matches.get_one::<String>("voice").unwrap();
     let text = matches.get_one::<String>("text").unwrap();
-    let rate = matches.get_one::<f32>("rate").unwrap();
+    let speed = matches.get_one::<f32>("speed").unwrap();
     let output_path = matches.get_one::<String>("output");
 
-    let calculated_rate = speech_dispatcher_to_piper_percentage(rate);
-
-    if !Path::new(model_path).exists() {
-        let err_msg = format!("Error: Model path does not exist: {}", model_path);
+    let available_voices = VoiceManager::get_kokoros_voices();
+    if !available_voices.contains(voice_style) {
+        let err_msg = format!(
+            "Error: Invalid voice style '{}'. Use --list-voices to see available options.",
+            voice_style
+        );
         return Err(err_msg.into());
     }
+
+    if *speed < 0.5 || *speed > 2.0 {
+        let err_msg = "Error: Speed must be between 0.5 and 2.0";
+        return Err(err_msg.into());
+    }
+
+    println!("Initializing Kokoros TTS...");
     EspeakHandler::download_with_progress_cli().await?;
+    
+    VoiceManager::init_kokoros().await.map_err(|e| {
+        format!("Failed to initialize Kokoros TTS: {}", e)
+    })?;
 
-    // let piper = PiperTTS::new();
-    // match piper.initialize(model_path).await {
-    //     Ok(_) => {}
-    //     Err(e) => {
-    //         let err_msg = "Error: Failed to initialize Piper TTS engine";
-    //         let err_msg = format!("{}\nModel path: {}", err_msg, model_path);
-    //         let err_msg = format!("{}\nDetails: {}", err_msg, e);
-    //         return Err(err_msg.into());
-    //     }
-    // }
+    if let Some(output_path) = output_path {
+        // Save to file using Kokoros built-in method
+        if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
+            let err_msg = format!("Error: Failed to create output directory: {}", e);
+            return Err(err_msg.into());
+        }
 
-    // if let Some(output_path) = output_path {
-    //     if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
-    //         let err_msg = format!("Error: Failed to create output directory: {}", e);
-    //         return Err(err_msg.into());
-    //     }
-    //
-    //     match piper
-    //         .synthesize_speech_to_wav(text, output_path, Some(calculated_rate))
-    //         .await
-    //     {
-    //         Ok(_) => {
-    //             println!("Successfully saved audio to: {}", output_path);
-    //         }
-    //         Err(e) => {
-    //             let err_msg = "Error: Failed to save audio to file";
-    //             let err_msg = format!("{}\nOutput path: {}", err_msg, output_path);
-    //             let err_msg = format!("{}\nDetails: {}", err_msg, e);
-    //             return Err(err_msg.into());
-    //         }
-    //     }
-    // } else {
-    //     let audio_buffer = match piper.synthesize_speech(text, Some(calculated_rate)).await {
-    //         Ok(buffer) => buffer,
-    //         Err(e) => {
-    //             let err_msg = "Error: Failed to synthesize speech";
-    //             let err_msg = format!("{}\nDetails: {}", err_msg, e);
-    //             return Err(err_msg.into());
-    //         }
-    //     };
-    //
-    //     let player = AudioPlayer::default();
-    //     match player.play_audio(audio_buffer) {
-    //         Ok(_) => {}
-    //         Err(e) => {
-    //             let err_msg = "Error: Failed to play audio";
-    //             let err_msg = format!("{}\nDetails: {}", err_msg, e);
-    //             return Err(err_msg.into());
-    //         }
-    //     }
-    // }
+        println!("Generating and saving speech to file...");
+        match VoiceManager::save_kokoros_speech_to_file(text, voice_style, *speed, output_path).await {
+            Ok(_) => {
+                println!("Successfully saved audio to: {}", output_path);
+            }
+            Err(e) => {
+                let err_msg = format!("Error: Failed to save audio to file: {}", e);
+                return Err(err_msg.into());
+            }
+        }
+    } else {
+        // Generate audio buffer and play directly
+        println!("Generating speech...");
+        let audio_buffer = VoiceManager::generate_kokoros_speech(text, voice_style, *speed)
+            .await
+            .map_err(|e| {
+                format!("Failed to generate speech: {}", e)
+            })?;
+
+        println!("Playing audio...");
+        let player = AudioPlayer::default();
+        match player.play_audio(audio_buffer) {
+            Ok(_) => {
+                println!("Audio playback completed.");
+            }
+            Err(e) => {
+                let err_msg = format!("Error: Failed to play audio: {}", e);
+                return Err(err_msg.into());
+            }
+        }
+    }
 
     Ok(true)
-}
-
-fn speech_dispatcher_to_piper_percentage(sd_rate: &f32) -> u8 {
-    if *sd_rate < 0.0 {
-        (sd_rate + 100.0 / 10.0).round() as u8
-    } else {
-        (10.0 + (sd_rate * 0.4)).round() as u8
-    }
 }

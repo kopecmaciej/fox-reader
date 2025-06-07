@@ -1,4 +1,4 @@
-use kokoros::tts::koko::{InitConfig, TTSKoko};
+use kokoros::tts::koko::{InitConfig, TTSKoko, TTSOpts};
 use rodio::buffer::SamplesBuffer;
 use std::error::Error;
 use std::path::Path;
@@ -47,6 +47,33 @@ impl KokorosTTS {
         let samples_buffer = SamplesBuffer::new(1, self.sample_rate, audio_data);
 
         Ok(samples_buffer)
+    }
+
+    pub async fn save_speech_to_file(
+        &self,
+        text: &str,
+        voice_style: &str,
+        speed: f32,
+        output_path: &str,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let tts_engine = self.tts_engine.lock().await;
+
+        let opts = TTSOpts {
+            txt: text,
+            lan: "en",
+            style_name: voice_style,
+            save_path: output_path,
+            mono: true,
+            speed,
+            initial_silence: Some(0),
+        };
+
+        tts_engine.tts(opts).map_err(|e| {
+            let err_msg = format!("Failed to save speech to file: {}", e);
+            Box::new(std::io::Error::new(std::io::ErrorKind::Other, err_msg)) as Box<dyn Error + Send + Sync>
+        })?;
+
+        Ok(())
     }
 
     pub fn get_available_voices() -> Vec<String> {

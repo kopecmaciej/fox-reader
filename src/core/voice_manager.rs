@@ -105,6 +105,17 @@ impl VoiceManager {
         kokoros.generate_speech(text, voice_style, speed).await
     }
 
+    pub async fn save_kokoros_speech_to_file(
+        text: &str,
+        voice_style: &str,
+        speed: f32,
+        output_path: &str,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let kokoros = KOKOROS_TTS.get().ok_or("Kokoros TTS not initialized")?;
+
+        kokoros.save_speech_to_file(text, voice_style, speed, output_path).await
+    }
+
     pub fn get_kokoros_voices() -> Vec<String> {
         KokorosTTS::get_available_voices()
     }
