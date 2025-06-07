@@ -137,7 +137,7 @@ impl VoiceManager {
 
                 Voice {
                     name: friendly_name,
-                    key: format!("kokoros_{}", voice_style),
+                    key: voice_style.to_string(),
                     language: Language {
                         code: language_code,
                         name_english: language_name,

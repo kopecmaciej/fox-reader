@@ -43,8 +43,6 @@ mod imp {
         pub voice_stack: TemplateChild<adw::ViewStack>,
         #[template_child]
         pub all_voices_container: TemplateChild<gtk::Box>,
-        #[template_child]
-        pub downloaded_container: TemplateChild<gtk::Box>,
         pub settings_dialog: SettingsDialog,
     }
 
@@ -235,12 +233,6 @@ impl FoxReaderAppWindow {
                                 voice_list.show_all_voices();
                                 voice_list.unparent();
                                 voice_list.set_parent(&this.imp().all_voices_container.get());
-                            }
-                            "downloaded_voices" => {
-                                // Since all voices are now always available, just show all voices
-                                voice_list.show_all_voices();
-                                voice_list.unparent();
-                                voice_list.set_parent(&this.imp().downloaded_container.get());
                             }
                             _ => (),
                         }

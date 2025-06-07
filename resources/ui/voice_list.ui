@@ -20,28 +20,28 @@
             <child>
               <object class="GtkColumnViewColumn" id="traits_column">
                 <property name="title">Traits</property>
-                <property name="fixed-width">80</property>
-              </object>
-            </child>
-            <!-- Gender Column -->
-            <child>
-              <object class="GtkColumnViewColumn" id="quality_column">
-                <property name="title">Quality</property>
                 <property name="fixed-width">100</property>
               </object>
             </child>
-            <!-- language Column -->
+            <!-- Quality Column -->
+            <child>
+              <object class="GtkColumnViewColumn" id="quality_column">
+                <property name="title">Quality</property>
+                <property name="fixed-width">120</property>
+              </object>
+            </child>
+            <!-- Language Column -->
             <child>
               <object class="GtkColumnViewColumn" id="language_column">
                 <property name="title">Language</property>
-                <property name="fixed-width">120</property>
+                <property name="fixed-width">150</property>
               </object>
             </child>
             <!-- Actions Column -->
             <child>
               <object class="GtkColumnViewColumn" id="actions_column">
                 <property name="title">Actions</property>
-                <property name="fixed-width">180</property>
+                <property name="fixed-width">140</property>
               </object>
             </child>
 

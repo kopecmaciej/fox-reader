@@ -250,6 +250,6 @@ impl Tts {
     }
 
     fn spin_value_to_rate_percent(spin_value: usize) -> f32 {
-        return (spin_value / 10) as f32;
+        return (spin_value as f32 / 100.0) as f32;
     }
 }
