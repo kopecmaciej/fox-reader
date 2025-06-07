@@ -95,10 +95,10 @@ impl Default for SettingsDialog {
 
         *imp.whisper_downloaded_models.borrow_mut() = get_downloaded_models();
 
+        obj.setup_provider_list();
+        obj.setup_whisper_model_list();
         obj.setup_signals();
         obj.update_ui_from_provider();
-        obj.setup_whisper_model_list();
-        obj.setup_provider_list();
         obj
     }
 }

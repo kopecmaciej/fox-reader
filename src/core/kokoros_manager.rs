@@ -50,9 +50,6 @@ impl KokorosTTS {
     }
 
     pub fn get_available_voices() -> Vec<String> {
-        // Based on Kokoros documentation, these are the available voice styles
-        // Organized by country/language as per the latest voice list
-
         vec![
             // American English (🇺🇸)
             "af_heart".to_string(),

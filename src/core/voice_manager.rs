@@ -9,7 +9,6 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 
-// Global Kokoros TTS instance
 static KOKOROS_TTS: OnceCell<Arc<KokorosTTS>> = OnceCell::const_new();
 
 pub struct VoiceManager {}
@@ -88,7 +87,6 @@ impl VoiceManager {
         Ok(())
     }
 
-    // Initialize Kokoros TTS (call this once at app startup)
     pub async fn init_kokoros() -> Result<(), Box<dyn Error + Send + Sync>> {
         let kokoros = KokorosTTS::new().await?;
         KOKOROS_TTS
@@ -97,7 +95,6 @@ impl VoiceManager {
         Ok(())
     }
 
-    // New Kokoros TTS method
     pub async fn generate_kokoros_speech(
         text: &str,
         voice_style: &str,
@@ -108,21 +105,17 @@ impl VoiceManager {
         kokoros.generate_speech(text, voice_style, speed).await
     }
 
-    // Get available Kokoros voice styles
     pub fn get_kokoros_voices() -> Vec<String> {
         KokorosTTS::get_available_voices()
     }
 
-    // Create Kokoros voice entries compatible with the existing voice system
     pub fn get_kokoros_voice_rows() -> Vec<Voice> {
         let mut kokoros_voices = KokorosTTS::get_available_voices();
 
-        // Sort voices by country first, then by voice name for better organization
         kokoros_voices.sort_by(|a, b| {
             let (_, _, country_a, _) = Self::get_language_info_from_voice_style(a);
             let (_, _, country_b, _) = Self::get_language_info_from_voice_style(b);
 
-            // First sort by country, then by voice name
             country_a.cmp(&country_b).then_with(|| a.cmp(b))
         });
 
