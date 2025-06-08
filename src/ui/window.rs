@@ -42,10 +42,6 @@ mod imp {
         pub language_filter: TemplateChild<gtk::DropDown>,
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
-        #[template_child]
-        pub voice_stack: TemplateChild<adw::ViewStack>,
-        #[template_child]
-        pub all_voices_container: TemplateChild<gtk::Box>,
         pub settings_dialog: SettingsDialog,
     }
 

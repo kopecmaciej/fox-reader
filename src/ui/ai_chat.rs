@@ -214,10 +214,6 @@ impl AiChat {
         let default_voice_key = settings.get_default_voice();
 
         if !default_voice_key.is_empty() {
-            println!(
-                "Setting default voice from settings in AI chat: {}",
-                default_voice_key
-            );
             voice_selector::set_selected_voice_by_key(
                 &self.imp().voice_selector,
                 &default_voice_key,

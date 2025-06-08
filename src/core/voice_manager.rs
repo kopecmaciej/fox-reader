@@ -194,8 +194,8 @@ impl VoiceManager {
 
     pub fn get_voice_traits(voice_style: &str) -> String {
         let base_gender_trait = match voice_style.get(1..2).unwrap_or("") {
-            "f" => "🚺", // Female
-            "m" => "🚹", // Male
+            "f" => "♀️", // Female
+            "m" => "♂️", // Male
             _ => "",
         };
 
@@ -222,13 +222,6 @@ impl VoiceManager {
     fn get_friendly_voice_name(voice_style: &str) -> String {
         let (_, _, country, flag) = Self::get_language_info_from_voice_style(voice_style);
 
-        let gender_char = voice_style.chars().nth(1).unwrap_or('u');
-        let gender = match gender_char {
-            'f' => "Female",
-            'm' => "Male",
-            _ => "Unknown",
-        };
-
         let name_part = voice_style.get(3..).unwrap_or(voice_style);
         let formatted_name = name_part
             .split('_')
@@ -242,7 +235,7 @@ impl VoiceManager {
             .collect::<Vec<_>>()
             .join(" ");
 
-        format!("{} {} - {} {}", flag, formatted_name, gender, country)
+        format!("{} {} - {}", flag, formatted_name, country)
     }
 
     fn get_voice_quality_grade(voice_style: &str) -> String {

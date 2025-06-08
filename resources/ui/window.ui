@@ -109,13 +109,6 @@
                           <object class="GtkBox">
                             <property name="spacing">12</property>
                             <property name="halign">0</property>
-                            <!-- Voice View Switcher -->
-                            <child>
-                              <object class="AdwViewSwitcher" id="voice_view_switcher">
-                                <property name="policy">wide</property>
-                                <property name="stack">voice_stack</property>
-                              </object>
-                            </child>
                             <!-- Search Voice -->
                             <child>
                               <object class="GtkSearchEntry" id="search_entry">
@@ -135,29 +128,10 @@
                             </child>
                           </object>
                         </child>
+                        <!-- Voice List -->
                         <child>
-                          <object class="AdwViewStack" id="voice_stack">
-                            <child>
-                              <object class="AdwViewStackPage">
-                                <property name="name">all_voices</property>
-                                <property name="title">All Voices</property>
-                                <property name="icon-name">view-list-symbolic</property>
-                                <property name="child">
-                                  <object class="AdwPreferencesGroup">
-                                    <child>
-                                      <object class="GtkBox" id="all_voices_container">
-                                        <property name="vexpand">true</property>
-                                        <child>
-                                          <object class="VoiceList" id="voice_list">
-                                            <property name="vexpand">true</property>
-                                          </object>
-                                        </child>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </property>
-                              </object>
-                            </child>
+                          <object class="VoiceList" id="voice_list">
+                            <property name="vexpand">true</property>
                           </object>
                         </child>
                       </object>
