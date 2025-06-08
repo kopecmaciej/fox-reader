@@ -9,4 +9,4 @@ fi
 RATE_INT=${RATE%.*}
 DATA=$(echo "$DATA" | sed ':a;N;$!ba;s/\n/ /g')
 
-$AUDIO_PLAYER --cli --model "$VOICE_PATH/$VOICE" --text "$DATA" --rate "$RATE"
+$AUDIO_PLAYER --cli --voice "$VOICE" --text "$DATA" --speed "$RATE"

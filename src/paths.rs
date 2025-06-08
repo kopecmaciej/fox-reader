@@ -2,10 +2,6 @@ use dirs::home_dir;
 
 const FOX_READER_BASE_PATH: &str = "$HOME/.local/share/fox-reader";
 
-const HF_BASE_URL: &str = "https://huggingface.co/rhasspy/piper-voices";
-const HF_VERSION: &str = "v1.0.0/";
-const HF_VOICES_JSON: &str = "voices.json";
-
 const WHISPER_BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp";
 
 const SCHEMAS_DIR_PATH: &str = "$HOME/.local/share/glib-2.0/schemas";
@@ -31,26 +27,6 @@ pub fn get_pdfium_path() -> String {
 
 pub fn get_espeak_path() -> String {
     build_path(FOX_READER_BASE_PATH, "espeak-ng-data")
-}
-
-pub mod huggingface_config {
-    use super::*;
-
-    pub fn get_voices_url() -> String {
-        format!("{}/resolve/{}{}", HF_BASE_URL, HF_VERSION, HF_VOICES_JSON)
-    }
-
-    pub fn get_voice_url(path: &str) -> String {
-        format!("{}/resolve/main/{}", HF_BASE_URL, path)
-    }
-
-    pub fn get_voice_file_path(voice_file: &str) -> String {
-        build_path(&format!("{}/voices", FOX_READER_BASE_PATH), voice_file)
-    }
-
-    pub fn get_download_path() -> String {
-        resolve_home(&format!("{}/voices", FOX_READER_BASE_PATH))
-    }
 }
 
 pub mod whisper_config {

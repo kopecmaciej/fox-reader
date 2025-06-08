@@ -1,9 +1,6 @@
 use std::error::Error;
 
-use crate::{
-    paths::{dispatcher_config, huggingface_config},
-    utils::file_handler::FileHandler,
-};
+use crate::{paths::dispatcher_config, utils::file_handler::FileHandler};
 
 const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
 
@@ -50,38 +47,6 @@ impl SpeechDispatcher {
         Ok(())
     }
 
-    pub fn add_new_voice_to_config(
-        language: &str,
-        voice_name: &str,
-        voice_key: &str,
-    ) -> Result<(), Box<dyn Error>> {
-        let new_voice = add_voice_template(language, voice_name, voice_key);
-
-        FileHandler::append_to_file(
-            &dispatcher_config::get_module_config_path(),
-            new_voice.as_bytes(),
-        )
-    }
-
-    pub fn delete_voice_from_config(
-        language: &str,
-        voice_name: &str,
-        voice_id: &str,
-    ) -> Result<(), Box<dyn Error>> {
-        let voice_template = add_voice_template(language, voice_name, voice_id);
-        let default_voice = format!("DefaultVoice {}", voice_id);
-
-        FileHandler::delete_line_from_config(
-            &dispatcher_config::get_module_config_path(),
-            &default_voice,
-        )?;
-
-        FileHandler::delete_line_from_config(
-            &dispatcher_config::get_module_config_path(),
-            &voice_template,
-        )
-    }
-
     pub fn set_default_voice(default_voice: &str) -> Result<(), Box<dyn Error>> {
         FileHandler::upsert_value_in_module_config(
             &dispatcher_config::get_module_config_path(),
@@ -119,15 +84,8 @@ fn module_template() -> String {
     format!(
         r#"
 GenericExecuteSynth "export DATA='$DATA';export RATE='$RATE';export VOICE='$VOICE';export VOICE_PATH='{}';{}""#,
-        huggingface_config::get_download_path(),
+        // TODO: Add new voices
+        "kokoros_voice",
         dispatcher_config::get_script_path()
-    )
-}
-
-fn add_voice_template(language: &str, voice_name: &str, voice_relative_path: &str) -> String {
-    format!(
-        r#"
-AddVoice "{}_{}" "male1" "{}""#,
-        language, voice_name, voice_relative_path
     )
 }
