@@ -232,7 +232,7 @@ row {
 .mic-button {
   background-color: @primary_color;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: all 0.2s ease, width 300ms ease-in-out, height 300ms ease-in-out;
   min-width: 64px;
   min-height: 64px;
 }
@@ -240,6 +240,27 @@ row {
 .mic-button:hover {
   transform: scale(1.15);
   background-color: @hover_color;
+}
+
+/* Microphone button responsive sizing based on history visibility */
+.history-hidden .mic-button {
+  min-width: 180px;
+  min-height: 180px;
+}
+
+/* History panel animation styles */
+.history-panel {
+  background-color: alpha(@theme_bg_color, 0.95);
+  border-radius: 12px;
+  margin: 12px;
+  padding: 12px;
+  border: 1px solid alpha(@borders, 0.5);
+}
+
+/* Style for the history toggle button */
+#history_toggle_button {
+  margin-top: 12px;
+  min-width: 120px;
 }
 
 .status-label {

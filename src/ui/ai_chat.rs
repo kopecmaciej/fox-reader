@@ -11,11 +11,7 @@ use std::{
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{
-    core::{
-        llm_manager::LLMManager,
-        runtime::spawn_tokio,
-        voice_manager::VoiceManager,
-    },
+    core::{llm_manager::LLMManager, runtime::spawn_tokio, voice_manager::VoiceManager},
     paths::whisper_config::get_model_path,
     settings::Settings,
     ui::dialogs::show_error_dialog,
@@ -60,6 +56,14 @@ mod imp {
         pub button_icon: TemplateChild<gtk::Image>,
         #[template_child]
         pub chat_history_list: TemplateChild<gtk::ListBox>,
+
+        pub show_history: RefCell<bool>,
+        #[template_child]
+        pub history_toggle_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub history_revealer: TemplateChild<gtk::Revealer>,
+        #[template_child]
+        pub main_container: TemplateChild<gtk::Box>,
 
         pub state: RefCell<State>,
         pub recording_stream: RefCell<Option<cpal::Stream>>,
@@ -126,6 +130,11 @@ mod imp {
         fn on_reset_button_clicked(&self, _button: &gtk::Button) {
             self.obj().reset_conversation();
         }
+
+        #[template_callback]
+        fn on_history_toggle_clicked(&self, _button: &gtk::Button) {
+            self.obj().toggle_history_visibility();
+        }
     }
 
     impl ObjectImpl for AiChat {}
@@ -141,6 +150,30 @@ glib::wrapper! {
 impl AiChat {
     pub fn init(&self) {
         self.setup_chat_history();
+        self.setup_history_toggle();
+    }
+
+    fn setup_history_toggle(&self) {
+        let imp = self.imp();
+        imp.history_revealer.set_reveal_child(false);
+        imp.history_toggle_button.set_label("Show History");
+        imp.main_container.add_css_class("history-hidden");
+    }
+
+    fn toggle_history_visibility(&self) {
+        let imp = self.imp();
+        let mut show_history = imp.show_history.borrow_mut();
+        *show_history = !*show_history;
+
+        imp.history_revealer.set_reveal_child(*show_history);
+
+        if *show_history {
+            imp.main_container.remove_css_class("history-hidden");
+            imp.history_toggle_button.set_label("Hide History");
+        } else {
+            imp.main_container.add_css_class("history-hidden");
+            imp.history_toggle_button.set_label("Show History");
+        }
     }
 
     fn setup_chat_history(&self) {
@@ -172,17 +205,23 @@ impl AiChat {
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
         voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
-        
+
         self.set_default_voice_from_settings();
     }
 
     pub fn set_default_voice_from_settings(&self) {
         let settings = Settings::default();
         let default_voice_key = settings.get_default_voice();
-        
+
         if !default_voice_key.is_empty() {
-            println!("Setting default voice from settings in AI chat: {}", default_voice_key);
-            voice_selector::set_selected_voice_by_key(&self.imp().voice_selector, &default_voice_key);
+            println!(
+                "Setting default voice from settings in AI chat: {}",
+                default_voice_key
+            );
+            voice_selector::set_selected_voice_by_key(
+                &self.imp().voice_selector,
+                &default_voice_key,
+            );
         } else {
             println!("No default voice set in settings for AI chat");
         }
@@ -426,18 +465,21 @@ impl AiChat {
 
             if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
                 println!("{sentence}");
-                
+
                 let voice_style = voice.key();
                 let speed = 1.0;
-                
+
                 let source_audio = spawn_tokio(async move {
                     VoiceManager::generate_kokoros_speech(&sentence, &voice_style, speed).await
-                }).await;
+                })
+                .await;
 
                 match source_audio {
                     Ok(audio) => {
                         let audio_player = self.imp().audio_player.clone();
-                        if let Err(e) = spawn_tokio(async move { audio_player.play_audio(audio) }).await {
+                        if let Err(e) =
+                            spawn_tokio(async move { audio_player.play_audio(audio) }).await
+                        {
                             show_error_dialog(&format!("Error playing audio: {}", e), self);
                         }
                     }
