@@ -449,12 +449,43 @@ impl AiChat {
             .set_icon_name(Some("media-playback-stop-symbolic"));
 
         let tts_text = markdown::strip_markdown_for_tts(response);
-        let sentences = text::split_text_into_sentences(&tts_text);
+        let sentences: Vec<String> = text::split_text_into_sentences(&tts_text)
+            .into_iter()
+            .filter(|s| !s.trim().is_empty())
+            .collect();
 
-        for sentence in sentences {
-            if sentence.trim().is_empty() {
-                continue;
+        if sentences.is_empty() {
+            return;
+        }
+
+        let voice = if let Some(v) = voice_selector::get_selected_voice(&self.imp().voice_selector)
+        {
+            v.key()
+        } else {
+            return;
+        };
+
+        let speed = 1.0;
+        let mut current_audio = None;
+
+        if let Some(first_sentence) = sentences.first() {
+            let voice_clone = voice.clone();
+            let sentence_clone = first_sentence.clone();
+
+            match spawn_tokio(async move {
+                VoiceManager::generate_kokoros_speech(&sentence_clone, &voice_clone, speed).await
+            })
+            .await
+            {
+                Ok(audio) => current_audio = Some(audio),
+                Err(e) => {
+                    show_error_dialog(&format!("Error generating TTS: {}", e), self);
+                    return;
+                }
             }
+        }
+
+        for i in 0..sentences.len() {
             {
                 let mut state = imp.state.borrow_mut();
                 if *state == State::Stopped {
@@ -463,31 +494,53 @@ impl AiChat {
                 }
             }
 
-            if let Some(voice) = voice_selector::get_selected_voice(&self.imp().voice_selector) {
-                println!("{sentence}");
+            let audio_to_play = if let Some(audio) = current_audio.take() {
+                audio
+            } else {
+                continue;
+            };
 
-                let voice_style = voice.key();
-                let speed = 1.0;
+            let next_index = i + 1;
+            if next_index < sentences.len() {
+                let next_sentence = sentences[next_index].clone();
+                let voice_clone = voice.clone();
 
-                let source_audio = spawn_tokio(async move {
-                    VoiceManager::generate_kokoros_speech(&sentence, &voice_style, speed).await
-                })
-                .await;
+                let audio_player = self.imp().audio_player.clone();
+                let play_future =
+                    spawn_tokio(async move { audio_player.play_audio(audio_to_play) });
 
-                match source_audio {
-                    Ok(audio) => {
-                        let audio_player = self.imp().audio_player.clone();
-                        if let Err(e) =
-                            spawn_tokio(async move { audio_player.play_audio(audio) }).await
-                        {
-                            show_error_dialog(&format!("Error playing audio: {}", e), self);
-                        }
-                    }
+                let generate_future = spawn_tokio(async move {
+                    VoiceManager::generate_kokoros_speech(&next_sentence, &voice_clone, speed).await
+                });
+
+                let (play_result, generate_result) = tokio::join!(play_future, generate_future);
+
+                if let Err(e) = play_result {
+                    show_error_dialog(&format!("Error playing audio: {}", e), self);
+                }
+
+                match generate_result {
+                    Ok(next_audio) => current_audio = Some(next_audio),
                     Err(e) => {
                         show_error_dialog(&format!("Error generating TTS: {}", e), self);
+                        break;
                     }
+                }
+            } else {
+                let audio_player = self.imp().audio_player.clone();
+                if let Err(e) =
+                    spawn_tokio(async move { audio_player.play_audio(audio_to_play) }).await
+                {
+                    show_error_dialog(&format!("Error playing audio: {}", e), self);
                 }
             }
         }
+
+        {
+            *imp.state.borrow_mut() = State::Idle;
+        }
+        imp.status_label.set_text("Ready");
+        imp.button_icon
+            .set_icon_name(Some("audio-input-microphone-symbolic"));
     }
 }
