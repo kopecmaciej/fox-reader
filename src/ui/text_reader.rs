@@ -185,6 +185,8 @@ impl TextReader {
                             }
                             imp.text_highlighter.borrow().clear();
                             imp.text_input.set_editable(true);
+                            this.imp().audio_controls.imp().play_button.set_icon_name("media-playback-start-symbolic");
+                            this.imp().audio_controls.imp().stop_button.set_sensitive(false);
                         }
                     }
                 ));

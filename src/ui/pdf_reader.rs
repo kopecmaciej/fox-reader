@@ -692,6 +692,8 @@ impl PdfReader {
 
                     imp.pdf_highlighter.borrow_mut().clear_highlight();
                     this.refresh_view();
+                    this.imp().audio_controls.imp().play_button.set_icon_name("media-playback-start-symbolic");
+                    this.imp().audio_controls.imp().stop_button.set_sensitive(false);
                 }
             }
         ));

@@ -1,6 +1,6 @@
 use adw::prelude::*;
 use adw::AlertDialog;
-use gtk::{self, glib};
+use gtk::{self, glib, prelude::IsA};
 use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -17,7 +17,7 @@ pub struct KokorosDownloadDialog {
 }
 
 impl KokorosDownloadDialog {
-    pub fn new(_parent: &impl IsA<gtk::Window>) -> Self {
+    pub fn new(_parent: &impl IsA<gtk::Widget>) -> Self {
         let dialog = AlertDialog::builder()
             .heading("Preparing Voice Engine")
             .body("Downloading required voice files...")
@@ -54,7 +54,7 @@ impl KokorosDownloadDialog {
 
     pub async fn download_and_show(
         &self,
-        parent: &adw::ApplicationWindow,
+        parent: &impl IsA<gtk::Widget>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.dialog.present(Some(parent));
 

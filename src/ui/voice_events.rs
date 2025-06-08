@@ -30,7 +30,6 @@ mod imp {
                     Signal::builder("pdf-audio-play")
                         .param_types([glib::types::Type::U32])
                         .build(),
-                    Signal::builder("pdf-audio-stop").build(),
                 ]
             })
         }
@@ -54,10 +53,6 @@ impl EventEmitter {
 
     pub fn emit_audio_play(&self, id: u32) {
         self.emit_by_name::<()>("pdf-audio-play", &[&id]);
-    }
-
-    pub fn emit_audio_stop(&self) {
-        self.emit_by_name::<()>("pdf-audio-stop", &[]);
     }
 }
 

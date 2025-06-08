@@ -152,6 +152,7 @@ impl Tts {
         }
 
         self.current_id.store(0, Ordering::SeqCst);
+
         Ok(())
     }
 

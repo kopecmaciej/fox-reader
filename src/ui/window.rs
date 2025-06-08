@@ -7,6 +7,8 @@ use gtk::{
     StringList,
 };
 
+use crate::core::runtime;
+use crate::core::voice_manager::VoiceManager;
 use crate::{
     core::speech_dispatcher::SpeechDispatcher, utils::kokoros_downloader::KokorosDownloader,
     SETTINGS,
@@ -115,22 +117,6 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, &window);
         }
 
-        if !KokorosDownloader::are_files_available() {
-            glib::spawn_future_local(clone!(
-                #[weak(rename_to=window)]
-                window,
-                async move {
-                    let dialog =
-                        KokorosDownloadDialog::new(window.upcast_ref::<adw::ApplicationWindow>());
-                    if let Err(e) = dialog
-                        .download_and_show(window.upcast_ref::<adw::ApplicationWindow>())
-                        .await
-                    {
-                        dialogs::show_error_dialog(&format!("Download failed: {}", e), &window);
-                    }
-                }
-            ));
-        }
 
         let imp = window.imp();
         let settings = &SETTINGS;
@@ -145,10 +131,33 @@ impl FoxReaderAppWindow {
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
         window.setup_search();
+        window.initialize_kokoros();
 
         window
     }
 
+    fn initialize_kokoros(&self) {
+        if !KokorosDownloader::are_files_available() {
+            glib::spawn_future_local(clone!(
+                #[weak(rename_to=window)]
+                self,
+                async move {
+                    let dialog =
+                        KokorosDownloadDialog::new(&window);
+                    if let Err(e) = dialog
+                        .download_and_show(&window)
+                        .await
+                    {
+                        dialogs::show_error_dialog(&format!("Download failed: {}", e), &window)
+                    }
+                }
+            ));
+        }
+        if let Err(e) = runtime::runtime().block_on(VoiceManager::init_kokoros()) {
+            let err_msg = format!("Error initializing Kokoros: {}", e);
+            dialogs::show_error_dialog(&err_msg, self.upcast_ref::<gtk::Widget>());
+        }
+    }
     fn update_voice_selector_on_click(&self) {
         let imp = self.imp();
         let voice_rows = imp.voice_list.get_all_rows();
