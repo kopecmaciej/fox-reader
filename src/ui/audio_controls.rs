@@ -11,7 +11,7 @@ use gtk::{
 use super::{
     dialogs,
     helpers::voice_selector,
-    voice_events::{event_emiter, VoiceEvent},
+    voice_events::event_emiter,
     voice_row::VoiceRow,
 };
 
