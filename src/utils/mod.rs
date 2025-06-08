@@ -1,8 +1,8 @@
 pub mod audio_player;
 pub mod debouncer;
-pub mod espeak_handler;
 pub mod file_handler;
 pub mod highlighter;
+pub mod kokoros_downloader;
 pub mod markdown;
 pub mod pdf_highlighter;
 pub mod pdfium;

@@ -149,4 +149,35 @@ impl FileHandler {
             fs::write(path, content).map_err(|e| e.into())
         }
     }
+
+    pub async fn download_file_with_progress(
+        url: &str,
+        output_path: &str,
+        progress_callback: Option<Box<dyn FnMut(f32) + Send>>,
+    ) -> Result<(), Box<dyn Error>> {
+        Self::ensure_all_paths_exists(output_path)?;
+
+        let response = get_async(url).await?;
+        let total_size = response.content_length().unwrap_or(0);
+
+        let mut downloaded: u64 = 0;
+        let mut file = File::create(output_path)?;
+        let mut progress_callback = progress_callback;
+
+        let mut stream = response.bytes_stream();
+        while let Some(item) = stream.next().await {
+            let chunk = item?;
+            downloaded += chunk.len() as u64;
+            file.write_all(&chunk)?;
+
+            if let Some(ref mut callback) = progress_callback {
+                if total_size > 0 {
+                    let progress = downloaded as f32 / total_size as f32;
+                    callback(progress);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }

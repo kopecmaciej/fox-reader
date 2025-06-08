@@ -1,11 +1,8 @@
 use crate::core::kokoros_manager::KokorosTTS;
-use crate::paths::{dispatcher_config, huggingface_config};
-use crate::utils::file_handler::FileHandler;
 use rodio::buffer::SamplesBuffer;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::error::Error;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 
@@ -63,7 +60,9 @@ impl VoiceManager {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let kokoros = KOKOROS_TTS.get().ok_or("Kokoros TTS not initialized")?;
 
-        kokoros.save_speech_to_file(text, voice_style, speed, output_path).await
+        kokoros
+            .save_speech_to_file(text, voice_style, speed, output_path)
+            .await
     }
 
     pub fn get_kokoros_voices() -> Vec<String> {
@@ -116,7 +115,6 @@ impl VoiceManager {
 
         Ok(all_voices)
     }
-
 
     fn get_language_info_from_voice_style(voice_style: &str) -> (String, String, String, String) {
         let prefix = voice_style.get(0..2).unwrap_or("");
@@ -246,7 +244,6 @@ impl VoiceManager {
 
         format!("{} {} - {} {}", flag, formatted_name, gender, country)
     }
-
 
     fn get_voice_quality_grade(voice_style: &str) -> String {
         match voice_style {

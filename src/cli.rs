@@ -1,10 +1,8 @@
 use clap::{Arg, Command};
 use std::error::Error;
-use std::path::Path;
 
 use crate::core::voice_manager::VoiceManager;
 use crate::utils::audio_player::AudioPlayer;
-use crate::utils::espeak_handler::EspeakHandler;
 use crate::utils::file_handler::FileHandler;
 
 pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
@@ -33,7 +31,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
                 .short('t')
                 .long("text")
                 .help("Text to synthesize")
-                .value_name("TEXT")
+                .value_name("TEXT"),
         )
         .arg(
             Arg::new("speed")
@@ -87,9 +85,9 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         return Err(err_msg.into());
     }
 
-    VoiceManager::init_kokoros().await.map_err(|e| {
-        format!("Failed to initialize Kokoros TTS: {}", e)
-    })?;
+    VoiceManager::init_kokoros()
+        .await
+        .map_err(|e| format!("Failed to initialize Kokoros TTS: {}", e))?;
 
     if let Some(output_path) = output_path {
         if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
@@ -98,7 +96,9 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         }
 
         println!("Generating and saving speech to file...");
-        match VoiceManager::save_kokoros_speech_to_file(text, voice_style, *speed, output_path).await {
+        match VoiceManager::save_kokoros_speech_to_file(text, voice_style, *speed, output_path)
+            .await
+        {
             Ok(_) => {
                 println!("Successfully saved audio to: {}", output_path);
             }
@@ -111,9 +111,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         println!("Generating speech...");
         let audio_buffer = VoiceManager::generate_kokoros_speech(text, voice_style, *speed)
             .await
-            .map_err(|e| {
-                format!("Failed to generate speech: {}", e)
-            })?;
+            .map_err(|e| format!("Failed to generate speech: {}", e))?;
 
         println!("Playing audio...");
         let player = AudioPlayer::default();

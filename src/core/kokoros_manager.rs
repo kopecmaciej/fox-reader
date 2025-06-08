@@ -1,7 +1,6 @@
 use kokoros::tts::koko::{InitConfig, TTSKoko, TTSOpts};
 use rodio::buffer::SamplesBuffer;
 use std::error::Error;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -16,10 +15,6 @@ impl KokorosTTS {
     pub async fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let model_path = voice_config::get_kokoros_model_path();
         let voices_path = voice_config::get_kokoros_voices_path();
-
-        if let Some(parent) = Path::new(&model_path).parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
 
         let config = InitConfig::default();
         let sample_rate = config.sample_rate;
@@ -70,7 +65,8 @@ impl KokorosTTS {
 
         tts_engine.tts(opts).map_err(|e| {
             let err_msg = format!("Failed to save speech to file: {}", e);
-            Box::new(std::io::Error::new(std::io::ErrorKind::Other, err_msg)) as Box<dyn Error + Send + Sync>
+            Box::new(std::io::Error::new(std::io::ErrorKind::Other, err_msg))
+                as Box<dyn Error + Send + Sync>
         })?;
 
         Ok(())
@@ -143,13 +139,4 @@ impl KokorosTTS {
             "pm_santa".to_string(),
         ]
     }
-
-    pub fn supports_voice_mixing() -> bool {
-        true
-    }
-
-    pub fn get_sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
 }
-

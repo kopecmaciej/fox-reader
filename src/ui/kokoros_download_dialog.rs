@@ -1,0 +1,105 @@
+use adw::prelude::*;
+use adw::AlertDialog;
+use gtk::{self, glib};
+use std::error::Error;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+use crate::core::runtime::spawn_tokio;
+use crate::utils::kokoros_downloader::KokorosDownloader;
+use crate::utils::progress_tracker::ProgressTracker;
+
+pub struct KokorosDownloadDialog {
+    dialog: AlertDialog,
+    progress_bar: gtk::ProgressBar,
+    status_label: gtk::Label,
+    downloader: Arc<Mutex<KokorosDownloader>>,
+}
+
+impl KokorosDownloadDialog {
+    pub fn new(_parent: &impl IsA<gtk::Window>) -> Self {
+        let dialog = AlertDialog::builder()
+            .heading("Preparing Voice Engine")
+            .body("Downloading required voice files...")
+            .build();
+
+        let vbox = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        vbox.set_margin_top(12);
+        vbox.set_margin_bottom(12);
+        vbox.set_margin_start(12);
+        vbox.set_margin_end(12);
+
+        let status_label = gtk::Label::new(Some("Initializing..."));
+        status_label.set_halign(gtk::Align::Start);
+        vbox.append(&status_label);
+
+        let progress_bar = gtk::ProgressBar::new();
+        progress_bar.set_show_text(true);
+        progress_bar.set_text(Some("0%"));
+        vbox.append(&progress_bar);
+
+        dialog.set_extra_child(Some(&vbox));
+
+        let downloader = Arc::new(Mutex::new(KokorosDownloader::new(
+            ProgressTracker::default(),
+        )));
+
+        Self {
+            dialog,
+            progress_bar,
+            status_label,
+            downloader,
+        }
+    }
+
+    pub async fn download_and_show(
+        &self,
+        parent: &adw::ApplicationWindow,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.dialog.present(Some(parent));
+
+        let progress_tracker = ProgressTracker::default();
+        let progress_callback = progress_tracker.get_progress_callback();
+
+        let (on_complete, on_cancel) = progress_tracker.track_with_progress_bar(&self.progress_bar);
+
+        let downloader = self.downloader.clone();
+        let download_result = spawn_tokio(async move {
+            match downloader
+                .lock()
+                .await
+                .download_required_files(Some(progress_callback))
+                .await
+            {
+                Ok(res) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(res),
+                Err(e) => Err(format!("Download failed: {}", e).into()),
+            }
+        })
+        .await;
+
+        match download_result {
+            Ok(_) => {
+                on_complete();
+                self.status_label.set_text("Voice engine ready!");
+
+                let dialog_clone = self.dialog.clone();
+                glib::timeout_add_seconds_local(1, move || {
+                    dialog_clone.close();
+                    glib::ControlFlow::Break
+                });
+
+                Ok(())
+            }
+            Err(e) => {
+                on_cancel();
+                self.dialog.close();
+
+                let err_msg = format!("Failed to download Kokoros files: {}", e);
+                Err(
+                    Box::new(std::io::Error::new(std::io::ErrorKind::Other, err_msg))
+                        as Box<dyn Error + Send + Sync>,
+                )
+            }
+        }
+    }
+}

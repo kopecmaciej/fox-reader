@@ -1,5 +1,4 @@
 use std::{
-    io::{self, Write},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -13,6 +12,7 @@ pub type ProgressCallback = Arc<Mutex<dyn FnMut(f32) + Send>>;
 
 pub struct ProgressTracker {
     progress_value: Arc<Mutex<f32>>,
+    status_message: Arc<Mutex<String>>,
     timeout_id: Arc<Mutex<Option<glib::SourceId>>>,
     update_interval: Duration,
 }
@@ -21,6 +21,7 @@ impl ProgressTracker {
     pub fn new(update_interval: Duration) -> Self {
         Self {
             progress_value: Arc::new(Mutex::new(0.0)),
+            status_message: Arc::new(Mutex::new(String::new())),
             timeout_id: Arc::new(Mutex::new(None)),
             update_interval,
         }
@@ -30,6 +31,11 @@ impl ProgressTracker {
         Self::new(Duration::from_millis(500))
     }
 
+    pub fn set_progress(&self, progress: f32) {
+        let mut value = self.progress_value.lock().unwrap();
+        *value = progress;
+    }
+
     pub fn get_progress_callback(&self) -> ProgressCallback {
         let progress_value = Arc::clone(&self.progress_value);
 
@@ -37,36 +43,6 @@ impl ProgressTracker {
             let mut value = progress_value.lock().unwrap();
             *value = progress;
         }))
-    }
-
-    pub fn get_terminal_progress_callback(&self) -> ProgressCallback {
-        let progress_value = Arc::clone(&self.progress_value);
-
-        Arc::new(Mutex::new(move |progress: f32| {
-            let mut value = progress_value.lock().unwrap();
-            *value = progress;
-
-            Self::print_terminal_progress(progress);
-        }))
-    }
-
-    pub fn print_terminal_progress(progress: f32) {
-        let bar_width = 50;
-        let filled_width = (progress * bar_width as f32) as usize;
-
-        let bar: String = format!(
-            "[{}{}] {:.1}%",
-            "=".repeat(filled_width),
-            " ".repeat(bar_width - filled_width),
-            progress * 100.0
-        );
-
-        print!("\r{}", bar);
-        io::stdout().flush().unwrap();
-
-        if progress >= 0.999 {
-            println!();
-        }
     }
 
     pub fn connect_to_progress_bar(&self, progress_bar: &gtk::ProgressBar) {
@@ -86,6 +62,7 @@ impl ProgressTracker {
                 move || {
                     let progress = *progress_value.lock().unwrap();
                     progress_bar.set_fraction(progress as f64);
+                    progress_bar.set_text(Some(&format!("{}%", (progress * 100.0).round())));
                     ControlFlow::Continue
                 }
             ),

@@ -1,4 +1,4 @@
-use adw::prelude::{AdwDialogExt, MessageDialogExt};
+use adw::prelude::AdwDialogExt;
 use adw::subclass::prelude::*;
 use gio::glib::Object;
 use gtk::prelude::*;
@@ -8,12 +8,13 @@ use gtk::{
 };
 
 use crate::{
-    core::{runtime::spawn_tokio, speech_dispatcher::SpeechDispatcher, voice_manager::VoiceManager},
-    utils::espeak_handler::EspeakHandler,
+    core::speech_dispatcher::SpeechDispatcher, utils::kokoros_downloader::KokorosDownloader,
     SETTINGS,
 };
 
-use super::{dialogs, settings_dialog::SettingsDialog};
+use super::{
+    dialogs, kokoros_download_dialog::KokorosDownloadDialog, settings_dialog::SettingsDialog,
+};
 
 mod imp {
 
@@ -114,25 +115,22 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, &window);
         }
 
-        let window_weak = window.downgrade();
-        glib::spawn_future_local(async move {
-            if let Some(window) = window_weak.upgrade() {
-                match spawn_tokio(async move {
-                    VoiceManager::init_kokoros().await
-                }).await {
-                    Ok(_) => {
-                        println!("Kokoros TTS initialized successfully");
-                    }
-                    Err(e) => {
-                        let err_msg = format!(
-                            "Error initializing Kokoros TTS. Falling back to dummy audio. \nDetails: {}",
-                            e
-                        );
-                        dialogs::show_error_dialog(&err_msg, &window);
+        if !KokorosDownloader::are_files_available() {
+            glib::spawn_future_local(clone!(
+                #[weak(rename_to=window)]
+                window,
+                async move {
+                    let dialog =
+                        KokorosDownloadDialog::new(window.upcast_ref::<adw::ApplicationWindow>());
+                    if let Err(e) = dialog
+                        .download_and_show(window.upcast_ref::<adw::ApplicationWindow>())
+                        .await
+                    {
+                        dialogs::show_error_dialog(&format!("Download failed: {}", e), &window);
                     }
                 }
-            }
-        });
+            ));
+        }
 
         let imp = window.imp();
         let settings = &SETTINGS;
@@ -144,60 +142,11 @@ impl FoxReaderAppWindow {
         imp.text_reader.init();
         imp.pdf_reader.init();
         imp.ai_chat.init();
-        window.setup_stack_switching();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
         window.setup_search();
-        window.ensure_espeak_avaliable();
 
         window
-    }
-
-    fn ensure_espeak_avaliable(&self) {
-        glib::spawn_future_local(clone!(
-            #[weak(rename_to=this)]
-            self,
-            async move {
-                if !EspeakHandler::is_espeak_installed() {
-                    let downloading_dialog = adw::MessageDialog::new(
-                        Some(&this),
-                        Some("Downloading Required Files"),
-                        None,
-                    );
-                    downloading_dialog.set_width_request(400);
-                    downloading_dialog.set_body("Downloading espeak-ng data files, please hold");
-                    downloading_dialog.add_response("1", "Cancel");
-                    downloading_dialog.set_default_response(Some("1"));
-                    downloading_dialog.present();
-
-                    let download_result = spawn_tokio(async move {
-                        match EspeakHandler::download_espeak_data(None).await {
-                            Ok(res) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(res),
-                            Err(e) => Err(format!("Error generating speech: {}", e).into()),
-                        }
-                    })
-                    .await;
-
-                    match download_result {
-                        Ok(_) => {
-                            downloading_dialog
-                                .set_body("Espeak data files have been successfully downloaded.");
-
-                            downloading_dialog.close();
-                        }
-                        Err(e) => {
-                            downloading_dialog.close();
-                            dialogs::show_error_dialog(
-                                &format!("Failed to download espeak data: {}", e),
-                                &this,
-                            );
-                        }
-                    }
-                }
-
-                EspeakHandler::set_espeak_environment();
-            }
-        ));
     }
 
     fn update_voice_selector_on_click(&self) {
@@ -214,30 +163,6 @@ impl FoxReaderAppWindow {
             .populate_voice_selector(&voice_rows);
 
         imp.ai_chat.populate_voice_selector(&voice_rows);
-    }
-
-    fn setup_stack_switching(&self) {
-        let voice_list = self.imp().voice_list.downgrade();
-        let stack = &self.imp().voice_stack;
-
-        stack.connect_visible_child_notify(clone!(
-            #[weak(rename_to=this)]
-            self,
-            move |stack| {
-                if let Some(page_name) = stack.visible_child_name() {
-                    if let Some(voice_list) = voice_list.upgrade() {
-                        match page_name.as_str() {
-                            "all_voices" => {
-                                voice_list.show_all_voices();
-                                voice_list.unparent();
-                                voice_list.set_parent(&this.imp().all_voices_container.get());
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-            }
-        ));
     }
 
     fn setup_search(&self) {
