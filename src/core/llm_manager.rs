@@ -7,6 +7,8 @@ use crate::{
     SETTINGS,
 };
 
+const SYSTEM_PROMPT: &str = "You are a helpful assistant. You are talking to the user using voice so make your responses short and concise. Avoid using emojis, markdown, or other formatting, but if user asks for it, you can use them.";
+
 #[derive(Debug, Clone)]
 pub struct Message {
     pub role: String,
@@ -14,13 +16,6 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn system(content: &str) -> Self {
-        Self {
-            role: "system".to_string(),
-            content: content.to_string(),
-        }
-    }
-
     pub fn user(content: &str) -> Self {
         Self {
             role: "user".to_string(),
@@ -40,15 +35,12 @@ impl Message {
 pub struct LLMManager {
     client: Client,
     conversation_history: Arc<Mutex<Vec<Message>>>,
-    system_prompt: String,
-    conversation_language: String,
 }
 
 impl LLMManager {
     pub fn reset_conversation(&self) {
         let mut history = self.conversation_history.lock().unwrap();
         history.clear();
-        history.push(Message::system(&self.system_prompt));
     }
 
     pub fn add_user_message(&self, content: &str) {
@@ -61,15 +53,6 @@ impl LLMManager {
         history.push(Message::assistant(content));
     }
 
-    pub fn set_conversation_language(&mut self, language: &str) {
-        self.conversation_language = language.to_string()
-    }
-
-    pub fn set_system_prompt(&mut self, prompt: &str) {
-        self.system_prompt = prompt.to_string();
-        self.reset_conversation();
-    }
-
     fn get_active_config(&self) -> ProviderConfig {
         let settings = &SETTINGS;
         settings.get_active_provider_config()
@@ -78,13 +61,11 @@ impl LLMManager {
     pub async fn send_to_llm(
         &self,
         prompt: &str,
+        language: &str,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         if self.conversation_history.lock().unwrap().len() == 1 {
             if let Some(first) = self.conversation_history.lock().unwrap().first_mut() {
-                first.content = format!(
-                    "Respond with language: {}. {}",
-                    self.conversation_language, first.content
-                );
+                first.content = format!("Respond with language: {}. {}", language, first.content);
             }
         }
 
@@ -110,15 +91,7 @@ impl LLMManager {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let provider_config = self.get_active_config();
 
-        let messages = history
-            .iter()
-            .map(|msg| {
-                json!({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-            })
-            .collect::<Vec<_>>();
+        let messages = build_messages_with_system(&history);
 
         let request_body = json!({
             "model": provider_config.model,
@@ -157,15 +130,7 @@ impl LLMManager {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let provider_config = self.get_active_config();
 
-        let messages = history
-            .iter()
-            .map(|msg| {
-                json!({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-            })
-            .collect::<Vec<_>>();
+        let messages = build_messages_with_system(&history);
 
         let request_body = json!({
             "model": provider_config.model,
@@ -208,40 +173,20 @@ impl LLMManager {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let provider_config = self.get_active_config();
 
-        let mut messages = Vec::new();
-        for msg in history {
-            match msg.role.as_str() {
-                "system" => {
-                    messages.push(json!({
-                        "role": "user",
-                        "content": format!("<system>\n{}\n</system>", msg.content)
-                    }));
-
-                    messages.push(json!({
-                        "role": "assistant",
-                        "content": ""
-                    }));
-                }
-                "user" | "assistant" => {
-                    messages.push(json!({
-                        "role": msg.role,
-                        "content": msg.content
-                    }));
-                }
-                _ => return Err("Invalid message role for Anthropic".into()),
-            }
-        }
-
-        if messages.len() >= 2 {
-            let second_msg = &messages[1];
-            if second_msg["role"] == "assistant" && second_msg["content"] == "" {
-                messages.remove(1);
-            }
-        }
+        let messages = history
+            .iter()
+            .map(|msg| {
+                json!({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            })
+            .collect::<Vec<_>>();
 
         let request_body = json!({
             "model": provider_config.model,
             "messages": messages,
+            "system": SYSTEM_PROMPT,
             "max_tokens": provider_config.max_tokens,
             "temperature": provider_config.temperature,
         });
@@ -281,15 +226,7 @@ impl LLMManager {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let provider_config = self.get_active_config();
 
-        let messages = history
-            .iter()
-            .map(|msg| {
-                json!({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-            })
-            .collect::<Vec<_>>();
+        let messages = build_messages_with_system(&history);
 
         let request_body = json!({
             "model": provider_config.model,
@@ -320,4 +257,12 @@ impl LLMManager {
 
         Ok(content)
     }
+}
+
+fn build_messages_with_system(history: &[Message]) -> Vec<Value> {
+    let mut messages = vec![json!({ "role": "system", "content": SYSTEM_PROMPT })];
+    messages.extend(history.iter().map(|msg| {
+        json!({ "role": msg.role, "content": msg.content })
+    }));
+    messages
 }

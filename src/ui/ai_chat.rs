@@ -25,8 +25,6 @@ use super::{
     voice_row::VoiceRow,
 };
 
-const WELCOME_MESSAGE: &str = "Hello! I'm your AI voice assistant. Click the microphone button and start speaking to chat with me.";
-
 #[derive(Default, PartialEq, Clone, Copy)]
 pub enum State {
     #[default]
@@ -55,13 +53,13 @@ mod imp {
         #[template_child]
         pub button_icon: TemplateChild<gtk::Image>,
         #[template_child]
-        pub chat_history_list: TemplateChild<gtk::ListBox>,
+        pub chat_list: TemplateChild<gtk::ListBox>,
 
-        pub show_history: RefCell<bool>,
+        pub show_chat: RefCell<bool>,
         #[template_child]
-        pub history_toggle_button: TemplateChild<gtk::Button>,
+        pub chat_toggle_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub history_revealer: TemplateChild<gtk::Revealer>,
+        pub chat_revealer: TemplateChild<gtk::Revealer>,
         #[template_child]
         pub main_container: TemplateChild<gtk::Box>,
 
@@ -132,8 +130,8 @@ mod imp {
         }
 
         #[template_callback]
-        fn on_history_toggle_clicked(&self, _button: &gtk::Button) {
-            self.obj().toggle_history_visibility();
+        fn on_chat_toggle_clicked(&self, _button: &gtk::Button) {
+            self.obj().toggle_chat_visibility();
         }
     }
 
@@ -149,50 +147,48 @@ glib::wrapper! {
 
 impl AiChat {
     pub fn init(&self) {
-        self.setup_chat_history();
-        self.setup_history_toggle();
+        self.setup_chat_panel();
+        self.setup_chat_toggle();
     }
 
-    fn setup_history_toggle(&self) {
+    fn setup_chat_toggle(&self) {
         let imp = self.imp();
-        imp.history_revealer.set_reveal_child(false);
-        imp.history_toggle_button.set_label("Show History");
-        imp.main_container.add_css_class("history-hidden");
+        imp.chat_revealer.set_reveal_child(false);
+        imp.chat_toggle_button.set_label("Show Chat");
+        imp.main_container.add_css_class("chat-hidden");
     }
 
-    fn toggle_history_visibility(&self) {
+    fn toggle_chat_visibility(&self) {
         let imp = self.imp();
-        let mut show_history = imp.show_history.borrow_mut();
-        *show_history = !*show_history;
+        let mut show_chat = imp.show_chat.borrow_mut();
+        *show_chat = !*show_chat;
 
-        imp.history_revealer.set_reveal_child(*show_history);
+        imp.chat_revealer.set_reveal_child(*show_chat);
 
-        if *show_history {
-            imp.main_container.remove_css_class("history-hidden");
-            imp.history_toggle_button.set_label("Hide History");
+        if *show_chat {
+            imp.main_container.remove_css_class("chat-hidden");
+            imp.chat_toggle_button.set_label("Hide Chat");
         } else {
-            imp.main_container.add_css_class("history-hidden");
-            imp.history_toggle_button.set_label("Show History");
+            imp.main_container.add_css_class("chat-hidden");
+            imp.chat_toggle_button.set_label("Show Chat");
         }
     }
 
-    fn setup_chat_history(&self) {
+    fn setup_chat_panel(&self) {
         let imp = self.imp();
-        imp.chat_history_list
+        imp.chat_list
             .set_selection_mode(gtk::SelectionMode::None);
-
-        self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
     }
 
     pub fn add_message_to_chat(&self, message: &str, message_type: MessageType) {
         let imp = self.imp();
 
         let row = ChatMessageRow::new(message, message_type);
-        imp.chat_history_list.append(&row);
+        imp.chat_list.append(&row);
 
         // TODO: fix Auto-scroll to the bottom
         if let Some(scrolled_window) = imp
-            .chat_history_list
+            .chat_list
             .ancestor(gtk::ScrolledWindow::static_type())
         {
             let adj = scrolled_window
@@ -229,11 +225,9 @@ impl AiChat {
         let llm_manager = &*imp.llm_manager.clone();
         llm_manager.reset_conversation();
 
-        while let Some(child) = imp.chat_history_list.first_child() {
-            imp.chat_history_list.remove(&child);
+        while let Some(child) = imp.chat_list.first_child() {
+            imp.chat_list.remove(&child);
         }
-
-        self.add_message_to_chat(WELCOME_MESSAGE, MessageType::Assistant);
 
         glib::spawn_future_local(clone!(
             #[weak]
@@ -376,8 +370,9 @@ impl AiChat {
                 imp.status_label.set_text("Sending to LLM...");
 
                 let llm_manager = imp.llm_manager.clone();
+                let language = self.get_selected_language_code().unwrap_or_default();
                 let response =
-                    spawn_tokio(async move { llm_manager.send_to_llm(&text.clone()).await }).await;
+                    spawn_tokio(async move { llm_manager.send_to_llm(&text.clone(), &language).await }).await;
                 match response {
                     Ok(response) => {
                         self.handle_ai_response(&response).await;

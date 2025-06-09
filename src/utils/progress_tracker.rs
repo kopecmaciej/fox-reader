@@ -12,7 +12,6 @@ pub type ProgressCallback = Arc<Mutex<dyn FnMut(f32) + Send>>;
 
 pub struct ProgressTracker {
     progress_value: Arc<Mutex<f32>>,
-    status_message: Arc<Mutex<String>>,
     timeout_id: Arc<Mutex<Option<glib::SourceId>>>,
     update_interval: Duration,
 }
@@ -21,7 +20,6 @@ impl ProgressTracker {
     pub fn new(update_interval: Duration) -> Self {
         Self {
             progress_value: Arc::new(Mutex::new(0.0)),
-            status_message: Arc::new(Mutex::new(String::new())),
             timeout_id: Arc::new(Mutex::new(None)),
             update_interval,
         }

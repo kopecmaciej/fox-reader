@@ -107,14 +107,14 @@
               </object>
             </child>
 
-            <!-- History Toggle Button -->
+            <!-- Chat Toggle Button -->
             <child>
-              <object class="GtkButton" id="history_toggle_button">
-                <property name="label">Show History</property>
+              <object class="GtkButton" id="chat_toggle_button">
+                <property name="label">Show Chat</property>
                 <property name="halign">center</property>
                 <property name="margin-top">12</property>
                 <property name="tooltip-text">Toggle conversation history visibility</property>
-                <signal name="clicked" handler="on_history_toggle_clicked" swapped="true" />
+                <signal name="clicked" handler="on_chat_toggle_clicked" swapped="true" />
                 <style>
                   <class name="suggested-action"/>
                 </style>
@@ -124,9 +124,9 @@
           </object>
         </child>
 
-        <!-- Collapsible Chat History Area -->
+        <!-- Collapsible Chat Area -->
         <child>
-          <object class="GtkRevealer" id="history_revealer">
+          <object class="GtkRevealer" id="chat_revealer">
             <property name="reveal-child">false</property>
             <property name="transition-type">slide-down</property>
             <property name="transition-duration">300</property>
@@ -141,10 +141,10 @@
                 <property name="margin-end">24</property>
                 <property name="margin-bottom">24</property>
                 <style>
-                  <class name="history-panel"/>
+                  <class name="chat-panel"/>
                 </style>
                 <child>
-                  <object class="GtkListBox" id="chat_history_list">
+                  <object class="GtkListBox" id="chat_list">
                     <property name="selection-mode">none</property>
                     <style>
                       <class name="card"></class>

@@ -243,13 +243,13 @@ row {
 }
 
 /* Microphone button responsive sizing based on history visibility */
-.history-hidden .mic-button {
+.chat-hidden .mic-button {
   min-width: 180px;
   min-height: 180px;
 }
 
 /* History panel animation styles */
-.history-panel {
+.chat-panel {
   background-color: alpha(@theme_bg_color, 0.95);
   border-radius: 12px;
   margin: 12px;
@@ -258,7 +258,7 @@ row {
 }
 
 /* Style for the history toggle button */
-#history_toggle_button {
+#chat_toggle_button {
   margin-top: 12px;
   min-width: 120px;
 }
