@@ -27,7 +27,7 @@ use super::{
 
 const WELCOME_MESSAGE: &str = "Hello! I'm your AI voice assistant. Click the microphone button and start speaking to chat with me.";
 
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Clone, Copy)]
 pub enum State {
     #[default]
     Idle,
@@ -445,6 +445,7 @@ impl AiChat {
             .set_icon_name(Some("media-playback-stop-symbolic"));
 
         let tts_text = markdown::strip_markdown_for_tts(response);
+
         let sentences: Vec<String> = text::split_text_into_sentences(&tts_text)
             .into_iter()
             .filter(|s| !s.trim().is_empty())
@@ -538,5 +539,43 @@ impl AiChat {
         imp.status_label.set_text("Ready");
         imp.button_icon
             .set_icon_name(Some("audio-input-microphone-symbolic"));
+    }
+
+    pub fn toggle_recording(&self) {
+        let imp = self.imp();
+        let mut state = imp.state.borrow_mut();
+
+        match *state {
+            State::Idle => {
+                *state = State::Recording;
+                drop(state);
+                self.start_recording()
+            }
+            State::Recording => {
+                drop(state);
+                self.stop_recording()
+            }
+            State::Speaking => {
+                *state = State::Stopped;
+                drop(state);
+                self.stop_speaking()
+            }
+            _ => {}
+        }
+    }
+
+    pub fn force_stop_audio(&self) {
+        let imp = self.imp();
+        let mut state = imp.state.borrow_mut();
+
+        if *state == State::Speaking {
+            *state = State::Stopped;
+            drop(state);
+            self.stop_speaking();
+        }
+    }
+
+    pub fn get_current_state(&self) -> State {
+        *self.imp().state.borrow()
     }
 }

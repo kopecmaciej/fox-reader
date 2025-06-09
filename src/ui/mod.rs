@@ -3,7 +3,7 @@ mod ai_chat_row;
 mod audio_controls;
 mod dialogs;
 mod helpers;
-pub mod kokoros_download_dialog;
+mod kokoros_download_dialog;
 mod pdf_reader;
 mod settings_dialog;
 mod text_reader;
@@ -12,3 +12,4 @@ mod voice_list;
 mod voice_row;
 
 pub mod window;
+pub mod keybindings;

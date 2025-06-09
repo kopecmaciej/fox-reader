@@ -11,7 +11,9 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
     }
 
     let matches = Command::new("fox-reader")
-        .about("A text-to-speech application")
+        .about("A text-to-speech application with GUI and CLI modes")
+        .long_about("Fox Reader can synthesize speech from text using various voice styles. \
+                    Run without --cli for GUI mode, or use --cli for command-line operation.")
         .arg(
             Arg::new("cli")
                 .long("cli")
@@ -22,7 +24,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             Arg::new("voice")
                 .short('v')
                 .long("voice")
-                .help("Voice style to use for speech synthesis")
+                .help("Voice style to use for speech synthesis (use --list-voices to see options)")
                 .value_name("VOICE_STYLE")
                 .default_value("af_heart"),
         )
@@ -46,7 +48,7 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             Arg::new("output")
                 .short('o')
                 .long("output")
-                .help("Path to save audio output (WAV format)")
+                .help("Path to save audio output as WAV file (if not specified, plays directly)")
                 .value_name("OUTPUT_PATH"),
         )
         .arg(
@@ -66,8 +68,14 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         return Ok(true);
     }
 
+    let text = match matches.get_one::<String>("text") {
+        Some(text) => text,
+        None => {
+            return Err("Error: flag --cli cannot be empty".into());
+        }
+    };
+
     let voice_style = matches.get_one::<String>("voice").unwrap();
-    let text = matches.get_one::<String>("text").unwrap();
     let speed = matches.get_one::<f32>("speed").unwrap();
     let output_path = matches.get_one::<String>("output");
 

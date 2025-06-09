@@ -18,25 +18,6 @@
             <property name="margin-bottom">16</property>
             <property name="spacing">4</property>
 
-            <!-- Title -->
-            <child>
-              <object class="GtkLabel">
-                <property name="label">AI Voice Assistant</property>
-                <style>
-                  <class name="app-title" />
-                </style>
-              </object>
-            </child>
-
-            <!-- Subtitle -->
-            <child>
-              <object class="GtkLabel">
-                <property name="label">Ask me anything or give me commands</property>
-                <style>
-                  <class name="app-subtitle" />
-                </style>
-              </object>
-            </child>
           </object>
         </child>
 

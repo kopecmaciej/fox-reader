@@ -18,7 +18,16 @@ const APP_ID: &str = "com.github.kopecmaciej.fox-reader";
 pub static SETTINGS: LazyLock<Settings> = LazyLock::new(Settings::default);
 
 fn main() -> glib::ExitCode {
-    let is_cli_mode = std::env::args().any(|arg| &arg == "--cli");
+    let args: Vec<String> = std::env::args().collect();
+    let is_cli_mode = args.iter().any(|arg| arg == "--cli");
+
+    if args.len() > 1
+        && (args.contains(&"--help".to_string()) || args.contains(&"-h".to_string()))
+        && !is_cli_mode
+    {
+        print_general_help();
+        return glib::ExitCode::SUCCESS;
+    }
 
     if is_cli_mode {
         match runtime().block_on(cli::run_cli()) {
@@ -31,6 +40,11 @@ fn main() -> glib::ExitCode {
                 return glib::ExitCode::FAILURE;
             }
         }
+    }
+
+    if args.iter().any(|arg| arg == "--keybindings" || arg == "-k") {
+        print_keybindings();
+        return glib::ExitCode::SUCCESS;
     }
 
     if let Err(e) = runtime().block_on(SchemaHandler::install_from_url()) {
@@ -63,4 +77,37 @@ fn load_css() {
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+}
+
+fn print_general_help() {
+    println!("Fox Reader - Text-to-Speech Application");
+    println!("=======================================\n");
+    println!("A modern text-to-speech application with both GUI and CLI modes.\n");
+
+    println!("Usage:");
+    println!("  fox-reader                    Start GUI mode (default)");
+    println!("  fox-reader --cli <options>    Run in CLI mode");
+    println!("  fox-reader -k --keybindings    Show keyboard shortcuts");
+    println!("  fox-reader -h --help           Show this help");
+
+    println!("\nCLI Examples:");
+    println!("  fox-reader --cli --text \"Hello world\"");
+    println!("  fox-reader --cli --list-voices");
+    println!("  fox-reader --cli --help");
+
+    println!("\nFor detailed CLI options, run: fox-reader --cli --help");
+}
+
+fn print_keybindings() {
+    use ui::keybindings::{format_key_combination, KeyBindingManager};
+
+    let manager = KeyBindingManager::new();
+
+    println!("Fox Reader - Keyboard Shortcuts");
+    println!("===============================\n");
+
+    for binding in manager.get_all_bindings() {
+        let key_combo = format_key_combination(binding.key, binding.modifiers);
+        println!("  {:<20} {}", key_combo, binding.description);
+    }
 }

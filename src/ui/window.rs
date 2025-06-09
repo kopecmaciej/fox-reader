@@ -15,7 +15,8 @@ use crate::{
 };
 
 use super::{
-    dialogs, kokoros_download_dialog::KokorosDownloadDialog, settings_dialog::SettingsDialog,
+    dialogs, keybindings::KeyBindingManager, kokoros_download_dialog::KokorosDownloadDialog,
+    settings_dialog::SettingsDialog,
 };
 
 mod imp {
@@ -43,6 +44,7 @@ mod imp {
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
         pub settings_dialog: SettingsDialog,
+        pub keybinding_manager: KeyBindingManager,
     }
 
     #[glib::object_subclass]
@@ -113,7 +115,6 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, &window);
         }
 
-
         let imp = window.imp();
         let settings = &SETTINGS;
 
@@ -128,6 +129,7 @@ impl FoxReaderAppWindow {
         window.update_voice_selector_on_click();
         window.setup_search();
         window.initialize_kokoros();
+        window.setup_keybindings();
 
         window
     }
@@ -138,12 +140,8 @@ impl FoxReaderAppWindow {
                 #[weak(rename_to=window)]
                 self,
                 async move {
-                    let dialog =
-                        KokorosDownloadDialog::new(&window);
-                    if let Err(e) = dialog
-                        .download_and_show(&window)
-                        .await
-                    {
+                    let dialog = KokorosDownloadDialog::new(&window);
+                    if let Err(e) = dialog.download_and_show(&window).await {
                         dialogs::show_error_dialog(&format!("Download failed: {}", e), &window)
                     }
                 }
@@ -154,6 +152,14 @@ impl FoxReaderAppWindow {
             dialogs::show_error_dialog(&err_msg, self.upcast_ref::<gtk::Widget>());
         }
     }
+
+    fn setup_keybindings(&self) {
+        let imp = self.imp();
+        let keybinding_manager = &imp.keybinding_manager;
+
+        keybinding_manager.setup_ai_chat_keybindings(self, &imp.ai_chat);
+    }
+
     fn update_voice_selector_on_click(&self) {
         let imp = self.imp();
         let voice_rows = imp.voice_list.get_all_rows();

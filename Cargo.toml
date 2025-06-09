@@ -24,7 +24,7 @@ cpal = "0.15.3"
 clap = "4.5.32"
 tokio-stream = "0.1.17"
 
-kokoros = { path = "libs/kokoros/kokoros" }
+kokoros = { git = "https://github.com/lucasjinreal/Kokoros" }
 
 [build-dependencies]
 glib-build-tools = "0.20.0"
