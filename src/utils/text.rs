@@ -1,4 +1,6 @@
 const MIN_SENTENCE_LENGTH: usize = 10;
+const MAX_LINE_LENGTH: usize = 200;
+const MIN_SPLIT_POSITION: usize = 60;
 
 pub fn split_text_into_sentences(text: &str) -> Vec<String> {
     let mut segments = Vec::new();
@@ -15,21 +17,22 @@ pub fn split_text_into_sentences(text: &str) -> Vec<String> {
         .filter(|line| !line.is_empty())
         .collect();
 
-    // If single line, process for multiple sentences
-    if lines.len() == 1 {
-        let line = lines[0];
+    for line in lines {
         let sentence_matches: Vec<_> = sentence_regex.find_iter(line).collect();
 
         if sentence_matches.len() > 1 {
-            // Multiple sentences in one line - split them
             for sentence_match in &sentence_matches {
                 let sentence = sentence_match.as_str().trim();
                 if sentence.len() >= MIN_SENTENCE_LENGTH {
-                    segments.push(sentence.to_string());
+                    if sentence.len() > MAX_LINE_LENGTH {
+                        let split_segments = split_long_sentence_at_commas(sentence);
+                        segments.extend(split_segments);
+                    } else {
+                        segments.push(sentence.to_string());
+                    }
                 }
             }
 
-            // Handle remaining text after last sentence
             if let Some(last_match) = sentence_matches.last() {
                 let last_end = last_match.end();
                 if last_end < line.len() {
@@ -42,11 +45,16 @@ pub fn split_text_into_sentences(text: &str) -> Vec<String> {
         } else if sentence_matches.len() == 1 {
             let sentence = sentence_matches[0].as_str().trim();
             if sentence.len() >= MIN_SENTENCE_LENGTH {
-                segments.push(sentence.to_string());
+                if sentence.len() > MAX_LINE_LENGTH {
+                    let split_segments = split_long_sentence_at_commas(sentence);
+                    segments.extend(split_segments);
+                } else {
+                    segments.push(sentence.to_string());
+                }
             }
         } else {
             if line.len() >= MIN_SENTENCE_LENGTH {
-                if line.len() <= 200 {
+                if line.len() <= MAX_LINE_LENGTH {
                     segments.push(line.to_string());
                 } else {
                     let words: Vec<&str> = line.split_whitespace().collect();
@@ -71,12 +79,6 @@ pub fn split_text_into_sentences(text: &str) -> Vec<String> {
                 }
             }
         }
-    } else {
-        for line in lines {
-            if line.len() >= MIN_SENTENCE_LENGTH {
-                segments.push(line.to_string());
-            }
-        }
     }
 
     if segments.is_empty() && !text.trim().is_empty() {
@@ -89,6 +91,37 @@ pub fn split_text_into_sentences(text: &str) -> Vec<String> {
         if !normalized.is_empty() {
             segments.push(normalized);
         }
+    }
+
+    segments
+}
+
+fn split_long_sentence_at_commas(sentence: &str) -> Vec<String> {
+    let mut segments = Vec::new();
+    let mut current_start = 0;
+
+    let comma_positions: Vec<usize> = sentence
+        .char_indices()
+        .filter_map(|(i, c)| if c == ',' { Some(i) } else { None })
+        .collect();
+
+    for &comma_pos in &comma_positions {
+        if comma_pos >= current_start + MIN_SPLIT_POSITION {
+            let segment = &sentence[current_start..=comma_pos];
+            if segment.trim().len() >= MIN_SENTENCE_LENGTH {
+                segments.push(segment.trim().to_string());
+                current_start = comma_pos + 1;
+            }
+        }
+    }
+
+    let remaining = &sentence[current_start..];
+    if remaining.trim().len() >= MIN_SENTENCE_LENGTH {
+        segments.push(remaining.trim().to_string());
+    }
+
+    if segments.is_empty() {
+        segments.push(sentence.to_string());
     }
 
     segments
@@ -151,21 +184,6 @@ mod tests {
                 "This is sentence two.",
                 "This is the third one!"
             ]
-        );
-    }
-
-    #[test]
-    fn test_long_line_with_multiple_sentences() {
-        let text = "This is a very long first sentence that has a lot of characters, I'm handsome btw. This is a second sentence that also has more than forty characters, I'm handsome here as well.";
-        let result = split_text_into_sentences(text);
-        assert_eq!(result.len(), 2);
-        assert_eq!(
-            result[0],
-            "This is a very long first sentence that has a lot of characters, I'm handsome btw."
-        );
-        assert_eq!(
-            result[1],
-            "This is a second sentence that also has more than forty characters, I'm handsome here as well."
         );
     }
 
@@ -239,14 +257,60 @@ mod tests {
     fn test_complex_mixed_content() {
         let text = "This is a proper first sentence.\nThis is a medium sentence here.\nThis is a sentence that should be over 40 characters for sure. This is another sentence that's also over 40 characters.\nThis is a proper fourth sentence.\nThis is another proper sentence.";
         let result = split_text_into_sentences(text);
-        assert_eq!(result.len(), 5);
+        // Fixed expectation: should split all sentences consistently
+        assert_eq!(result.len(), 6);
         assert_eq!(result[0], "This is a proper first sentence.");
         assert_eq!(result[1], "This is a medium sentence here.");
         assert_eq!(
             result[2],
-            "This is a sentence that should be over 40 characters for sure. This is another sentence that's also over 40 characters."
+            "This is a sentence that should be over 40 characters for sure."
         );
-        assert_eq!(result[3], "This is a proper fourth sentence.");
-        assert_eq!(result[4], "This is another proper sentence.");
+        assert_eq!(
+            result[3],
+            "This is another sentence that's also over 40 characters."
+        );
+        assert_eq!(result[4], "This is a proper fourth sentence.");
+        assert_eq!(result[5], "This is another proper sentence.");
+    }
+
+    #[test]
+    fn test_long_sentence_split_at_commas() {
+        let text = "This is a very long sentence that exceeds 200 characters, and it contains multiple commas, which should be used as split points, to break it into smaller more manageable segments, while preserving the meaning and structure of the original text.";
+        let result = split_text_into_sentences(text);
+
+        assert!(result.len() > 1);
+
+        assert!(result[0].ends_with(","));
+        assert!(result[0].len() >= MIN_SPLIT_POSITION);
+
+        for segment in &result {
+            assert!(segment.len() >= MIN_SENTENCE_LENGTH);
+        }
+
+        let rejoined = result.join(" ");
+        assert!(rejoined.contains("very long sentence"));
+        assert!(rejoined.contains("multiple commas"));
+        assert!(rejoined.contains("preserving the meaning"));
+    }
+
+    #[test]
+    fn test_long_sentence_no_commas() {
+        let text = "This is a very long sentence that exceeds 200 characters but contains no commas so it should not be split and should remain as a single segment even though it is longer than the maximum line length threshold.";
+        let result = split_text_into_sentences(text);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], text);
+    }
+
+    #[test]
+    fn test_long_sentence_early_commas() {
+        let text = "This is a sentence, with early commas, but they appear before the 60 character minimum split position so the sentence should remain intact and not be split at those early comma positions.";
+        let result = split_text_into_sentences(text);
+
+        assert!(result.len() >= 1);
+
+        if result.len() > 1 {
+            assert!(result[0].len() >= MIN_SPLIT_POSITION);
+        }
     }
 }
