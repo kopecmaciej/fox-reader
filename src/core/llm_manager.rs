@@ -1,6 +1,9 @@
 use reqwest::Client;
 use serde_json::{json, Value};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     settings::{LLMProvider, ProviderConfig},
@@ -102,26 +105,20 @@ impl LLMManager {
 
         let url = provider_config.base_url.clone();
 
-        let mut request = self
-            .client
-            .post(url)
-            .header("Content-Type", "application/json");
+        let mut headers = HashMap::new();
 
-        if let Some(api_key) = &provider_config.api_key {
-            request = request.header("Authorization", format!("Bearer {}", api_key));
+        if let Some(api_key) = provider_config.api_key {
+            headers.insert("Authorization", format!("Bearer {}", api_key));
         }
 
-        let response = request.json(&request_body).send().await?;
-        let response_json: Value = response.json().await?;
+        let response = self.send_request(&url, request_body, Some(headers)).await?;
 
-        let content = response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .unwrap_or("Failed to parse response")
-            .to_string();
-
-        self.add_assistant_message(&content);
-
-        Ok(content)
+        if let Some(content) = response["choices"][0]["message"]["content"].as_str() {
+            self.add_assistant_message(&content);
+            Ok(content.to_string())
+        } else {
+            return Err(format!("Invalid or empty response content: {}", response).into());
+        }
     }
 
     async fn send_to_openai(
@@ -146,25 +143,15 @@ impl LLMManager {
             .as_ref()
             .ok_or("OpenAI API key is required")?;
 
-        let response = self
-            .client
-            .post(url)
-            .header("Content-Type", "application/json")
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request_body)
-            .send()
-            .await?;
+        let headers = HashMap::from([("Authorization", format!("Bearer {}", api_key))]);
+        let response = self.send_request(&url, request_body, Some(headers)).await?;
 
-        let response_json: Value = response.json().await?;
-
-        let content = response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .unwrap_or("Failed to parse response")
-            .to_string();
-
-        self.add_assistant_message(&content);
-
-        Ok(content)
+        if let Some(content) = response["choices"][0]["message"]["content"].as_str() {
+            self.add_assistant_message(&content);
+            Ok(content.to_string())
+        } else {
+            return Err(format!("Invalid or empty response content: {}", response).into());
+        }
     }
 
     async fn send_to_anthropic(
@@ -198,26 +185,19 @@ impl LLMManager {
             .as_ref()
             .ok_or("Anthropic API key is required")?;
 
-        let response = self
-            .client
-            .post(url)
-            .header("Content-Type", "application/json")
-            .header("x-api-key", api_key)
-            .header("anthropic-version", "2023-06-01")
-            .json(&request_body)
-            .send()
-            .await?;
+        let headers = HashMap::from([
+            ("x-api-key", api_key.to_string()),
+            ("anthropic-version", "2023-06-01".to_string()),
+        ]);
 
-        let response_json: Value = response.json().await?;
+        let response = self.send_request(&url, request_body, Some(headers)).await?;
 
-        let content = response_json["content"][0]["text"]
-            .as_str()
-            .unwrap_or("Failed to parse response")
-            .to_string();
-
-        self.add_assistant_message(&content);
-
-        Ok(content)
+        if let Some(content) = response["content"][0]["text"].as_str() {
+            self.add_assistant_message(content);
+            return Ok(content.to_string());
+        } else {
+            return Err(format!("Invalid or empty response content: {}", response).into());
+        }
     }
 
     async fn send_to_ollama(
@@ -238,31 +218,53 @@ impl LLMManager {
 
         let url = provider_config.base_url.clone();
 
-        let response = self
+        let response = self.send_request(&url, request_body, None).await?;
+
+        if let Some(content) = response["message"]["content"].as_str() {
+            self.add_assistant_message(content);
+            return Ok(content.to_string());
+        } else {
+            return Err(format!("Invalid or empty response content: {}", response).into());
+        }
+    }
+
+    async fn send_request(
+        &self,
+        url: &str,
+        request_body: Value,
+        headers: Option<HashMap<&str, String>>,
+    ) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
+        let mut request = self
             .client
             .post(url)
-            .header("Content-Type", "application/json")
-            .json(&request_body)
-            .send()
-            .await?;
+            .header("Content-Type", "application/json");
 
-        let response_json: Value = response.json().await?;
+        if let Some(headers) = headers {
+            for (key, value) in headers {
+                request = request.header(key, value);
+            }
+        }
 
-        let content = response_json["message"]["content"]
-            .as_str()
-            .unwrap_or("Failed to parse response")
-            .to_string();
+        let response = match request.json(&request_body).send().await {
+            Ok(response) => response,
+            Err(e) => {
+                return Err(format!("Error sending request to Ollama: {}", e).into());
+            }
+        };
 
-        self.add_assistant_message(&content);
-
-        Ok(content)
+        match response.json::<Value>().await {
+            Ok(response_json) => Ok(response_json),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
 fn build_messages_with_system(history: &[Message]) -> Vec<Value> {
     let mut messages = vec![json!({ "role": "system", "content": SYSTEM_PROMPT })];
-    messages.extend(history.iter().map(|msg| {
-        json!({ "role": msg.role, "content": msg.content })
-    }));
+    messages.extend(
+        history
+            .iter()
+            .map(|msg| json!({ "role": msg.role, "content": msg.content })),
+    );
     messages
 }
