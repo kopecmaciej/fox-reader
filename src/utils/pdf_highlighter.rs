@@ -169,7 +169,7 @@ impl PdfHighlighter {
     ) -> Option<PdfRect> {
         if let Ok(pdf_text) = page.text() {
             let search_opt = &PdfSearchOptions::new()
-                .match_case(false)
+                .match_case(true)
                 .match_whole_word(false);
             
             let pdf_text_search = pdf_text.search(text, search_opt);
