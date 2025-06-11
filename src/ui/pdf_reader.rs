@@ -248,6 +248,15 @@ impl PdfReader {
                 }
             }
         ));
+        SETTINGS.connect_highlight_color_changed(clone!(
+            #[weak(rename_to=this)]
+            self,
+            move |_settings, _key| {
+                if this.imp().pdf_wrapper.borrow().get_document().is_some() {
+                    this.refresh_view();
+                }
+            }
+        ));
     }
 
     pub fn refresh_view(&self) {
@@ -494,12 +503,17 @@ impl PdfReader {
             }
         ));
 
-        let (red, green, blue) = self.get_rgba_colors();
-
         imp.highlight_area.borrow().set_draw_func(clone!(
             #[weak]
             imp,
             move |_, cr: &Context, _width, _height| {
+                let highlight_color = SETTINGS.get_highlight_rgba();
+                let (red, green, blue) = (
+                    highlight_color.red(),
+                    highlight_color.green(),
+                    highlight_color.blue(),
+                );
+                
                 // Hovered block
                 cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.6);
                 if let Some(hover_index) = *hovered_rect_clone.borrow() {
@@ -706,14 +720,5 @@ impl PdfReader {
         self.refresh_view();
     }
 
-    fn get_rgba_colors(&self) -> (f32, f32, f32) {
-        let highlight_color = SETTINGS.get_highlight_rgba();
-        let (red, green, blue) = (
-            highlight_color.red(),
-            highlight_color.green(),
-            highlight_color.blue(),
-        );
 
-        (red, green, blue)
-    }
 }
