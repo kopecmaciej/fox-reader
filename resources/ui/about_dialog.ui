@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.0"/>
+  <template class="AboutDialog" parent="AdwDialog">
+    <property name="title">About Fox Reader</property>
+    <property name="content-width">500</property>
+    <property name="content-height">600</property>
+    <child>
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar">
+            <property name="show-start-title-buttons">false</property>
+            <property name="show-end-title-buttons">true</property>
+            <property name="title-widget">
+              <object class="AdwWindowTitle">
+                <property name="title">About Fox Reader</property>
+              </object>
+            </property>
+          </object>
+        </child>
+        <property name="content">
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <child>
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <property name="spacing">24</property>
+                <property name="margin-start">24</property>
+                <property name="margin-end">24</property>
+                <property name="margin-top">24</property>
+                <property name="margin-bottom">24</property>
+                
+                <!-- App Info Section -->
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">12</property>
+                    <property name="halign">center</property>
+                    
+                    <!-- App Icon -->
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">emblem-documents-symbolic</property>
+                        <property name="pixel-size">64</property>
+                      </object>
+                    </child>
+                    
+                    <!-- App Name -->
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">🦊 Fox Reader</property>
+                        <property name="halign">center</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                          <attribute name="scale" value="1.5"/>
+                        </attributes>
+                      </object>
+                    </child>
+                    
+                    <!-- Version -->
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Version 0.1.2</property>
+                        <property name="halign">center</property>
+                        <style>
+                          <class name="dim-label"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                
+                <!-- Description -->
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title">About</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Fox Reader is a simple text-to-speech application built in Rust and GTK4 that converts text to speech using Kokoro TTS voices. It features PDF reading with highlighting, AI chat integration, and Speech Dispatcher compatibility.</property>
+                        <property name="wrap">true</property>
+                        <property name="justify">center</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                
+                <!-- GitHub Link -->
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title">Source Code</property>
+                    <child>
+                      <object class="AdwActionRow" id="github_row">
+                        <property name="title">GitHub Repository</property>
+                        <property name="subtitle">github.com/kopecmaciej/fox-reader</property>
+                        <property name="activatable">true</property>
+                        <child type="suffix">
+                          <object class="GtkImage">
+                            <property name="icon-name">adw-external-link-symbolic</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="AdwActionRow" id="kokoros_row">
+                        <property name="title">Kokoros TTS</property>
+                        <property name="subtitle">github.com/lucasjinreal/Kokoros</property>
+                        <property name="activatable">true</property>
+                        <child type="suffix">
+                          <object class="GtkImage">
+                            <property name="icon-name">adw-external-link-symbolic</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                
+                <!-- Keybindings Section -->
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title">Keyboard Shortcuts</property>
+                    <child>
+                      <object class="GtkListBox" id="keybindings_list">
+                        <property name="selection-mode">none</property>
+                        <style>
+                          <class name="boxed-list"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                
+                <!-- Credits -->
+                <child>
+                  <object class="AdwPreferencesGroup">
+                    <property name="title">Acknowledgments</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">• Kokoros for providing high-quality TTS voices
+                        • GTK4 team for the UI framework  
+                        • Whisper-rs for speech recognition
+                        • Pdfium-render for PDF processing
+                        • Speech Dispatcher project
+                        </property>
+                        <property name="wrap">true</property>
+                        <property name="justify">left</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                        <style>
+                          <class name="dim-label"/>
+                        </style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </property>
+      </object>
+    </child>
+  </template>
+</interface> 

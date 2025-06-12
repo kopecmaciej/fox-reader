@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    dialogs, keybindings::KeyBindingManager, kokoros_download_dialog::KokorosDownloadDialog,
-    settings_dialog::SettingsDialog,
+    about_dialog::AboutDialog, dialogs, keybindings::KeyBindingManager,
+    kokoros_download_dialog::KokorosDownloadDialog, settings_dialog::SettingsDialog,
 };
 
 mod imp {
@@ -44,6 +44,7 @@ mod imp {
         #[template_child]
         pub voice_list: TemplateChild<VoiceList>,
         pub settings_dialog: SettingsDialog,
+        pub about_dialog: AboutDialog,
         pub keybinding_manager: KeyBindingManager,
     }
 
@@ -84,6 +85,12 @@ mod imp {
         fn on_settings_button_clicked(&self, button: &gtk::Button) {
             let settings_dialog = &self.settings_dialog;
             settings_dialog.present(Some(button));
+        }
+
+        #[template_callback]
+        fn on_about_button_clicked(&self, button: &gtk::Button) {
+            let about_dialog = &self.about_dialog;
+            about_dialog.present(Some(button));
         }
     }
 

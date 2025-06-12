@@ -32,6 +32,13 @@
             </child>
             <child type="end">
               <object class="GtkButton">
+                <property name="icon-name">help-about-symbolic</property>
+                <property name="tooltip-text">About Fox Reader</property>
+                <signal handler="on_about_button_clicked" name="clicked" swapped="true"></signal>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkButton">
                 <property name="icon-name">emblem-system-symbolic</property>
                 <property name="tooltip-text">Settings</property>
                 <signal handler="on_settings_button_clicked" name="clicked" swapped="true"></signal>
