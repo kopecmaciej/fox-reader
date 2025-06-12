@@ -88,62 +88,41 @@ impl Tts {
             }
 
             let source_audio = processed_blocks.get(&current_idx).unwrap().clone();
-            let event_future = self.read_block_of_text(source_audio.clone());
 
             self.sender.send(TTSEvent::Progress {
                 block_id: current_idx as u32,
             })?;
 
-            let next_block = current_idx + 1;
-            let event =
-                if !processed_blocks.contains_key(&(next_block)) && next_block < blocks_map.len() {
-                    let reading_block = blocks_map.get(&(next_block as u32)).unwrap().clone();
-                    let voice_clone = voice.clone();
-                    let voice_future = spawn_tokio(async move {
-                        match VoiceManager::generate_kokoros_speech(
-                            &reading_block.get_text(),
-                            &voice_clone,
-                            speed,
-                        )
-                        .await
-                        {
-                            Ok(audio) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(audio),
-                            Err(e) => Err(format!("Error generating speech: {}", e).into()),
-                        }
-                    });
-
-                    let (event_res, next_audio_result) = tokio::join!(event_future, voice_future);
-                    match next_audio_result {
-                        Ok(audio) => processed_blocks.insert(next_block, audio),
-                        Err(e) => {
-                            return Err(e);
-                        }
-                    };
-                    event_res
-                } else {
-                    self.read_block_of_text(source_audio.clone()).await
-                };
+            let event = self
+                .play_block_with_prefetch(
+                    source_audio,
+                    current_idx,
+                    &blocks_map,
+                    &voice,
+                    speed,
+                    &mut processed_blocks,
+                )
+                .await?;
 
             match event {
-                Ok(Some(TTSEvent::Stop)) => {
+                Some(TTSEvent::Stop) => {
                     self.current_id.store(0, Ordering::SeqCst);
                     processed_blocks.clear();
                     break;
                 }
-                Ok(Some(TTSEvent::Next)) => {
+                Some(TTSEvent::Next) => {
                     if current_idx + 1 < blocks_map.len() {
                         self.current_id.store(current_idx + 1, Ordering::SeqCst);
                     }
                     continue;
                 }
-                Ok(Some(TTSEvent::Prev)) => {
+                Some(TTSEvent::Prev) => {
                     if current_idx > 0 {
                         self.current_id.store(current_idx - 1, Ordering::SeqCst);
                     }
                     continue;
                 }
-                Ok(Some(TTSEvent::Error(e))) => return Err(e.into()),
-                Err(e) => return Err(e),
+                Some(TTSEvent::Error(e)) => return Err(e.into()),
                 _ => {
                     self.current_id.fetch_add(1, Ordering::SeqCst);
                     continue;
@@ -154,6 +133,52 @@ impl Tts {
         self.current_id.store(0, Ordering::SeqCst);
 
         Ok(())
+    }
+
+    async fn play_block_with_prefetch<T>(
+        &self,
+        source_audio: SamplesBuffer<f32>,
+        current_idx: usize,
+        blocks_map: &BTreeMap<u32, T>,
+        voice: &str,
+        speed: f32,
+        processed_blocks: &mut HashMap<usize, SamplesBuffer<f32>>,
+    ) -> Result<Option<TTSEvent>, Box<dyn Error>>
+    where
+        T: ReadingBlock + Send + Sync + 'static + Clone,
+    {
+        let event_future = self.read_block_of_text(source_audio.clone());
+        let next_block = current_idx + 1;
+
+        if !processed_blocks.contains_key(&next_block) && next_block < blocks_map.len() {
+            let reading_block = blocks_map.get(&(next_block as u32)).unwrap().clone();
+            let voice_clone = voice.to_string();
+            let voice_future = spawn_tokio(async move {
+                match VoiceManager::generate_kokoros_speech(
+                    &reading_block.get_text(),
+                    &voice_clone,
+                    speed,
+                )
+                .await
+                {
+                    Ok(audio) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(audio),
+                    Err(e) => Err(format!("Error generating speech: {}", e).into()),
+                }
+            });
+
+            let (event_res, next_audio_result) = tokio::join!(event_future, voice_future);
+
+            match next_audio_result {
+                Ok(audio) => {
+                    processed_blocks.insert(next_block, audio);
+                }
+                Err(e) => return Err(e),
+            }
+
+            event_res
+        } else {
+            event_future.await
+        }
     }
 
     pub async fn read_block_of_text(
