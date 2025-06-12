@@ -229,6 +229,31 @@ row {
   color: white;
 }
 
+.copy-button {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px;
+  margin: 2px;
+  border-radius: 4px;
+}
+
+.message:hover .copy-button {
+  opacity: 1;
+}
+
+.copy-button:hover {
+  background-color: alpha(@theme_fg_color, 0.1);
+}
+
+.copy-button.copy-success {
+  background-color: alpha(@secondary_color, 0.2);
+  color: @secondary_color;
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
 .mic-button {
   background-color: @primary_color;
   border-radius: 50%;

@@ -8,7 +8,8 @@
     <property name="margin-end">8</property>
     <child>
       <object class="GtkBox" id="message_box">
-        <property name="orientation">vertical</property>
+        <property name="orientation">horizontal</property>
+        <property name="spacing">8</property>
         <style>
           <class name="message" />
         </style>
@@ -23,6 +24,21 @@
             <property name="margin-end">4</property>
             <property name="margin-top">2</property>
             <property name="margin-bottom">2</property>
+            <property name="hexpand">true</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="copy_button">
+            <property name="icon-name">edit-copy-symbolic</property>
+            <property name="valign">start</property>
+            <property name="halign">end</property>
+            <property name="tooltip-text">Copy message</property>
+            <property name="visible">true</property>
+            <signal name="clicked" handler="on_copy_button_clicked" swapped="true" />
+            <style>
+              <class name="flat" />
+              <class name="copy-button" />
+            </style>
           </object>
         </child>
       </object>
