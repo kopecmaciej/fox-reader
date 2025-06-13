@@ -14,8 +14,6 @@ mod imp {
         pub keybindings_list: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub github_row: TemplateChild<adw::ActionRow>,
-        #[template_child]
-        pub kokoros_row: TemplateChild<adw::ActionRow>,
     }
 
     #[glib::object_subclass]

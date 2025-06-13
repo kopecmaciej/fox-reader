@@ -104,18 +104,6 @@
                         </child>
                       </object>
                     </child>
-                    <child>
-                      <object class="AdwActionRow" id="kokoros_row">
-                        <property name="title">Kokoros TTS</property>
-                        <property name="subtitle">github.com/lucasjinreal/Kokoros</property>
-                        <property name="activatable">true</property>
-                        <child type="suffix">
-                          <object class="GtkImage">
-                            <property name="icon-name">adw-external-link-symbolic</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
                   </object>
                 </child>
                 
@@ -141,10 +129,10 @@
                     <child>
                       <object class="GtkLabel">
                         <property name="label">• Kokoros for providing high-quality TTS voices
-                        • GTK4 team for the UI framework  
-                        • Whisper-rs for speech recognition
-                        • Pdfium-render for PDF processing
-                        • Speech Dispatcher project
+• GTK4 team for the UI framework
+• Whisper-rs for speech recognition
+• Pdfium-render for PDF processing
+• Speech Dispatcher project
                         </property>
                         <property name="wrap">true</property>
                         <property name="justify">left</property>
