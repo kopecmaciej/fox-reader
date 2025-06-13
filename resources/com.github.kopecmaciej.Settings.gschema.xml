@@ -28,7 +28,7 @@
       <description>The font used for displaying text</description>
     </key>
     <key name="highlight-color" type="s">
-      <default>'rgba(255,255,0,0.3)'</default>
+      <default>'rgba(153,193,241,0.3)'</default>
       <summary>Highlight Color</summary>
       <description>Color used for text highlighting</description>
     </key>
