@@ -6,13 +6,13 @@ converts text to speech using high-quality voices from
 
 ## Current UI:
 
-![AI Chat](assets/ai_chat.png)
+![AI Chat](assets/ai_chat_v2.png)
 
-![PDF Reader](assets/pdf_reader.png)
+![PDF Reader](assets/pdf_reader_v2.png)
 
-![Voice List](assets/voice_list.png)
+![Voice List](assets/voice_list_v2.png)
 
-![Settings](assets/settings.png)
+![Settings](assets/settings_v2.png)
 
 ## Why I've built it?
 
