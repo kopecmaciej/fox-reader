@@ -1,8 +1,8 @@
 # 🦊 Fox Reader
 
 Fox Reader is a simple text-to-speech application built in Rust and GTK4 that
-converts text to speech using all voices from
-[piper voices](https://huggingface.co/rhasspy/piper-voices).
+converts text to speech using high-quality voices from
+[Kokoros TTS](https://github.com/lucasjinreal/Kokoros).
 
 ## Current UI:
 
@@ -14,9 +14,9 @@ converts text to speech using all voices from
 
 ## Why I've built it?
 
-While other applications offer Piper voice integration with Speech Dispatcher, I
-wanted a little bit more, also non of them seems to work with firefox
-`Read aloud` functionallty, so I decided to build this small GTK application.
+While other applications offer TTS integration with Speech Dispatcher, I
+wanted a little bit more, also none of them seem to work with Firefox
+`Read aloud` functionality, so I decided to build this small GTK application.
 
 ## Key Features
 
@@ -30,7 +30,7 @@ wanted a little bit more, also non of them seems to work with firefox
    - Voice-to-text capability using Whisper models
 
 3. **Text-to-Speech with Highlighting System**
-   - Convert any text to natural-sounding speech
+   - Convert any text to natural-sounding speech using Kokoros voices
 
 4. **Speech Dispatcher Compatibility**
    - Seamless integration with Linux accessibility tools
@@ -120,17 +120,17 @@ cargo build --release
 ### Voice Management
 
 1. Open the `Voice List` tab
-2. Browse available voices from the Piper voices repository
-3. Download desired voices, every downloaded voice is avaliable in `PDF Reader`, `Text Reader`
+2. Browse available voices from the Kokoros TTS repository
+3. Download desired voices; every downloaded voice is available in `PDF Reader`, `Text Reader`,
    and `Speech Dispatcher`
 4. Set favorite voice as default for `Speech Dispatcher` usage without specified model
 
 ### Speech Dispatcher Integration
 
-Fox Reader integrates with Speech Dispatcher through via app cli mode.
-Special script located in `~/.config/speech-dispatcher/fox-reader.sh`
+Fox Reader integrates with Speech Dispatcher through the app's CLI mode.
+A special script located in `~/.config/speech-dispatcher/fox-reader.sh`
 will forward data and options properly. If `Fox Reader` is missing in 
-`$PATH` you have to specify location by yourself in script.
+`$PATH` you have to specify location by yourself in the script.
 
 ### CLI Usage
 
@@ -145,32 +145,31 @@ fox-reader --cli --model <MODEL_PATH> --text <TEXT> [--rate <RATE>] [--output <O
 #### Required Arguments
 
 - `--cli`: Run in CLI mode without launching the GUI
-- `--model` or `-m`: Path to the Piper model directory (must point to a .onnx.json file)
 - `--text` or `-t`: Text to synthesize
 
 #### Optional Arguments
 
-- `--rate` or `-r`: Speech rate adjustment (-100 to 100)
-  - Negative values slow down speech
-  - Positive values speed up speech
+- `--voice` or `-v`: Voice name from `Voice List` tab, example: `pm_alex`
+- `--speed` or `-s`: Speech rate adjustment (0.5 to 2)
 - `--output` or `-o`: Path to save the audio output in WAV format
   - If not specified, audio will play immediately
+- `--list-voices` or `-l`: List all available voices
 
 #### Examples
 
 **Play speech immediately:**
 ```bash
-fox-reader --cli --model ~/.local/share/fox-reader/voices/en_US-ryan-high.onnx.json --text "Hello, this is Fox Reader speaking."
+fox-reader --cli --voice pm_alex --text "Hello, this is Fox Reader speaking."
 ```
 
 **Adjust speech rate:**
 ```bash
-fox-reader --cli --model ~/.local/share/fox-reader/voices/en_US-ryan-high.onnx.json --text "This is faster speech." --rate 20
+fox-reader --cli --voice pm_alex --text "This is faster speech." --speed 1.5
 ```
 
 **Save to file instead of playing:**
 ```bash
-fox-reader --cli --model ~/.local/share/fox-reader/voices/en_US-ryan-high.onnx.json --text "This will be saved to a file." --output ~/output.wav
+fox-reader --cli --voice pm_alex --text "This will be saved to a file." --output ~/output.wav
 ```
 
 ## Configuration
@@ -221,10 +220,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Acknowledgments
 
-- [Piper Voices](https://huggingface.co/rhasspy/piper-voices) for providing the
-  TTS voices
+- [Kokoros TTS](https://github.com/lucasjinreal/Kokoros) for providing high-quality TTS voices
 - [GTK4 team](https://www.gtk.org/) for the UI framework
 - [Speech Dispatcher project](https://freebsoft.org/speechd)
-- [Pdfium-render](https://github.com/ajrcarey/pdfium-render) After using multiple crates that works with PDF's this one seems the best
-- [Piper-rs](https://github.com/thewh1teagle/piper-rs) for simple integration with Piper voices
+- [Pdfium-render](https://github.com/ajrcarey/pdfium-render) After using multiple crates that work with PDFs, this one seems the best
 - [Whisper-rs](https://github.com/tazz4843/whisper-rs) seamless integration with Whisper models.
