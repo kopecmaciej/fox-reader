@@ -12,8 +12,10 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
 
     let matches = Command::new("fox-reader")
         .about("A text-to-speech application with GUI and CLI modes")
-        .long_about("Fox Reader can synthesize speech from text using various voice styles. \
-                    Run without --cli for GUI mode, or use --cli for command-line operation.")
+        .long_about(
+            "Fox Reader can synthesize speech from text using various voice styles. \
+                    Run without --cli for GUI mode, or use --cli for command-line operation.",
+        )
         .arg(
             Arg::new("cli")
                 .long("cli")
@@ -97,18 +99,27 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         .await
         .map_err(|e| format!("Failed to initialize Kokoros TTS: {}", e))?;
 
+    // Check if we're being called from speech dispatcher (via environment or other indicators)
+    let is_speech_dispatcher = std::env::var("MOZ_CRASHREPORTER_DATA_DIRECTORY").is_ok()
+        || std::env::var("SPEECHD_PORT").is_ok()
+        || std::env::var("SPEECHD_HOST").is_ok();
+
     if let Some(output_path) = output_path {
         if let Err(e) = FileHandler::ensure_all_paths_exists(output_path) {
             let err_msg = format!("Error: Failed to create output directory: {}", e);
             return Err(err_msg.into());
         }
 
-        println!("Generating and saving speech to file...");
+        if !is_speech_dispatcher {
+            println!("Generating and saving speech to file...");
+        }
         match VoiceManager::save_kokoros_speech_to_file(text, voice_style, *speed, output_path)
             .await
         {
             Ok(_) => {
-                println!("Successfully saved audio to: {}", output_path);
+                if !is_speech_dispatcher {
+                    println!("Successfully saved audio to: {}", output_path);
+                }
             }
             Err(e) => {
                 let err_msg = format!("Error: Failed to save audio to file: {}", e);
@@ -116,16 +127,22 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             }
         }
     } else {
-        println!("Generating speech...");
+        if !is_speech_dispatcher {
+            println!("Generating speech...");
+        }
         let audio_buffer = VoiceManager::generate_kokoros_speech(text, voice_style, *speed)
             .await
             .map_err(|e| format!("Failed to generate speech: {}", e))?;
 
-        println!("Playing audio...");
+        if !is_speech_dispatcher {
+            println!("Playing audio...");
+        }
         let player = AudioPlayer::default();
         match player.play_audio(audio_buffer) {
             Ok(_) => {
-                println!("Audio playback completed.");
+                if !is_speech_dispatcher {
+                    println!("Audio playback completed.");
+                }
             }
             Err(e) => {
                 let err_msg = format!("Error: Failed to play audio: {}", e);

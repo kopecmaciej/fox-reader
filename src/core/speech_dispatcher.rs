@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use crate::{paths::dispatcher_config, utils::file_handler::FileHandler};
+use crate::core::voice_manager::VoiceManager;
 
 const FOX_READER_SCRIPT: &[u8] = include_bytes!("../../scripts/fox-piper.sh");
 
@@ -81,11 +82,21 @@ DefaultModule "fox-reader""#,
 }
 
 fn module_template() -> String {
+    let voices = VoiceManager::get_kokoros_voice_rows();
+    let add_voice_lines: String = voices.iter().map(|voice| {
+        let gender = if voice.traits.contains("♂️") { "male1" } else { "female1" };
+        format!(r#"AddVoice "{}" "{}" "{}""#, format!("{}_{}", voice.language.code, voice.key), gender, voice.key)
+    }).collect::<Vec<_>>().join("\n");
+    let default_voice = voices.first().unwrap().key.clone();
+    
     format!(
         r#"
-GenericExecuteSynth "export DATA='$DATA';export RATE='$RATE';export VOICE='$VOICE';export VOICE_PATH='{}';{}""#,
-        // TODO: Add new voices
-        "kokoros_voice",
-        dispatcher_config::get_script_path()
+GenericExecuteSynth "export DATA='$DATA';export RATE='$RATE';export VOICE='$VOICE';{}"
+DefaultVoice "{}"
+
+{}"#,
+        dispatcher_config::get_script_path(),
+        default_voice,
+        add_voice_lines,
     )
 }
