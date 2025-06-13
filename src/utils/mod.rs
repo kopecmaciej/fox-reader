@@ -11,3 +11,4 @@ pub mod schema_handler;
 pub mod text;
 pub mod text_highlighter;
 pub mod whisper_downloader;
+pub mod espeak_handler;

@@ -1,4 +1,5 @@
 use std::{
+    io::{self, Write},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -98,6 +99,36 @@ impl ProgressTracker {
         });
 
         (on_complete, on_cancel)
+    }
+
+    pub fn get_terminal_progress_callback(&self) -> ProgressCallback {
+        let progress_value = Arc::clone(&self.progress_value);
+
+        Arc::new(Mutex::new(move |progress: f32| {
+            let mut value = progress_value.lock().unwrap();
+            *value = progress;
+
+            Self::print_terminal_progress(progress);
+        }))
+    }
+
+    pub fn print_terminal_progress(progress: f32) {
+        let bar_width = 50;
+        let filled_width = (progress * bar_width as f32) as usize;
+
+        let bar: String = format!(
+            "[{}{}] {:.1}%",
+            "=".repeat(filled_width),
+            " ".repeat(bar_width - filled_width),
+            progress * 100.0
+        );
+
+        print!("\r{}", bar);
+        io::stdout().flush().unwrap();
+
+        if progress >= 0.999 {
+            println!();
+        }
     }
 }
 

@@ -25,6 +25,11 @@ pub fn get_pdfium_path() -> String {
     build_path(FOX_READER_BASE_PATH, "pdfium")
 }
 
+pub fn get_espeak_path() -> String {
+    build_path(FOX_READER_BASE_PATH, "espeak-ng-data")
+}
+
+
 pub mod whisper_config {
     use super::*;
 

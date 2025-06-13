@@ -1,4 +1,4 @@
-use adw::prelude::AdwDialogExt;
+use adw::prelude::*;
 use adw::subclass::prelude::*;
 use gio::glib::Object;
 use gtk::prelude::*;
@@ -7,8 +7,9 @@ use gtk::{
     StringList,
 };
 
-use crate::core::runtime;
+use crate::core::runtime::{self, spawn_tokio};
 use crate::core::voice_manager::VoiceManager;
+use crate::utils::espeak_handler::EspeakHandler;
 use crate::{
     core::speech_dispatcher::SpeechDispatcher, utils::kokoros_downloader::KokorosDownloader,
     SETTINGS,
@@ -132,6 +133,7 @@ impl FoxReaderAppWindow {
         imp.text_reader.init();
         imp.pdf_reader.init();
         imp.ai_chat.init();
+        window.ensure_espeak_avaliable();
         window.filter_out_by_language();
         window.update_voice_selector_on_click();
         window.setup_search();
@@ -148,16 +150,72 @@ impl FoxReaderAppWindow {
                 self,
                 async move {
                     let dialog = KokorosDownloadDialog::new(&window);
-                    if let Err(e) = dialog.download_and_show(&window).await {
-                        dialogs::show_error_dialog(&format!("Download failed: {}", e), &window)
+                    match dialog.download_and_show(&window).await {
+                        Ok(_) => {
+                            if let Err(e) = runtime::runtime().block_on(VoiceManager::init_kokoros()) {
+                                let err_msg = format!("Error initializing Kokoros: {}", e);
+                                dialogs::show_error_dialog(&err_msg, &window);
+                            }
+                        }
+                        Err(e) => {
+                            dialogs::show_error_dialog(&format!("Download failed: {}", e), &window);
+                        }
                     }
                 }
             ));
+        } else {
+            if let Err(e) = runtime::runtime().block_on(VoiceManager::init_kokoros()) {
+                let err_msg = format!("Error initializing Kokoros: {}", e);
+                dialogs::show_error_dialog(&err_msg, self.upcast_ref::<gtk::Widget>());
+            }
         }
-        if let Err(e) = runtime::runtime().block_on(VoiceManager::init_kokoros()) {
-            let err_msg = format!("Error initializing Kokoros: {}", e);
-            dialogs::show_error_dialog(&err_msg, self.upcast_ref::<gtk::Widget>());
-        }
+    }
+
+    fn ensure_espeak_avaliable(&self) {
+        glib::spawn_future_local(clone!(
+            #[weak(rename_to=this)]
+            self,
+            async move {
+                if !EspeakHandler::is_espeak_installed() {
+                    let downloading_dialog = adw::MessageDialog::new(
+                        Some(&this),
+                        Some("Downloading Required Files"),
+                        None,
+                    );
+                    downloading_dialog.set_width_request(400);
+                    downloading_dialog.set_body("Downloading espeak-ng data files, please hold");
+                    downloading_dialog.add_response("1", "Cancel");
+                    downloading_dialog.set_default_response(Some("1"));
+                    downloading_dialog.present();
+
+                    let download_result = spawn_tokio(async move {
+                        match EspeakHandler::download_espeak_data(None).await {
+                            Ok(res) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(res),
+                            Err(e) => Err(format!("Error generating speech: {}", e).into()),
+                        }
+                    })
+                    .await;
+
+                    match download_result {
+                        Ok(_) => {
+                            downloading_dialog
+                                .set_body("Espeak data files have been successfully downloaded.");
+
+                            downloading_dialog.close();
+                        }
+                        Err(e) => {
+                            downloading_dialog.close();
+                            dialogs::show_error_dialog(
+                                &format!("Failed to download espeak data: {}", e),
+                                &this,
+                            );
+                        }
+                    }
+                }
+
+                EspeakHandler::set_espeak_environment();
+            }
+        ));
     }
 
     fn setup_keybindings(&self) {
