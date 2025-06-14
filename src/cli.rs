@@ -3,6 +3,7 @@ use std::error::Error;
 
 use crate::core::voice_manager::VoiceManager;
 use crate::utils::audio_player::AudioPlayer;
+use crate::utils::espeak_handler::EspeakHandler;
 use crate::utils::file_handler::FileHandler;
 
 pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
@@ -76,6 +77,10 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
             return Err("Error: flag --cli cannot be empty".into());
         }
     };
+
+    if !EspeakHandler::is_espeak_installed() {
+        EspeakHandler::download_with_progress_cli().await?;
+    }
 
     let voice_style = matches.get_one::<String>("voice").unwrap();
     let speed = matches.get_one::<f32>("speed").unwrap();
