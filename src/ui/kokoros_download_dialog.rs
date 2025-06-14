@@ -2,7 +2,10 @@ use adw::prelude::*;
 use adw::AlertDialog;
 use gtk::{self, glib, prelude::IsA};
 use std::error::Error;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tokio::sync::Mutex;
 
 use crate::core::runtime::spawn_tokio;
@@ -14,6 +17,7 @@ pub struct KokorosDownloadDialog {
     progress_bar: gtk::ProgressBar,
     status_label: gtk::Label,
     downloader: Arc<Mutex<KokorosDownloader>>,
+    is_cancelled: Arc<AtomicBool>,
 }
 
 impl KokorosDownloadDialog {
@@ -22,6 +26,9 @@ impl KokorosDownloadDialog {
             .heading("Preparing Voice Engine")
             .body("Downloading required voice files...")
             .build();
+
+        dialog.add_response("cancel", "Cancel");
+        dialog.set_response_appearance("cancel", adw::ResponseAppearance::Destructive);
 
         let vbox = gtk::Box::new(gtk::Orientation::Vertical, 12);
         vbox.set_margin_top(12);
@@ -44,11 +51,14 @@ impl KokorosDownloadDialog {
             ProgressTracker::default(),
         )));
 
+        let is_cancelled = Arc::new(AtomicBool::new(false));
+
         Self {
             dialog,
             progress_bar,
             status_label,
             downloader,
+            is_cancelled,
         }
     }
 
@@ -64,18 +74,43 @@ impl KokorosDownloadDialog {
         let (on_complete, on_cancel) = progress_tracker.track_with_progress_bar(&self.progress_bar);
 
         let downloader = self.downloader.clone();
-        let download_result = spawn_tokio(async move {
-            match downloader
-                .lock()
-                .await
-                .download_required_files(Some(progress_callback))
-                .await
-            {
-                Ok(res) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(res),
-                Err(e) => Err(format!("Download failed: {}", e).into()),
+        let is_cancelled = self.is_cancelled.clone();
+
+        let is_cancelled_for_dialog = is_cancelled.clone();
+        self.dialog.connect_response(None, move |_, response| {
+            if response == "cancel" {
+                is_cancelled_for_dialog.store(true, Ordering::SeqCst);
             }
-        })
-        .await;
+        });
+
+        let download_task = spawn_tokio(async move {
+            let is_cancelled_check = is_cancelled.clone();
+            let cancel_check = async move {
+                loop {
+                    if is_cancelled_check.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
+            };
+
+            tokio::select! {
+                result = async {
+                    match downloader
+                        .lock()
+                        .await
+                        .download_required_files(Some(progress_callback))
+                        .await
+                    {
+                        Ok(res) => Ok::<_, Box<dyn std::error::Error + Send + Sync>>(res),
+                        Err(e) => Err(format!("Download failed: {}", e).into()),
+                    }
+                } => result,
+                _ = cancel_check => Ok(())
+            }
+        });
+
+        let download_result = download_task.await;
 
         match download_result {
             Ok(_) => {
