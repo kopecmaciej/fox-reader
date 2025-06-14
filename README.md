@@ -14,22 +14,17 @@ converts text to speech using high-quality voices from
 
 ![Settings](assets/settings_v2.png)
 
-## Why I've built it?
-
-While other applications offer TTS integration with Speech Dispatcher, I
-wanted a little bit more, also none of them seem to work with Firefox
-`Read aloud` functionality, so I decided to build this small GTK application.
-
 ## Key Features
 
-1. **PDF Reader with Highlighting System**
+1. **AI Chat with LLM Integration**
+   - Use local LLM solutions (Ollama/LM Studio)
+   - Connect to AI models via API keys (OpenAI, etc.)
+   - Voice-to-text capability using Whisper models
+
+2. **PDF Reader with Highlighting System**
+   - Simple PDF render system
    - Read PDF documents with real-time text highlighting
    - Choose from where to start reading
-
-2. **AI Chat with LLM Integration**
-   - Connect to AI models via API keys (OpenAI, etc.)
-   - Use local LLM solutions (Ollama/LM Studio)
-   - Voice-to-text capability using Whisper models
 
 3. **Text-to-Speech with Highlighting System**
    - Convert any text to natural-sounding speech using Kokoros voices
