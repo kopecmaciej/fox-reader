@@ -136,12 +136,8 @@ impl VoiceRow {
                         println!("Playing sample for voice: {}", this.key());
 
                         match spawn_tokio(async move {
-                            VoiceManager::generate_kokoros_speech(
-                                sample_text,
-                                &voice_style,
-                                1.0,
-                            )
-                            .await
+                            VoiceManager::generate_kokoros_speech(sample_text, &voice_style, 1.0)
+                                .await
                         })
                         .await
                         {
@@ -175,10 +171,10 @@ impl VoiceRow {
                     dialogs::show_error_dialog(&err_msg, button);
                     return;
                 }
-                
+
                 let settings = Settings::default();
                 settings.set_default_voice(&this.key());
-                
+
                 this.set_is_default(true);
             }
         ));

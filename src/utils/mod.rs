@@ -1,5 +1,6 @@
 pub mod audio_player;
 pub mod debouncer;
+pub mod espeak_handler;
 pub mod file_handler;
 pub mod highlighter;
 pub mod kokoros_downloader;
@@ -11,4 +12,3 @@ pub mod schema_handler;
 pub mod text;
 pub mod text_highlighter;
 pub mod whisper_downloader;
-pub mod espeak_handler;

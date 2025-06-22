@@ -127,4 +127,3 @@ pub fn format_key_combination(key: gdk::Key, modifiers: gdk::ModifierType) -> St
 
     parts.join("+")
 }
-

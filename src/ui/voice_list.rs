@@ -327,8 +327,7 @@ impl VoiceList {
                     if let Some(grid) = list_item.child().and_downcast::<gtk::Grid>() {
                         grid.remove_row(0);
 
-                        let (play_button, set_default_button) =
-                            VoiceRow::setup_action_buttons();
+                        let (play_button, set_default_button) = VoiceRow::setup_action_buttons();
 
                         voice_row.handle_play_actions(&play_button);
                         voice_row.handle_set_default_actions(&set_default_button);

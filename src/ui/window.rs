@@ -152,7 +152,9 @@ impl FoxReaderAppWindow {
                     let dialog = KokorosDownloadDialog::new(&window);
                     match dialog.download_and_show(&window).await {
                         Ok(_) => {
-                            if let Err(e) = runtime::runtime().block_on(VoiceManager::init_kokoros()) {
+                            if let Err(e) =
+                                runtime::runtime().block_on(VoiceManager::init_kokoros())
+                            {
                                 let err_msg = format!("Error initializing Kokoros: {}", e);
                                 dialogs::show_error_dialog(&err_msg, &window);
                             }

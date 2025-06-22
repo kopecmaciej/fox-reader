@@ -64,12 +64,13 @@ impl AboutDialog {
         for binding in bindings {
             let row = adw::ActionRow::new();
             row.set_title(&binding.description);
-            
-            let key_combo = super::keybindings::format_key_combination(binding.key, binding.modifiers);
+
+            let key_combo =
+                super::keybindings::format_key_combination(binding.key, binding.modifiers);
             let key_label = gtk::Label::new(Some(&key_combo));
             key_label.add_css_class("monospace");
             key_label.add_css_class("dim-label");
-            
+
             row.add_suffix(&key_label);
             imp.keybindings_list.append(&row);
         }
@@ -79,15 +80,11 @@ impl AboutDialog {
         let imp = self.imp();
         imp.github_row.connect_activated(move |_| {
             let launcher = gtk::UriLauncher::new("https://github.com/kopecmaciej/fox-reader");
-            launcher.launch(
-                gtk::Window::NONE,
-                gtk::gio::Cancellable::NONE,
-                |result| {
-                    if let Err(e) = result {
-                        eprintln!("Failed to open GitHub link: {}", e);
-                    }
-                },
-            );
+            launcher.launch(gtk::Window::NONE, gtk::gio::Cancellable::NONE, |result| {
+                if let Err(e) = result {
+                    eprintln!("Failed to open GitHub link: {}", e);
+                }
+            });
         });
     }
-} 
+}

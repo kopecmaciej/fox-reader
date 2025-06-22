@@ -1,6 +1,6 @@
 use pdfium_render::prelude::{
-    PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPageTextObject,
-    PdfPoints, PdfQuadPoints, PdfRect, PdfSearchDirection, PdfSearchOptions,
+    PdfPage, PdfPageObjectCommon, PdfPageObjectsCommon, PdfPageTextObject, PdfPoints,
+    PdfQuadPoints, PdfRect, PdfSearchDirection, PdfSearchOptions,
 };
 
 use crate::utils::highlighter::ReadingBlock;
@@ -115,7 +115,7 @@ impl PdfHighlighter {
         if cleaned_text.is_empty() {
             return Ok(());
         }
-        
+
         let font_size = text_obj.unscaled_font_size().value;
         let rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
 
@@ -129,8 +129,11 @@ impl PdfHighlighter {
             let next_sentence = next_sentence.trim();
 
             if !current_sentence.is_empty() {
-                let current_rect = self.find_precise_text_bounds(page, current_sentence, &bounds)
-                    .unwrap_or_else(|| self.estimate_text_bounds(&bounds, current_sentence, &cleaned_text, true));
+                let current_rect = self
+                    .find_precise_text_bounds(page, current_sentence, &bounds)
+                    .unwrap_or_else(|| {
+                        self.estimate_text_bounds(&bounds, current_sentence, &cleaned_text, true)
+                    });
 
                 self.add_text_to_blocks(
                     reading_blocks,
@@ -141,8 +144,11 @@ impl PdfHighlighter {
             }
 
             if !next_sentence.is_empty() {
-                let next_rect = self.find_precise_text_bounds(page, next_sentence, &bounds)
-                    .unwrap_or_else(|| self.estimate_text_bounds(&bounds, next_sentence, &cleaned_text, false));
+                let next_rect = self
+                    .find_precise_text_bounds(page, next_sentence, &bounds)
+                    .unwrap_or_else(|| {
+                        self.estimate_text_bounds(&bounds, next_sentence, &cleaned_text, false)
+                    });
 
                 let id = reading_blocks.last().map(|last| last.id + 1).unwrap_or(0);
                 let new_block = PdfReadingBlock {
@@ -157,7 +163,7 @@ impl PdfHighlighter {
             // Add entire text as single block or merge with previous
             self.add_text_to_blocks(reading_blocks, cleaned_text, rect, font_size);
         }
-        
+
         Ok(())
     }
 
@@ -171,13 +177,13 @@ impl PdfHighlighter {
             let search_opt = &PdfSearchOptions::new()
                 .match_case(true)
                 .match_whole_word(false);
-            
+
             let pdf_text_search = pdf_text.search(text, search_opt);
-            
+
             for search_result in pdf_text_search.iter(PdfSearchDirection::SearchForward) {
                 for text_segment in search_result.iter() {
                     let segment_bounds = text_segment.bounds();
-                    
+
                     if self.bounds_overlap(&segment_bounds, original_bounds) {
                         return Some(segment_bounds);
                     }
@@ -196,7 +202,7 @@ impl PdfHighlighter {
     ) -> PdfRect {
         let text_ratio = target_text.len() as f32 / full_text.len() as f32;
         let available_width = bounds.width().value;
-        
+
         if is_first_part {
             let estimated_width = available_width * text_ratio;
             let right = bounds.left().value + estimated_width;
@@ -220,8 +226,9 @@ impl PdfHighlighter {
 
     fn bounds_overlap(&self, rect: &PdfRect, bounds: &PdfQuadPoints) -> bool {
         let tolerance = 5.0;
-        let bounds_rect = PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
-        
+        let bounds_rect =
+            PdfRect::new(bounds.bottom(), bounds.left(), bounds.top(), bounds.right());
+
         !(rect.right().value < bounds_rect.left().value - tolerance
             || bounds_rect.right().value < rect.left().value - tolerance
             || rect.top().value < bounds_rect.bottom().value - tolerance

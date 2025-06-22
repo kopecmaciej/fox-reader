@@ -513,7 +513,7 @@ impl PdfReader {
                     highlight_color.green(),
                     highlight_color.blue(),
                 );
-                
+
                 // Hovered block
                 cr.set_source_rgba(red.into(), green.into(), blue.into(), 0.6);
                 if let Some(hover_index) = *hovered_rect_clone.borrow() {
@@ -706,8 +706,16 @@ impl PdfReader {
 
                     imp.pdf_highlighter.borrow_mut().clear_highlight();
                     this.refresh_view();
-                    this.imp().audio_controls.imp().play_button.set_icon_name("media-playback-start-symbolic");
-                    this.imp().audio_controls.imp().stop_button.set_sensitive(false);
+                    this.imp()
+                        .audio_controls
+                        .imp()
+                        .play_button
+                        .set_icon_name("media-playback-start-symbolic");
+                    this.imp()
+                        .audio_controls
+                        .imp()
+                        .stop_button
+                        .set_sensitive(false);
                 }
             }
         ));
@@ -719,6 +727,4 @@ impl PdfReader {
             .replace_with(|old| (*old + factor).max(0.5));
         self.refresh_view();
     }
-
-
 }

@@ -12,5 +12,5 @@ mod voice_events;
 mod voice_list;
 mod voice_row;
 
-pub mod window;
 pub mod keybindings;
+pub mod window;

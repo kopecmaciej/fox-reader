@@ -8,12 +8,7 @@ use gtk::{
     subclass::prelude::*,
 };
 
-use super::{
-    dialogs,
-    helpers::voice_selector,
-    voice_events::event_emiter,
-    voice_row::VoiceRow,
-};
+use super::{dialogs, helpers::voice_selector, voice_events::event_emiter, voice_row::VoiceRow};
 
 type PlayHandler = RefCell<Option<Box<dyn Fn(u32)>>>;
 type StopHandler = RefCell<Option<Box<dyn Fn()>>>;
@@ -147,9 +142,12 @@ impl AudioControls {
     pub fn set_default_voice_from_settings(&self) {
         let settings = Settings::default();
         let default_voice_key = settings.get_default_voice();
-        
+
         if !default_voice_key.is_empty() {
-            voice_selector::set_selected_voice_by_key(&self.imp().voice_selector, &default_voice_key);
+            voice_selector::set_selected_voice_by_key(
+                &self.imp().voice_selector,
+                &default_voice_key,
+            );
         } else {
             println!("No default voice set in settings");
         }
@@ -204,7 +202,7 @@ impl AudioControls {
 
     pub fn populate_voice_selector(&self, voices: &[VoiceRow]) {
         voice_selector::populate_voice_selector(&self.imp().voice_selector, voices);
-        
+
         self.set_default_voice_from_settings();
     }
 

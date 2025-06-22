@@ -176,8 +176,7 @@ impl AiChat {
 
     fn setup_chat_panel(&self) {
         let imp = self.imp();
-        imp.chat_list
-            .set_selection_mode(gtk::SelectionMode::None);
+        imp.chat_list.set_selection_mode(gtk::SelectionMode::None);
     }
 
     pub fn add_message_to_chat(&self, message: &str, message_type: MessageType) {
@@ -187,10 +186,7 @@ impl AiChat {
         imp.chat_list.append(&row);
 
         // TODO: fix Auto-scroll to the bottom
-        if let Some(scrolled_window) = imp
-            .chat_list
-            .ancestor(gtk::ScrolledWindow::static_type())
-        {
+        if let Some(scrolled_window) = imp.chat_list.ancestor(gtk::ScrolledWindow::static_type()) {
             let adj = scrolled_window
                 .downcast_ref::<gtk::ScrolledWindow>()
                 .unwrap()
@@ -372,7 +368,10 @@ impl AiChat {
                 let llm_manager = imp.llm_manager.clone();
                 let language = self.get_selected_language_code().unwrap_or_default();
                 let response =
-                    spawn_tokio(async move { llm_manager.send_to_llm(&text.clone(), &language).await }).await;
+                    spawn_tokio(
+                        async move { llm_manager.send_to_llm(&text.clone(), &language).await },
+                    )
+                    .await;
                 match response {
                     Ok(response) => {
                         self.handle_ai_response(&response).await;
