@@ -82,6 +82,8 @@ pub async fn run_cli() -> Result<bool, Box<dyn Error>> {
         EspeakHandler::download_with_progress_cli().await?;
     }
 
+    EspeakHandler::set_espeak_environment();
+
     let voice_style = matches.get_one::<String>("voice").unwrap();
     let speed = matches.get_one::<f32>("speed").unwrap();
     let output_path = matches.get_one::<String>("output");

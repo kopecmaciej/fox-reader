@@ -13,6 +13,8 @@ pub struct KokorosTTS {
 
 impl KokorosTTS {
     pub async fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
+        crate::utils::espeak_handler::EspeakHandler::set_espeak_environment();
+
         let model_path = voice_config::get_kokoros_model_path();
         let voices_path = voice_config::get_kokoros_voices_path();
 

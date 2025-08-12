@@ -93,8 +93,6 @@ impl EspeakHandler {
             println!("Espeak data downloaded successfully.");
         }
 
-        EspeakHandler::set_espeak_environment();
-
         Ok(())
     }
 }
