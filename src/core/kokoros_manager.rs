@@ -12,6 +12,21 @@ pub struct KokorosTTS {
 }
 
 impl KokorosTTS {
+    fn language_from_voice_style(voice_style: &str) -> &'static str {
+        match voice_style.get(0..2).unwrap_or("") {
+            "af" | "am" => "en-us",
+            "bf" | "bm" => "en-gb",
+            "jf" | "jm" => "ja",
+            "zf" | "zm" => "cmn",
+            "ef" | "em" => "es",
+            "ff" | "fm" => "fr",
+            "hf" | "hm" => "hi",
+            "if" | "im" => "it",
+            "pf" | "pm" => "pt-br",
+            _ => "en-us",
+        }
+    }
+
     pub async fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         crate::utils::espeak_handler::EspeakHandler::set_espeak_environment();
 
@@ -37,8 +52,9 @@ impl KokorosTTS {
     ) -> Result<SamplesBuffer<f32>, Box<dyn Error + Send + Sync>> {
         let tts_engine = self.tts_engine.lock().await;
 
+        let lan = Self::language_from_voice_style(voice_style);
         let audio_data = tts_engine
-            .tts_raw_audio(text, "en", voice_style, speed, Some(0))
+            .tts_raw_audio(text, lan, voice_style, speed, Some(0))
             .map_err(|e| format!("TTS generation failed: {}", e))?;
 
         let samples_buffer = SamplesBuffer::new(1, self.sample_rate, audio_data);
@@ -55,9 +71,10 @@ impl KokorosTTS {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let tts_engine = self.tts_engine.lock().await;
 
+        let lan = Self::language_from_voice_style(voice_style);
         let opts = TTSOpts {
             txt: text,
-            lan: "en",
+            lan,
             style_name: voice_style,
             save_path: output_path,
             mono: true,
