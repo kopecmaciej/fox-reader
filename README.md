@@ -1,4 +1,8 @@
-# 🦊 Fox Reader
+<div align="center">
+  <img src="./assets/logo.svg">
+</div>
+
+---
 
 Fox Reader is a simple text-to-speech application built in Rust and GTK4 that
 converts text to speech using high-quality voices from
@@ -42,26 +46,31 @@ converts text to speech using high-quality voices from
 ### Prerequisites
 
 - **Operating Systems**: Primarily Linux-based distributions, tested on:
-   - Ubuntu 24.04
-   - Fedora 42
-   - Arch Linux (GNOME & Hyprland)
+  - Ubuntu 24.04
+  - Fedora 42
+  - Arch Linux (GNOME & Hyprland)
 
-- **GTK4** ≥ 4.12, Check version with: 
+- **GTK4** ≥ 4.12, Check version with:
+
 ```bash
 pkg-config --modversion gtk4
 ```
-- **Adwaita** >= 1.5, check version via 
+
+- **Adwaita** >= 1.5, check version via
+
 ```bash
 pkg-config --modversion libadwaita-1
 ```
+
 - **Speech Dispatcher** for reading via spd-say or browser (optional), example install on Arch Linux:
 
 ```bash
 sudo pacman -S speech-dispatcher
 
 ```
+
 - **Rust toolchain** (for building from source)
-[Install rust](https://www.rust-lang.org/tools/install)
+  [Install rust](https://www.rust-lang.org/tools/install)
 
 ### Environment Notes
 
@@ -72,6 +81,7 @@ sudo pacman -S speech-dispatcher
 ```bash
 sudo pacman -S libadwaita
 ```
+
 - Older versions of Ubuntu, Debian, Fedora etc. can have problem with running this as updating gtk4 to newer version can be a bit difficult.
 
 ### Install From Release
@@ -126,7 +136,7 @@ cargo build --release
 
 Fox Reader integrates with Speech Dispatcher through the app's CLI mode.
 A special script located in `~/.config/speech-dispatcher/fox-reader.sh`
-will forward data and options properly. If `Fox Reader` is missing in 
+will forward data and options properly. If `Fox Reader` is missing in
 `$PATH` you have to specify location by yourself in the script.
 
 ### CLI Usage
@@ -155,16 +165,19 @@ fox-reader --cli --model <MODEL_PATH> --text <TEXT> [--rate <RATE>] [--output <O
 #### Examples
 
 **Play speech immediately:**
+
 ```bash
 fox-reader --cli --voice pm_alex --text "Hello, this is Fox Reader speaking."
 ```
 
 **Adjust speech rate:**
+
 ```bash
 fox-reader --cli --voice pm_alex --text "This is faster speech." --speed 1.5
 ```
 
 **Save to file instead of playing:**
+
 ```bash
 fox-reader --cli --voice pm_alex --text "This will be saved to a file." --output ~/output.wav
 ```
